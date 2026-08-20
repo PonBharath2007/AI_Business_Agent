@@ -1,0 +1,38 @@
+INVOICE
+
+Invoice Number: INV-1001
+Date of Issue: July 10, 2026
+Payment Due Date: August 10, 2026
+Status: OVERDUE
+
+FROM:
+Summit Digital Agency
+100 Innovation Blvd, Suite 400
+New York, NY 10001
+contact@summitdigital.example
+
+BILL TO:
+ABC Ltd
+Attn: Accounts Department
+accounts@abc.example
+Phone: +1 (555) 301-1001
+
+--------------------------------------------------------------------------------
+DESCRIPTION                               QTY    UNIT PRICE     TOTAL
+--------------------------------------------------------------------------------
+Enterprise Cloud Consulting & Architecture  1    $5,000.00      $5,000.00
+--------------------------------------------------------------------------------
+SUBTOTAL:                                                       $5,000.00
+TAX (0%):                                                       $0.00
+TOTAL DUE:                                                      $5,000.00
+--------------------------------------------------------------------------------
+
+Payment Terms: Net 30 Days.
+Late Payment Terms: A late fee of 1.5% per month applies on all overdue balances.
+Banking Details:
+Bank: Global Commerce Bank
+Account No: 8849-2019-3381
+Routing No: 021000021
+SWIFT: GCBNUS33
+
+Thank you for your business!

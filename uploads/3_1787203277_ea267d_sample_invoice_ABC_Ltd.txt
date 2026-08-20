@@ -1,0 +1,12 @@
+INVOICE
+Invoice Number: INV-1001
+Customer: ABC Ltd
+Email: accounts@abc.example
+Date: July 10, 2026
+Due Date: August 10, 2026
+Status: OVERDUE
+
+Description: Enterprise Cloud Operations Architecture & Automation
+Total Amount Due: $5,000.00 (USD)
+
+Payment Terms: Net 30 days. Late fee of 1.5% applies for overdue balances.

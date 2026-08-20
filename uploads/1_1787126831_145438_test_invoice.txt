@@ -1,0 +1,8 @@
+INVOICE
+Invoice Number: INV-8801
+Customer: Alpha Tech Ltd
+Email: accounts@alphatech.example
+Date: 2026-07-01
+Due Date: 2026-08-01
+Amount Due: ,200.00
+Description: Cloud Software Modernization
