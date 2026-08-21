@@ -45,24 +45,24 @@ An intelligent, full-stack AI-powered digital employee for small and medium busi
 
 ### 2. Backend Setup
 ```bash
-# Navigate to project root
-cd AI_Business_Agent
+# Navigate to the backend folder
+cd AI_Business_Agent\backend
 
 # Copy backend/.env.example to backend/.env and set DATABASE_URL to the
 # Supabase Session Pooler connection string when using Supabase.
-# Run supabase/schema.sql in Supabase Dashboard -> SQL Editor first.
+# Run backend/supabase/schema.sql in Supabase Dashboard -> SQL Editor first.
 # (Optional) Set up your Gemini API key in backend/.env
 # GEMINI_API_KEY=your_gemini_api_key_here
 
 # Start FastAPI backend server
-python -m uvicorn backend.app.main:app --reload --port 8000
+python run.py
 ```
 Backend API will be available at: `http://localhost:8000` (API Docs at `http://localhost:8000/docs`).
 
 ### Supabase database setup
 
 The application includes a complete PostgreSQL migration at
-`supabase/schema.sql`. It matches the current FastAPI models and creates the
+`backend/supabase/schema.sql`. It matches the current FastAPI models and creates the
 tables, foreign keys, indexes, update triggers, and private document storage
 bucket. Run it once in the Supabase SQL Editor, then set `DATABASE_URL` in
 `backend/.env` to the Supabase Session Pooler URL using the `psycopg` driver.
@@ -75,7 +75,8 @@ Supabase service-role key in the frontend.
 
 ### 3. Frontend Setup
 ```bash
-# In a second terminal in the project root:
+# In a second terminal, navigate to the frontend folder:
+cd AI_Business_Agent\frontend
 npm run dev
 ```
 Frontend Web Application will be live at: `http://localhost:5173`.
