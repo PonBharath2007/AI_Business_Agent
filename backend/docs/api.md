@@ -1,6 +1,6 @@
 # REST API Reference: AI Business Operations Agent
 
-Base URL: `http://localhost:8000/api`
+Base URL: https://ai-business-agent-ui7z.onrender.com/api
 
 ---
 

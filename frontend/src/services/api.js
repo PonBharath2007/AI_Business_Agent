@@ -1,12 +1,8 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: '/api',
-  headers: {
-    'Content-Type': 'application/json',
-  },
+    baseURL: "https://ai-business-agent-ui7z.onrender.com"
 });
-
 // Request interceptor for injecting JWT token
 api.interceptors.request.use(
   (config) => {
