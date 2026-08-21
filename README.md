@@ -30,8 +30,8 @@ An intelligent, full-stack AI-powered digital employee for small and medium busi
 ## 🛠️ Technology Stack
 
 - **Frontend**: React.js 19 + Vite 8 + Tailwind CSS + Lucide Icons + Recharts
-- **Backend**: Python 3.12 + FastAPI + Uvicorn + Pydantic v2
-- **Database / ORM**: PostgreSQL / SQLite + SQLAlchemy ORM
+- **Backend**:      
+- **Database / ORM**: Supabase PostgreSQL / local SQLite + SQLAlchemy ORM
 - **AI Engine**: Google Gemini API (`gemini-1.5-flash`) + Intelligent Contextual Fallback Agent
 - **Document Processing**: PyMuPDF (`fitz`), Pillow, python-docx
 
@@ -48,6 +48,9 @@ An intelligent, full-stack AI-powered digital employee for small and medium busi
 # Navigate to project root
 cd AI_Business_Agent
 
+# Copy backend/.env.example to backend/.env and set DATABASE_URL to the
+# Supabase Session Pooler connection string when using Supabase.
+# Run supabase/schema.sql in Supabase Dashboard -> SQL Editor first.
 # (Optional) Set up your Gemini API key in backend/.env
 # GEMINI_API_KEY=your_gemini_api_key_here
 
@@ -55,6 +58,20 @@ cd AI_Business_Agent
 python -m uvicorn backend.app.main:app --reload --port 8000
 ```
 Backend API will be available at: `http://localhost:8000` (API Docs at `http://localhost:8000/docs`).
+
+### Supabase database setup
+
+The application includes a complete PostgreSQL migration at
+`supabase/schema.sql`. It matches the current FastAPI models and creates the
+tables, foreign keys, indexes, update triggers, and private document storage
+bucket. Run it once in the Supabase SQL Editor, then set `DATABASE_URL` in
+`backend/.env` to the Supabase Session Pooler URL using the `psycopg` driver.
+
+The current application keeps its existing FastAPI custom JWT authentication,
+so the migration uses integer IDs for compatibility. Supabase Auth, UUID user
+IDs, and `auth.uid()` Row Level Security policies should be introduced as a
+separate migration after the database connection is verified. Do not expose a
+Supabase service-role key in the frontend.
 
 ### 3. Frontend Setup
 ```bash

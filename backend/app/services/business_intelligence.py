@@ -396,22 +396,52 @@ def get_active_exceptions(db: Session, business: Business) -> List[Dict[str, Any
             "action_target": "/approvals"
         })
 
-    # 4. Expiring contract tasks
-    expiring_tasks = db.query(Task).filter(
+    # 4. Tasks & Operations Classification (Dynamic Evaluation)
+    active_tasks = db.query(Task).filter(
         Task.business_id == business.id,
-        Task.title.ilike("%contract%"),
         Task.status != "Completed"
     ).all()
-    for t in expiring_tasks:
+
+    for t in active_tasks:
+        created_date = t.created_at.date() if t.created_at else today
+        days_pending = max(0, (today - created_date).days)
+        is_overdue = (t.due_date is not None and t.due_date < today)
+        overdue_days = (today - t.due_date).days if is_overdue else 0
+
+        # Classification Rules:
+        # 1. Critical Tasks: Overdue OR High Priority & Overdue
+        if is_overdue:
+            severity = "CRITICAL"
+            category = "Overdue Task"
+            title = f"Overdue Task: {t.title}"
+            desc = t.description or f"Task is overdue by {overdue_days} day(s) (Due: {t.due_date}). Priority: {t.priority}."
+            suggested_action = "Expedite and resolve overdue task"
+
+        # 2. High Priority Tasks: Pending with age < 15 days
+        elif days_pending < 15:
+            severity = "HIGH"
+            category = "Active Task (< 15d)"
+            title = f"Active Task: {t.title}"
+            desc = t.description or f"Task has been pending for {days_pending} day(s). Priority: {t.priority}."
+            suggested_action = "Review task progress and assignees"
+
+        # 3. Medium Priority Tasks: Pending with age >= 15 days
+        else:
+            severity = "MEDIUM"
+            category = "Aging Task (> 15d)"
+            title = f"Aging Task: {t.title}"
+            desc = t.description or f"Task has been pending for {days_pending} day(s) (> 15 days). Priority: {t.priority}."
+            suggested_action = "Reassess priority or resolve long-standing task"
+
         exceptions.append({
             "id": f"exc_task_{t.id}",
-            "severity": "MEDIUM",
-            "category": "Expiring Agreement",
-            "title": t.title,
-            "description": t.description or "Contract renewal or expiration approaching.",
+            "severity": severity,
+            "category": category,
+            "title": title,
+            "description": desc,
             "entity_type": "task",
             "entity_id": t.id,
-            "suggested_action": "Review renewal term sheet",
+            "suggested_action": suggested_action,
             "action_type": "navigate",
             "action_target": "/tasks"
         })

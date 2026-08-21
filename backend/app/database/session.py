@@ -10,6 +10,11 @@ load_dotenv(PROJECT_ROOT / ".env")
 load_dotenv(PROJECT_ROOT / "backend" / ".env")
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./ai_business_agent.db")
+environment = os.getenv("ENVIRONMENT", "development").lower()
+allow_sqlite_fallback = os.getenv(
+    "ALLOW_SQLITE_FALLBACK",
+    "false" if environment == "production" else "true"
+).lower() == "true"
 
 # Normalize relative sqlite path to absolute project root path
 if DATABASE_URL.startswith("sqlite:///./") or DATABASE_URL == "sqlite:///ai_business_agent.db":
@@ -28,7 +33,13 @@ try:
         pool_pre_ping=True
     )
 except Exception as e:
-    # Fallback to SQLite if PostgreSQL fails to connect
+    if not allow_sqlite_fallback:
+        raise RuntimeError(
+            "Database initialization failed and SQLite fallback is disabled. "
+            "Check DATABASE_URL and the Supabase connection settings."
+        ) from e
+
+    # Keep local development usable when the configured database is unavailable.
     print(f"[Warning] Failed to initialize {DATABASE_URL}: {e}. Falling back to local SQLite.")
     abs_db_path = PROJECT_ROOT / "ai_business_agent.db"
     DATABASE_URL = f"sqlite:///{abs_db_path.as_posix()}"
