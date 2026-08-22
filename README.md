@@ -105,3 +105,4 @@ Frontend Web Application will be live at: `http://localhost:5173`.
    - Open **AI Command Center** and type:
      > *"What needs my attention today?"*
    - Observe the live database retrieval providing a crisp, actionable operational summary.
+"# AI_Business_Agent" 
