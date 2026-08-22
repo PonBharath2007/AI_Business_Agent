@@ -24,5 +24,10 @@ backend/.env
 *.suo
 *.ntvs*
 *.njsproj
-*.sln
 *.sw?
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyc
+

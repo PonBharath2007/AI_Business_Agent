@@ -54,12 +54,21 @@ app = FastAPI(
 )
 
 # CORS configuration
-cors_origins_env = os.getenv("CORS_ORIGINS", "http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173,http://127.0.0.1:3000")
-origins = [origin.strip() for origin in cors_origins_env.split(",") if origin.strip()]
+default_origins = [
+    "http://localhost:5173",
+    "http://localhost:3000",
+    "http://127.0.0.1:5173",
+    "http://127.0.0.1:3000",
+    "https://ai-business-agent-ten.vercel.app",
+]
+cors_origins_env = os.getenv("CORS_ORIGINS", "")
+custom_origins = [origin.strip() for origin in cors_origins_env.split(",") if origin.strip()]
+origins = list(set(default_origins + custom_origins))
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
+    allow_origin_regex=r"^https:\/\/.*\.vercel\.app$|^https:\/\/.*\.onrender\.com$|^http:\/\/localhost(:\d+)?$|^http:\/\/127\.0\.0\.1(:\d+)?$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

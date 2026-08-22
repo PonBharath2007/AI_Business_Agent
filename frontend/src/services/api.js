@@ -1,7 +1,28 @@
 import axios from 'axios';
 
+// Resolve base API URL:
+// 1. Vite environment variable VITE_API_URL (if provided)
+// 2. Production fallback to Render backend
+// 3. Development fallback to localhost:8000/api
+const getBaseURL = () => {
+  let url = import.meta.env.VITE_API_URL;
+  if (!url) {
+    url = import.meta.env.PROD
+      ? 'https://ai-business-agent-ui7z.onrender.com/api'
+      : 'http://localhost:8000/api';
+  }
+  url = url.trim().replace(/\/+$/, '');
+  if (!url.endsWith('/api')) {
+    url = `${url}/api`;
+  }
+  return url;
+};
+
 const api = axios.create({
-    baseURL: "https://ai-business-agent-ui7z.onrender.com"
+  baseURL: getBaseURL(),
+  headers: {
+    'Content-Type': 'application/json'
+  }
 });
 // Request interceptor for injecting JWT token
 api.interceptors.request.use(
