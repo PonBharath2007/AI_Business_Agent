@@ -4,13 +4,29 @@ import axios from 'axios';
 // 1. Vite environment variable VITE_API_URL (if provided)
 // 2. Production fallback to Render backend
 // 3. Development fallback to localhost:8000/api
+import axios from 'axios';
+
+// Resolve base API URL
 const getBaseURL = () => {
   let url = import.meta.env.VITE_API_URL;
+
   if (!url) {
     url = import.meta.env.PROD
       ? 'https://ai-business-agent-ui7z.onrender.com/api'
       : 'http://localhost:8000/api';
   }
+
+  return url.replace(/\/$/, '');
+};
+
+const api = axios.create({
+  baseURL: getBaseURL(),
+});
+
+export default api;
+
+  return url.replace(/\/$/, '');
+};
   url = url.trim().replace(/\/+$/, '');
   if (!url.endsWith('/api')) {
     url = `${url}/api`;
