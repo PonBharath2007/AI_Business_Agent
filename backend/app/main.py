@@ -97,7 +97,7 @@ app.add_middleware(
 from backend.app.routes import (
     auth, dashboard, customers, documents, invoices, tasks, approvals, 
     ai, analytics, activities, notifications, settings, policies, memory, 
-    workflows, intelligence, exceptions
+    workflows, intelligence, exceptions, communications
 )
 
 app.include_router(auth.router)
@@ -109,6 +109,7 @@ app.include_router(invoices.router)
 app.include_router(tasks.router)
 app.include_router(approvals.router)
 app.include_router(ai.router)
+app.include_router(communications.router)
 app.include_router(analytics.router)
 app.include_router(activities.router)
 app.include_router(notifications.router)

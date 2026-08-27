@@ -5,6 +5,7 @@ import {
   Search,
   Mail,
   Phone,
+  MessageSquare,
   Building,
   Receipt,
   ArrowRight,
@@ -19,7 +20,8 @@ import {
   Send,
   ShieldCheck,
   BrainCircuit,
-  Activity
+  Activity,
+  History
 } from 'lucide-react';
 import api from '../services/api';
 import { useBusiness } from '../context/BusinessContext';
@@ -28,6 +30,7 @@ import Button from '../components/common/Button';
 import Badge from '../components/common/Badge';
 import Modal from '../components/common/Modal';
 import EmptyState from '../components/common/EmptyState';
+import CommunicationModal from '../components/common/CommunicationModal';
 
 const CustomersPage = ({ onNavigate }) => {
   const { business, formatMoney } = useBusiness();
@@ -41,10 +44,16 @@ const CustomersPage = ({ onNavigate }) => {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
+  // Communication Modal State
+  const [commModalOpen, setCommModalOpen] = useState(false);
+  const [selectedCommCustomer, setSelectedCommCustomer] = useState(null);
+  const [commModalType, setCommModalType] = useState('email'); // 'email', 'sms', 'call'
+
   // Customer 360 Modal State
   const [customer360ModalOpen, setCustomer360ModalOpen] = useState(false);
   const [customer360Data, setCustomer360Data] = useState(null);
   const [loading360, setLoading360] = useState(false);
+  const [customerCommunications, setCustomerCommunications] = useState([]);
 
   // Form state
   const [newCustomer, setNewCustomer] = useState({
@@ -85,25 +94,40 @@ const CustomersPage = ({ onNavigate }) => {
     fetchCustomers();
   };
 
+  const handleOpenCommunication = (customer, type = 'email') => {
+    setSelectedCommCustomer(customer);
+    setCommModalType(type);
+    setCommModalOpen(true);
+  };
+
   const handleOpen360 = async (customer) => {
     setCustomer360ModalOpen(true);
     setLoading360(true);
     setCustomer360Data(null);
+    setCustomerCommunications([]);
     try {
-      const res = await api.get(`/intelligence/customer-360/${customer.id}`);
-      setCustomer360Data(res.data);
+      const [res360, resComm] = await Promise.all([
+        api.get(`/intelligence/customer-360/${customer.id}`).catch(() => null),
+        api.get(`/communications/customer/${customer.id}`).catch(() => ({ data: [] }))
+      ]);
+
+      if (res360?.data) {
+        setCustomer360Data(res360.data);
+      } else {
+        setCustomer360Data({
+          customer: { id: customer.id, name: customer.name, email: customer.email, company: customer.company || customer.name, phone: customer.phone },
+          financials: { total_invoiced: customer.overdue_amount || 0, paid_amount: 0, overdue_amount: customer.overdue_amount || 0, currency: business.currency },
+          behavior: { tag: customer.overdue_amount > 0 ? 'Frequently Delayed' : 'Active Account', badge: customer.overdue_amount > 0 ? 'warning' : 'success', score: 80, ai_insight: 'Standard account billing profile.', next_action: 'Monitor upcoming invoices.' },
+          invoices: [],
+          emails: [],
+          tasks: [],
+          ai_memories: []
+        });
+      }
+
+      setCustomerCommunications(resComm.data || []);
     } catch (err) {
       console.error('Error fetching 360 data:', err);
-      // Construct fallback view
-      setCustomer360Data({
-        customer: { id: customer.id, name: customer.name, email: customer.email, company: customer.company || customer.name, phone: customer.phone },
-        financials: { total_invoiced: customer.overdue_amount || 0, paid_amount: 0, overdue_amount: customer.overdue_amount || 0, currency: business.currency },
-        behavior: { tag: customer.overdue_amount > 0 ? 'Frequently Delayed' : 'Active Account', badge: customer.overdue_amount > 0 ? 'warning' : 'success', score: 80, ai_insight: 'Standard account billing profile.', next_action: 'Monitor upcoming invoices.' },
-        invoices: [],
-        emails: [],
-        tasks: [],
-        ai_memories: []
-      });
     } finally {
       setLoading360(false);
     }
@@ -201,11 +225,11 @@ const CustomersPage = ({ onNavigate }) => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-800">
         <div>
           <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight flex items-center gap-2">
-            Customer 360 & Client Directory
-            <Badge variant="ai">Behavioral Scoring</Badge>
+            Customers & Multilingual Communication
+            <Badge variant="ai">EN • தமிழ் • EN+TA</Badge>
           </h2>
           <p className="text-xs sm:text-sm text-slate-400 mt-1">
-            Comprehensive 360° views with payment promptness scores, memory observations, and 1-click actions.
+            Manage customer accounts with 1-click Email (SMTP), SMS, Call, and Customer 360° views.
           </p>
         </div>
 
@@ -240,7 +264,7 @@ const CustomersPage = ({ onNavigate }) => {
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search by name, company, email..."
+            placeholder="Search by name, company, email, phone..."
             className="w-full bg-slate-900 border border-slate-700/80 rounded-xl pl-9 pr-4 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
           />
         </div>
@@ -291,7 +315,7 @@ const CustomersPage = ({ onNavigate }) => {
                   <div className="mt-3.5 space-y-1.5 text-xs text-slate-300">
                     <div className="flex items-center gap-2 truncate">
                       <Mail className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                      <span className="truncate text-slate-300">{cust.email}</span>
+                      <span className="truncate text-slate-300">{cust.email || 'No email'}</span>
                     </div>
                     {cust.phone && (
                       <div className="flex items-center gap-2">
@@ -316,7 +340,42 @@ const CustomersPage = ({ onNavigate }) => {
                   </div>
                 </div>
 
-                {/* Card Actions */}
+                {/* Communication Action Buttons Strip */}
+                <div className="space-y-2 pt-2 border-t border-slate-800/80">
+                  <div className="flex items-center justify-between text-[11px] text-slate-400 font-bold uppercase tracking-wider">
+                    <span>Actions</span>
+                    <span className="text-[10px] text-indigo-400 normal-case font-normal">Multilingual AI</span>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-1.5">
+                    <button
+                      onClick={() => handleOpenCommunication(cust, 'email')}
+                      className="flex items-center justify-center gap-1 py-1.5 px-2 rounded-xl bg-slate-900 border border-slate-700/80 hover:border-indigo-500 text-xs font-semibold text-slate-200 hover:text-white transition-all shadow-sm"
+                      title="Compose Email (English / Tamil / Bilingual)"
+                    >
+                      <Mail className="w-3.5 h-3.5 text-indigo-400" />
+                      <span>Email</span>
+                    </button>
+                    <button
+                      onClick={() => handleOpenCommunication(cust, 'sms')}
+                      className="flex items-center justify-center gap-1 py-1.5 px-2 rounded-xl bg-slate-900 border border-slate-700/80 hover:border-indigo-500 text-xs font-semibold text-slate-200 hover:text-white transition-all shadow-sm"
+                      title="Send SMS"
+                    >
+                      <MessageSquare className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>SMS</span>
+                    </button>
+                    <button
+                      onClick={() => handleOpenCommunication(cust, 'call')}
+                      className="flex items-center justify-center gap-1 py-1.5 px-2 rounded-xl bg-slate-900 border border-slate-700/80 hover:border-indigo-500 text-xs font-semibold text-slate-200 hover:text-white transition-all shadow-sm"
+                      title="Call Customer (tel:)"
+                    >
+                      <Phone className="w-3.5 h-3.5 text-amber-400" />
+                      <span>Call</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Bottom Tools */}
                 <div className="flex items-center justify-between pt-2 border-t border-slate-800/80">
                   <Button
                     onClick={() => handleOpen360(cust)}
@@ -332,14 +391,14 @@ const CustomersPage = ({ onNavigate }) => {
                     <button
                       onClick={() => handleEditClick(cust)}
                       className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
-                      title="Edit"
+                      title="Edit Profile"
                     >
                       <Edit2 className="w-3.5 h-3.5" />
                     </button>
                     <button
                       onClick={() => handleDelete(cust.id, cust.name)}
                       className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-slate-800 transition-colors"
-                      title="Delete"
+                      title="Delete Profile"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -357,7 +416,7 @@ const CustomersPage = ({ onNavigate }) => {
           isOpen={customer360ModalOpen}
           onClose={() => setCustomer360ModalOpen(false)}
           title={`Customer 360° View: ${customer360Data?.customer?.name || 'Loading...'}`}
-          size="lg"
+          maxWidth="max-w-4xl"
         >
           {loading360 ? (
             <div className="py-16 flex flex-col items-center justify-center space-y-3">
@@ -382,16 +441,46 @@ const CustomersPage = ({ onNavigate }) => {
                       </Badge>
                     </div>
                     <p className="text-[11px] text-slate-400 mt-0.5">
-                      {customer360Data.customer.company} • {customer360Data.customer.email}
+                      {customer360Data.customer.company} • {customer360Data.customer.email} • {customer360Data.customer.phone || 'No phone'}
                     </p>
                   </div>
                 </div>
 
-                <div className="text-right sm:border-l sm:border-slate-800 sm:pl-4">
-                  <span className="text-[10px] uppercase font-bold text-slate-400">Behavioral Standing</span>
-                  <p className="text-xs font-semibold text-emerald-400 mt-0.5">
-                    {customer360Data.behavior.score >= 80 ? 'Reliable Account' : 'Follow-up Recommended'}
-                  </p>
+                {/* Quick 1-Click Multilingual Communication Actions */}
+                <div className="flex items-center gap-2">
+                  <Button
+                    onClick={() => {
+                      setCustomer360ModalOpen(false);
+                      handleOpenCommunication(customer360Data.customer, 'email');
+                    }}
+                    variant="secondary"
+                    size="sm"
+                    icon={Mail}
+                  >
+                    Email
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      setCustomer360ModalOpen(false);
+                      handleOpenCommunication(customer360Data.customer, 'sms');
+                    }}
+                    variant="secondary"
+                    size="sm"
+                    icon={MessageSquare}
+                  >
+                    SMS
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      setCustomer360ModalOpen(false);
+                      handleOpenCommunication(customer360Data.customer, 'call');
+                    }}
+                    variant="secondary"
+                    size="sm"
+                    icon={Phone}
+                  >
+                    Call
+                  </Button>
                 </div>
               </div>
 
@@ -439,14 +528,14 @@ const CustomersPage = ({ onNavigate }) => {
                   <Button
                     onClick={() => {
                       setCustomer360ModalOpen(false);
-                      onNavigate('email_assistant');
+                      handleOpenCommunication(customer360Data.customer, 'email');
                     }}
                     variant="primary"
                     size="sm"
                     icon={Send}
                     className="text-xs"
                   >
-                    Draft Message
+                    Compose Notice
                   </Button>
                 </div>
               </div>
@@ -457,7 +546,7 @@ const CustomersPage = ({ onNavigate }) => {
                   <Receipt className="w-3.5 h-3.5 text-indigo-400" />
                   <span>Invoices & Settlement History ({customer360Data.invoices?.length || 0})</span>
                 </h4>
-                <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
+                <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
                   {!customer360Data.invoices?.length ? (
                     <p className="text-slate-500 text-[11px] py-2">No invoices recorded for this account.</p>
                   ) : (
@@ -478,22 +567,48 @@ const CustomersPage = ({ onNavigate }) => {
                 </div>
               </div>
 
-              {/* AI Memory Tags */}
-              {customer360Data.ai_memories?.length > 0 && (
-                <div>
-                  <h4 className="font-bold text-white text-xs mb-2 flex items-center gap-1.5">
-                    <BrainCircuit className="w-3.5 h-3.5 text-violet-400" />
-                    <span>AI Business Memories for {customer360Data.customer.name}</span>
-                  </h4>
-                  <div className="space-y-1.5">
-                    {customer360Data.ai_memories.map((m) => (
-                      <div key={m.id} className="p-2 rounded-lg bg-violet-950/20 border border-violet-500/20 text-[11px] text-slate-300">
-                        <strong className="text-violet-300">{m.key}:</strong> {m.value}
+              {/* Multilingual Communication History Timeline */}
+              <div>
+                <h4 className="font-bold text-white text-xs mb-2 flex items-center gap-1.5">
+                  <History className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Communication History (Email / SMS / Call) ({customerCommunications.length})</span>
+                </h4>
+                <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
+                  {!customerCommunications.length ? (
+                    <p className="text-slate-500 text-[11px] py-2">No communications recorded yet for this client.</p>
+                  ) : (
+                    customerCommunications.map((comm) => (
+                      <div
+                        key={comm.id}
+                        className="p-2.5 rounded-xl bg-slate-900/90 border border-slate-800 space-y-1 text-[11px]"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-1.5">
+                            <span className="px-1.5 py-0.5 rounded bg-slate-800 text-[10px] font-bold text-indigo-300 uppercase">
+                              {comm.communication_type}
+                            </span>
+                            <span className="px-1.5 py-0.5 rounded bg-indigo-950 text-[10px] font-semibold text-indigo-400 uppercase">
+                              {comm.language}
+                            </span>
+                            <span className="font-semibold text-white truncate max-w-xs">
+                              {comm.subject || comm.recipient}
+                            </span>
+                          </div>
+                          <Badge variant={comm.status === 'sent' ? 'success' : (comm.status === 'approved' ? 'success' : 'warning')}>
+                            {comm.status.toUpperCase()}
+                          </Badge>
+                        </div>
+                        <p className="text-slate-300 text-[11px] line-clamp-2 leading-relaxed">
+                          {comm.message}
+                        </p>
+                        <span className="text-[10px] text-slate-500 block">
+                          {new Date(comm.created_at).toLocaleString()}
+                        </span>
                       </div>
-                    ))}
-                  </div>
+                    ))
+                  )}
                 </div>
-              )}
+              </div>
 
               {/* Modal Footer */}
               <div className="flex justify-end gap-2 pt-3 border-t border-slate-800">
@@ -504,6 +619,17 @@ const CustomersPage = ({ onNavigate }) => {
             </div>
           )}
         </Modal>
+      )}
+
+      {/* Reusable Customer Communication Modal */}
+      {commModalOpen && selectedCommCustomer && (
+        <CommunicationModal
+          isOpen={commModalOpen}
+          onClose={() => setCommModalOpen(false)}
+          customer={selectedCommCustomer}
+          initialType={commModalType}
+          onSuccess={fetchCustomers}
+        />
       )}
 
       {/* Create Customer Modal */}

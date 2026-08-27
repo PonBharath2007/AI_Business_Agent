@@ -7,6 +7,7 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [token, setToken] = useState(localStorage.getItem('token') || '');
+  const [authNotification, setAuthNotification] = useState(null);
 
   const fetchCurrentUser = useCallback(async () => {
     const storedToken = localStorage.getItem('token');
@@ -35,9 +36,53 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
+  // Check URL parameters for OAuth callbacks / redirects
   useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const tokenParam = urlParams.get('token');
+    const errorParam = urlParams.get('error');
+    const messageParam = urlParams.get('message');
+    const providerParam = urlParams.get('provider');
+    const actionParam = urlParams.get('action');
+
+    if (tokenParam) {
+      localStorage.setItem('token', tokenParam);
+      setToken(tokenParam);
+
+      // Clean query parameters from address bar
+      window.history.replaceState({}, document.title, window.location.pathname);
+
+      if (actionParam === 'linked') {
+        setAuthNotification({
+          type: 'info',
+          title: 'Google Account Linked',
+          message: 'Your Google identity was successfully linked to your account.'
+        });
+      } else if (actionParam === 'created') {
+        setAuthNotification({
+          type: 'success',
+          title: 'Welcome to AI Business Agent',
+          message: 'Your new business account was created with Google.'
+        });
+      } else {
+        setAuthNotification({
+          type: 'success',
+          title: 'Signed in with Google',
+          message: 'Successfully authenticated via Google.'
+        });
+      }
+    } else if (errorParam) {
+      window.history.replaceState({}, document.title, window.location.pathname);
+      const decodedMessage = messageParam ? decodeURIComponent(messageParam) : 'Google sign-in was cancelled or failed.';
+      setAuthNotification({
+        type: 'warning',
+        title: 'Authentication Notice',
+        message: decodedMessage
+      });
+    }
+
     fetchCurrentUser();
-  }, [fetchCurrentUser, token]);
+  }, [fetchCurrentUser]);
 
   const login = async (email, password) => {
     if (!email || !password) {
@@ -80,6 +125,26 @@ export const AuthProvider = ({ children }) => {
     return res.data;
   };
 
+  const loginWithGoogle = async (credentialOrCode) => {
+    const payload = typeof credentialOrCode === 'string'
+      ? { credential: credentialOrCode }
+      : credentialOrCode;
+
+    const res = await api.post('/auth/google/verify', payload);
+    const authToken = res.data.access_token;
+    const authUser = res.data.user;
+
+    localStorage.setItem('token', authToken);
+    setToken(authToken);
+    setUser(authUser);
+    return res.data;
+  };
+
+  const initiateGoogleLogin = () => {
+    const apiBase = api.defaults.baseURL || '/api';
+    window.location.href = `${apiBase}/auth/google/login`;
+  };
+
   const logout = () => {
     localStorage.removeItem('token');
     setToken('');
@@ -90,6 +155,8 @@ export const AuthProvider = ({ children }) => {
     return await login('admin@summitdigital.com', 'admin123');
   };
 
+  const clearAuthNotification = () => setAuthNotification(null);
+
   return (
     <AuthContext.Provider value={{
       user,
@@ -97,8 +164,12 @@ export const AuthProvider = ({ children }) => {
       loading,
       login,
       register,
+      loginWithGoogle,
+      initiateGoogleLogin,
       logout,
       quickDemoLogin,
+      authNotification,
+      clearAuthNotification,
       refreshUser: fetchCurrentUser
     }}>
       {children}

@@ -25,10 +25,19 @@ class UserOut(BaseModel):
     role: str
     business_id: Optional[int] = None
     business_name: Optional[str] = None
+    auth_provider: Optional[str] = "local"
+    google_id: Optional[str] = None
+    profile_picture: Optional[str] = None
+    email_verified: Optional[bool] = False
     created_at: datetime
 
     class Config:
         from_attributes = True
+
+class GoogleTokenVerifyRequest(BaseModel):
+    credential: Optional[str] = None  # Google ID token / JWT
+    code: Optional[str] = None        # Authorization code if exchanging code
+    redirect_uri: Optional[str] = None
 
 class Token(BaseModel):
     access_token: str
@@ -233,6 +242,7 @@ class EmailGenerateRequest(BaseModel):
     invoice_id: Optional[int] = None
     template_type: Optional[str] = "payment_reminder" # payment_reminder, customer_followup, appointment_confirmation, general_inquiry
     tone: Optional[str] = "professional" # professional, friendly, urgent, formal
+    language: Optional[str] = "en" # en, ta, en_ta
     custom_instructions: Optional[str] = None
 
 class EmailSendRequest(BaseModel):
@@ -487,4 +497,54 @@ class ExceptionItemOut(BaseModel):
     suggested_action: str
     action_type: str # navigate, approve, generate_reminder, view
     action_target: str
+
+# ----------------- COMMUNICATION SCHEMAS -----------------
+class CommunicationGenerateRequest(BaseModel):
+    customer_id: Optional[int] = None
+    invoice_id: Optional[int] = None
+    communication_type: Optional[str] = "email" # email, sms
+    language: Optional[str] = "en" # en, ta, en_ta
+    template_type: Optional[str] = "payment_reminder"
+    tone: Optional[str] = "professional"
+    custom_instructions: Optional[str] = None
+
+class CommunicationGenerateResponse(BaseModel):
+    subject: Optional[str] = ""
+    body: str
+    recipient_email: Optional[str] = ""
+    recipient_phone: Optional[str] = ""
+    language: str = "en"
+    channel: str = "email"
+    engine: str = "AI Assistant"
+    generation_steps: Optional[List[str]] = []
+
+class CommunicationSendRequest(BaseModel):
+    customer_id: Optional[int] = None
+    communication_type: str = "email" # email, sms
+    language: Optional[str] = "en" # en, ta, en_ta
+    recipient: str
+    subject: Optional[str] = None
+    message: str
+    approval_id: Optional[int] = None
+
+class CallInitiateRequest(BaseModel):
+    customer_id: Optional[int] = None
+    phone_number: str
+
+class CommunicationLogOut(BaseModel):
+    id: int
+    business_id: int
+    customer_id: Optional[int] = None
+    customer_name: Optional[str] = None
+    communication_type: str
+    language: str
+    recipient: str
+    subject: Optional[str] = None
+    message: str
+    status: str
+    sent_at: Optional[datetime] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
 

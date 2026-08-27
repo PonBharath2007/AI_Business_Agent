@@ -90,21 +90,24 @@ def generate_email_endpoint(
         business_signature=business.email_signature,
         template_type=req.template_type or "payment_reminder",
         tone=req.tone or "professional",
-        custom_instructions=req.custom_instructions
+        custom_instructions=req.custom_instructions,
+        language=getattr(req, "language", "en") or "en"
     )
 
     # Log draft generation activity in background
+    lang_tag = {"en": "English", "ta": "Tamil", "en_ta": "English + Tamil"}.get(getattr(req, "language", "en"), "English")
     log_activity(
         db,
         business_id=business.id,
         actor_type="AI Agent",
         action="Email Draft Generated",
-        description=f"Generated '{req.template_type}' draft with {req.tone} tone for {customer_name} ({customer_email}).",
+        description=f"Generated '{req.template_type}' draft in {lang_tag} with {req.tone} tone for {customer_name} ({customer_email}).",
         metadata={
             "customer_id": req.customer_id,
             "invoice_id": req.invoice_id,
             "template_type": req.template_type,
             "tone": req.tone,
+            "language": getattr(req, "language", "en"),
             "engine": draft.get("engine", "AI Assistant")
         }
     )
@@ -160,6 +163,8 @@ def send_email_direct(
     db: Session = Depends(get_db),
     business: Business = Depends(get_current_business)
 ):
+    from backend.app.models.models import CommunicationLog
+    from datetime import datetime
     # Send via real SMTP (or simulated if no credentials configured)
     delivery_res = send_real_email(
         to_email=req.recipient_email,
@@ -179,8 +184,23 @@ def send_email_direct(
         approval_id=req.approval_id
     )
     db.add(email_rec)
+
+    # Also record in CommunicationLog
+    comm_log = CommunicationLog(
+        business_id=business.id,
+        customer_id=req.customer_id,
+        communication_type="email",
+        language="en",
+        recipient=req.recipient_email,
+        subject=req.subject,
+        message=req.body,
+        status="sent" if delivery_res.get("delivered") else "failed",
+        sent_at=datetime.utcnow() if delivery_res.get("delivered") else None
+    )
+    db.add(comm_log)
     db.commit()
     db.refresh(email_rec)
+    db.refresh(comm_log)
 
     mode_tag = "Live SMTP" if delivery_res.get("mode") == "live" else "Simulated"
     log_activity(
@@ -189,7 +209,7 @@ def send_email_direct(
         actor_type="Business Owner",
         action="Email Dispatched",
         description=f"Sent email ({mode_tag}) '{req.subject}' to {req.recipient_email}.",
-        metadata={"email_id": email_rec.id, "recipient": req.recipient_email, "delivery": delivery_res}
+        metadata={"email_id": email_rec.id, "communication_id": comm_log.id, "recipient": req.recipient_email, "delivery": delivery_res}
     )
 
     create_notification(
@@ -203,6 +223,7 @@ def send_email_direct(
     return {
         "message": delivery_res.get("message", f"Email successfully dispatched to {req.recipient_email}."),
         "email_id": email_rec.id,
+        "communication_id": comm_log.id,
         "delivery": delivery_res,
         "status": "sent"
     }

@@ -8,9 +8,11 @@ import {
   Send,
   AlertCircle,
   Mail,
+  MessageSquare,
   User,
   Clock,
-  Check
+  Check,
+  Languages
 } from 'lucide-react';
 import api from '../services/api';
 import { useBusiness } from '../context/BusinessContext';
@@ -82,19 +84,25 @@ const ApprovalsPage = ({ onNavigate }) => {
   };
 
   const openEditModal = (app) => {
+    const isSms = app.action_type === 'send_sms' || app.action_data?.channel === 'sms';
     setEditingApproval(app);
-    setEditSubject(app.action_data?.subject || `Payment Reminder – Invoice ${app.action_data?.invoice_number || 'INV-1001'}`);
-    setEditBody(app.action_data?.body || '');
-    setEditRecipient(app.action_data?.recipient_email || app.action_data?.customer_email || '');
+    setEditSubject(app.action_data?.subject || (isSms ? 'SMS Notice' : `Payment Reminder – Invoice ${app.action_data?.invoice_number || 'INV-1001'}`));
+    setEditBody(app.action_data?.body || app.action_data?.message || '');
+    if (isSms) {
+      setEditRecipient(app.action_data?.recipient_phone || app.action_data?.phone || app.action_data?.customer_phone || '');
+    } else {
+      setEditRecipient(app.action_data?.recipient_email || app.action_data?.customer_email || '');
+    }
   };
 
   const handleSaveAndApprove = async () => {
     if (!editingApproval) return;
+    const isSms = editingApproval.action_type === 'send_sms' || editingApproval.action_data?.channel === 'sms';
     const updatedData = {
       ...editingApproval.action_data,
       subject: editSubject,
       body: editBody,
-      recipient_email: editRecipient
+      ...(isSms ? { recipient_phone: editRecipient } : { recipient_email: editRecipient })
     };
     await handleApprove(editingApproval, updatedData);
   };
@@ -106,7 +114,7 @@ const ApprovalsPage = ({ onNavigate }) => {
         <div>
           <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight flex items-center gap-2">
             Approval Center (Human-in-the-Loop AI)
-            <Badge variant="ai">Safety & Control</Badge>
+            <Badge variant="ai">Multilingual Communication</Badge>
           </h2>
           <p className="text-xs sm:text-sm text-slate-400 mt-1">
             Review, edit, and approve AI-generated business actions. Sensitive operations are never executed without your sign-off.
@@ -124,7 +132,7 @@ const ApprovalsPage = ({ onNavigate }) => {
             <button
               key={tab.id}
               onClick={() => setStatusFilter(tab.id)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                 statusFilter === tab.id
                   ? 'bg-indigo-600 text-white shadow-md'
                   : 'text-slate-400 hover:text-white'
@@ -152,6 +160,9 @@ const ApprovalsPage = ({ onNavigate }) => {
             const isPending = app.status === 'pending';
             const isApproved = app.status === 'approved';
             const isRejected = app.status === 'rejected';
+            const isSms = app.action_type === 'send_sms' || data.channel === 'sms';
+            const lang = data.language || 'en';
+            const langTag = lang === 'ta' ? 'தமிழ்' : (lang === 'en_ta' ? 'EN + தமிழ்' : 'English');
 
             return (
               <div
@@ -167,12 +178,15 @@ const ApprovalsPage = ({ onNavigate }) => {
                 <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-slate-800/80">
                   <div className="flex items-start gap-3.5">
                     <div className="w-10 h-10 rounded-2xl bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 flex items-center justify-center shrink-0">
-                      <Sparkles className="w-5 h-5" />
+                      {isSms ? <MessageSquare className="w-5 h-5" /> : <Sparkles className="w-5 h-5" />}
                     </div>
                     <div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <span className="text-xs font-bold uppercase tracking-wider text-indigo-400">
-                          {app.action_type === 'send_payment_reminder' ? 'Payment Reminder Dispatch' : app.action_type}
+                          {isSms ? 'SMS Communication' : (app.action_type === 'send_payment_reminder' ? 'Email Payment Reminder' : app.action_type)}
+                        </span>
+                        <span className="px-2 py-0.5 rounded-md bg-indigo-950 text-indigo-300 text-[10px] font-bold uppercase border border-indigo-500/30">
+                          {langTag}
                         </span>
                         <Badge
                           variant={isPending ? 'warning' : (isApproved ? 'success' : 'danger')}
@@ -181,7 +195,7 @@ const ApprovalsPage = ({ onNavigate }) => {
                         </Badge>
                       </div>
                       <h3 className="text-base font-bold text-white mt-1">
-                        Send Automated Notice to {data.customer_name || 'Customer'}
+                        Send {langTag} {isSms ? 'SMS' : 'Notice'} to {data.customer_name || 'Customer'}
                       </h3>
                     </div>
                   </div>
@@ -216,14 +230,14 @@ const ApprovalsPage = ({ onNavigate }) => {
                 )}
 
                 {/* Generated Content Preview */}
-                {data.body && (
+                {(data.body || data.message) && (
                   <div className="mt-4 p-4 rounded-xl bg-slate-950/80 border border-slate-800 space-y-2">
-                    <div className="flex items-center justify-between text-xs text-slate-400 pb-2 border-b border-slate-900">
-                      <span><strong>To:</strong> {data.recipient_email || data.customer_email}</span>
-                      <span><strong>Subject:</strong> {data.subject}</span>
+                    <div className="flex flex-wrap items-center justify-between text-xs text-slate-400 pb-2 border-b border-slate-900 gap-2">
+                      <span><strong>Recipient:</strong> {isSms ? (data.recipient_phone || data.phone || data.customer_phone) : (data.recipient_email || data.customer_email)}</span>
+                      {!isSms && data.subject && <span><strong>Subject:</strong> {data.subject}</span>}
                     </div>
-                    <p className="text-xs text-slate-300 whitespace-pre-wrap font-sans leading-relaxed">
-                      {data.body}
+                    <p className="text-xs text-slate-200 whitespace-pre-wrap font-sans leading-relaxed">
+                      {data.body || data.message}
                     </p>
                   </div>
                 )}
@@ -290,37 +304,43 @@ const ApprovalsPage = ({ onNavigate }) => {
           title="Edit AI Generated Action Before Approval"
           maxWidth="max-w-3xl"
         >
-          <div className="space-y-4">
+          <div className="space-y-4 text-xs">
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">Recipient Email</label>
+              <label className="block font-semibold text-slate-300 mb-1">
+                {editingApproval.action_type === 'send_sms' ? 'Recipient Phone Number' : 'Recipient Email'}
+              </label>
               <input
-                type="email"
+                type={editingApproval.action_type === 'send_sms' ? 'tel' : 'email'}
                 value={editRecipient}
                 onChange={(e) => setEditRecipient(e.target.value)}
                 required
-                className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
+                className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-indigo-500 font-mono"
               />
             </div>
 
-            <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">Email Subject</label>
-              <input
-                type="text"
-                value={editSubject}
-                onChange={(e) => setEditSubject(e.target.value)}
-                required
-                className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
-              />
-            </div>
+            {editingApproval.action_type !== 'send_sms' && (
+              <div>
+                <label className="block font-semibold text-slate-300 mb-1">Subject Line</label>
+                <input
+                  type="text"
+                  value={editSubject}
+                  onChange={(e) => setEditSubject(e.target.value)}
+                  required
+                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-indigo-500"
+                />
+              </div>
+            )}
 
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">Email Body Content</label>
+              <label className="block font-semibold text-slate-300 mb-1">
+                Message Content (Supports English, தமிழ், and Bilingual UTF-8)
+              </label>
               <textarea
                 value={editBody}
                 onChange={(e) => setEditBody(e.target.value)}
-                rows={8}
+                rows={7}
                 required
-                className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 font-mono leading-relaxed"
+                className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-slate-200 focus:outline-none focus:border-indigo-500 font-sans leading-relaxed text-xs"
               />
             </div>
 

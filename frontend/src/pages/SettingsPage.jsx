@@ -21,11 +21,13 @@ import {
 import api from '../services/api';
 import { useBusiness } from '../context/BusinessContext';
 import { useNotifications } from '../context/NotificationContext';
+import { useAuth } from '../context/AuthContext';
 import Button from '../components/common/Button';
 import Badge from '../components/common/Badge';
 import Modal from '../components/common/Modal';
 
 const SettingsPage = () => {
+  const { user } = useAuth();
   const { business, updateProfile, resetDemoData, formatMoney, loading: bizLoading } = useBusiness();
   const { addToast } = useNotifications();
 
@@ -228,11 +230,49 @@ const SettingsPage = () => {
       </div>
 
       {activeTab === 'profile' && (
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="glass-panel rounded-2xl p-6 border border-slate-800 space-y-4">
-            <h3 className="text-sm font-bold text-white pb-2 border-b border-slate-800">
-              Company Identity & Localization
-            </h3>
+        <div className="space-y-6">
+          {/* User Account & Authentication Identity */}
+          <div className="glass-panel rounded-2xl p-5 border border-slate-800 bg-gradient-to-r from-indigo-950/30 via-slate-900 to-slate-900 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3.5">
+              {user?.profile_picture ? (
+                <img
+                  src={user.profile_picture}
+                  alt={user.name || 'User'}
+                  className="w-12 h-12 rounded-full border border-indigo-500/40 object-cover"
+                />
+              ) : (
+                <div className="w-12 h-12 rounded-2xl bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 flex items-center justify-center font-bold text-lg">
+                  {user?.name ? user.name[0].toUpperCase() : 'U'}
+                </div>
+              )}
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-bold text-white">{user?.name || 'Business Owner'}</span>
+                  <Badge variant={user?.auth_provider === 'google' ? 'ai' : 'success'}>
+                    {user?.auth_provider === 'google' ? 'Google OAuth' : 'Email & Password'}
+                  </Badge>
+                  {user?.email_verified && (
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-300 border border-emerald-500/30 font-medium">
+                      ✓ Verified
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-slate-400 mt-0.5">{user?.email}</p>
+              </div>
+            </div>
+            <div className="text-xs text-slate-400 sm:text-right">
+              <span className="text-[10px] uppercase tracking-wider text-slate-500 block">Authentication Provider</span>
+              <span className="font-semibold text-slate-200">
+                {user?.auth_provider === 'google' ? 'Google Sign-In (OAuth 2.0)' : 'Local Email / Password'}
+              </span>
+            </div>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="glass-panel rounded-2xl p-6 border border-slate-800 space-y-4">
+              <h3 className="text-sm font-bold text-white pb-2 border-b border-slate-800">
+                Company Identity & Localization
+              </h3>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
@@ -328,6 +368,7 @@ const SettingsPage = () => {
             </div>
           </div>
         </form>
+      </div>
       )}
 
       {activeTab === 'policies' && (

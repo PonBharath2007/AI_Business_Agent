@@ -1,14 +1,26 @@
+import urllib.parse
 from datetime import timedelta
-from fastapi import APIRouter, Depends, HTTPException, status
+from typing import Optional
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Request
+from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 from backend.app.database.session import get_db
 from backend.app.models.models import User, Business
-from backend.app.schemas.schemas import UserLogin, UserRegister, Token, UserOut, UserForgotPassword
+from backend.app.schemas.schemas import (
+    UserLogin, UserRegister, Token, UserOut, UserForgotPassword,
+    GoogleTokenVerifyRequest
+)
 from backend.app.auth.security import verify_password, get_password_hash
 from backend.app.auth.jwt import create_access_token
 from backend.app.auth.deps import get_current_user
 from backend.app.services.activity_service import log_activity
 from backend.app.services.email_delivery import send_real_email
+from backend.app.services.google_auth_service import (
+    is_google_auth_configured, get_google_client_id, build_google_auth_url,
+    exchange_code_for_tokens, fetch_google_user_info, verify_google_id_token,
+    get_or_create_google_user, get_frontend_url
+)
+from backend.app.utils.logger import logger
 
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 
@@ -37,7 +49,9 @@ def register_user(user_in: UserRegister, db: Session = Depends(get_db)):
         email=user_in.email.lower(),
         password_hash=get_password_hash(user_in.password),
         role="owner",
-        business_id=biz.id
+        business_id=biz.id,
+        auth_provider="local",
+        email_verified=False
     )
     db.add(new_user)
     db.commit()
@@ -85,7 +99,9 @@ def login_user(login_in: UserLogin, db: Session = Depends(get_db)):
             email=email_clean,
             password_hash=get_password_hash(login_in.password),
             role="owner",
-            business_id=biz.id
+            business_id=biz.id,
+            auth_provider="local",
+            email_verified=False
         )
         db.add(user)
         db.commit()
@@ -99,10 +115,17 @@ def login_user(login_in: UserLogin, db: Session = Depends(get_db)):
             description=f"New business owner account created for {user.name} ({user.email})."
         )
     else:
-        if not verify_password(login_in.password, user.password_hash):
+        if user.password_hash:
+            if not verify_password(login_in.password, user.password_hash):
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Incorrect password for this account. Please re-enter your password or click '1-Click Demo Login'."
+                )
+        else:
+            # User previously signed in via Google OAuth only
             raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Incorrect password for this account. Please re-enter your password or click '1-Click Demo Login'."
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="This account was registered with Google Sign-In. Please click 'Continue with Google' to log in."
             )
 
     token = create_access_token(data={"sub": str(user.id), "email": user.email})
@@ -118,6 +141,134 @@ def login_user(login_in: UserLogin, db: Session = Depends(get_db)):
 
     user.business_name = user.business.name if user.business else "My Business"
     return {"access_token": token, "token_type": "bearer", "user": user}
+
+
+# ----------------- GOOGLE OAUTH 2.0 ROUTES -----------------
+
+@router.get("/google/config")
+def get_google_auth_config():
+    """
+    Returns public Google OAuth configuration for frontend initialization.
+    """
+    return {
+        "configured": is_google_auth_configured(),
+        "client_id": get_google_client_id()
+    }
+
+
+@router.get("/google/login")
+def google_oauth_login(
+    redirect_uri: Optional[str] = Query(None),
+    state: Optional[str] = Query("state_ai_agent")
+):
+    """
+    Redirects user's browser to the Google OAuth 2.0 consent screen.
+    """
+    if not is_google_auth_configured():
+        auth_url = build_google_auth_url(state=state or "state_ai_agent", redirect_uri=redirect_uri)
+        return {
+            "status": "warning",
+            "configured": False,
+            "auth_url": auth_url,
+            "message": "Google OAuth credentials (GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET) are not set in environment."
+        }
+
+    auth_url = build_google_auth_url(state=state or "state_ai_agent", redirect_uri=redirect_uri)
+    return RedirectResponse(url=auth_url, status_code=status.HTTP_307_TEMPORARY_REDIRECT)
+
+
+@router.get("/google/callback")
+def google_oauth_callback(
+    code: Optional[str] = Query(None),
+    state: Optional[str] = Query(None),
+    error: Optional[str] = Query(None),
+    db: Session = Depends(get_db)
+):
+    """
+    Handles Google OAuth redirect, exchanges code for user profile,
+    creates or links user, and redirects to frontend with application JWT.
+    """
+    frontend_base = get_frontend_url()
+
+    if error:
+        logger.warning(f"Google OAuth cancelled or returned error: {error}")
+        error_msg = urllib.parse.quote("Google sign-in was cancelled.")
+        return RedirectResponse(url=f"{frontend_base}/?error=google_cancelled&message={error_msg}")
+
+    if not code:
+        error_msg = urllib.parse.quote("Missing authorization code from Google.")
+        return RedirectResponse(url=f"{frontend_base}/?error=oauth_failed&message={error_msg}")
+
+    # Exchange authorization code with Google token endpoint
+    token_response = exchange_code_for_tokens(code)
+    if "error" in token_response or not token_response.get("access_token"):
+        err_detail = token_response.get("error", "Failed to exchange token with Google.")
+        logger.error(f"Google code exchange failed: {err_detail}")
+        error_msg = urllib.parse.quote("Unable to sign in with Google. Please try again.")
+        return RedirectResponse(url=f"{frontend_base}/?error=exchange_failed&message={error_msg}")
+
+    access_token = token_response["access_token"]
+    user_info = fetch_google_user_info(access_token)
+    if not user_info:
+        error_msg = urllib.parse.quote("Could not retrieve Google profile details.")
+        return RedirectResponse(url=f"{frontend_base}/?error=profile_failed&message={error_msg}")
+
+    user, is_new, action_taken = get_or_create_google_user(db, user_info)
+    if not user:
+        error_msg = urllib.parse.quote("Could not provision user account from Google profile.")
+        return RedirectResponse(url=f"{frontend_base}/?error=user_creation_failed&message={error_msg}")
+
+    # Issue application JWT token
+    jwt_token = create_access_token(data={"sub": str(user.id), "email": user.email})
+
+    action_label = "created" if is_new else ("linked" if action_taken == "linked" else "login")
+    return RedirectResponse(
+        url=f"{frontend_base}/?token={jwt_token}&provider=google&action={action_label}",
+        status_code=status.HTTP_307_TEMPORARY_REDIRECT
+    )
+
+
+@router.post("/google/verify", response_model=Token)
+def verify_google_credential(
+    payload: GoogleTokenVerifyRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Direct verification endpoint for Google Identity Services / OneTap / Popup tokens.
+    """
+    user_info = None
+
+    if payload.credential:
+        # ID Token verification
+        user_info = verify_google_id_token(payload.credential)
+
+    elif payload.code:
+        # Code exchange
+        token_response = exchange_code_for_tokens(payload.code, payload.redirect_uri)
+        if token_response.get("access_token"):
+            user_info = fetch_google_user_info(token_response["access_token"])
+
+    if not user_info:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Unable to verify Google authentication credentials. Please try again."
+        )
+
+    user, is_new, action_taken = get_or_create_google_user(db, user_info)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to initialize account from Google identity."
+        )
+
+    jwt_token = create_access_token(data={"sub": str(user.id), "email": user.email})
+    user.business_name = user.business.name if user.business else "My Business"
+
+    return {
+        "access_token": jwt_token,
+        "token_type": "bearer",
+        "user": user
+    }
 
 
 @router.post("/forgot-password")
@@ -185,4 +336,3 @@ def get_current_user_profile_alias(current_user: User = Depends(get_current_user
     if current_user.business:
         current_user.business_name = current_user.business.name
     return current_user
-

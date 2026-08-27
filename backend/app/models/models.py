@@ -36,6 +36,7 @@ class Business(Base):
     memories = relationship("AIMemory", back_populates="business", cascade="all, delete-orphan")
     workflow_rules = relationship("WorkflowRule", back_populates="business", cascade="all, delete-orphan")
     workflow_executions = relationship("WorkflowExecution", back_populates="business", cascade="all, delete-orphan")
+    communications = relationship("CommunicationLog", back_populates="business", cascade="all, delete-orphan")
 
 
 class User(Base):
@@ -44,9 +45,13 @@ class User(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(255), nullable=False)
     email = Column(String(255), unique=True, index=True, nullable=False)
-    password_hash = Column(String(255), nullable=False)
+    password_hash = Column(String(255), nullable=True)  # Nullable for OAuth users
     role = Column(String(50), default="owner")
     business_id = Column(Integer, ForeignKey("businesses.id", ondelete="SET NULL"), nullable=True)
+    auth_provider = Column(String(50), default="local")  # local, google
+    google_id = Column(String(255), unique=True, nullable=True, index=True)
+    profile_picture = Column(String(500), nullable=True)
+    email_verified = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     business = relationship("Business", back_populates="users")
@@ -68,6 +73,7 @@ class Customer(Base):
     business = relationship("Business", back_populates="customers")
     invoices = relationship("Invoice", back_populates="customer")
     emails = relationship("Email", back_populates="customer")
+    communications = relationship("CommunicationLog", back_populates="customer", cascade="all, delete-orphan")
 
 
 class Document(Base):
@@ -264,4 +270,23 @@ class WorkflowExecution(Base):
 
     business = relationship("Business", back_populates="workflow_executions")
     rule = relationship("WorkflowRule", back_populates="executions")
+
+
+class CommunicationLog(Base):
+    __tablename__ = "communication_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    business_id = Column(Integer, ForeignKey("businesses.id", ondelete="CASCADE"), nullable=False, index=True)
+    customer_id = Column(Integer, ForeignKey("customers.id", ondelete="SET NULL"), nullable=True, index=True)
+    communication_type = Column(String(50), nullable=False, index=True)  # email, sms, call
+    language = Column(String(20), default="en", index=True)  # en, ta, en_ta
+    recipient = Column(String(255), nullable=False)  # email address or phone number
+    subject = Column(String(255), nullable=True)
+    message = Column(Text, nullable=False)
+    status = Column(String(50), default="draft", index=True)  # draft, pending, approved, sent, failed, rejected
+    sent_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+
+    business = relationship("Business", back_populates="communications")
+    customer = relationship("Customer", back_populates="communications")
 

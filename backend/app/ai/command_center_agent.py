@@ -3,7 +3,7 @@ from datetime import datetime, date, timedelta
 from typing import Dict, Any, List, Optional
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
-from backend.app.models.models import Invoice, Task, Customer, Approval, Activity, Business, Email, BusinessPolicy, AIMemory
+from backend.app.models.models import Invoice, Task, Customer, Approval, Activity, Business, Email, BusinessPolicy, AIMemory, CommunicationLog
 from backend.app.utils.helpers import format_currency
 from backend.app.ai.gemini_client import gemini_client
 from backend.app.ai.business_summary import generate_daily_brief
@@ -14,7 +14,7 @@ from backend.app.services.business_intelligence import (
 from backend.app.services.memory_service import format_memories_for_ai
 from backend.app.services.activity_service import log_activity
 from backend.app.services.notification_service import create_notification
-from backend.app.ai.email_generator import generate_business_email
+from backend.app.ai.email_generator import generate_customer_communication
 
 # ----------------- SAFE TOOLS DEFINITION -----------------
 
@@ -34,6 +34,7 @@ def tool_get_overdue_invoices(db: Session, business: Business) -> Dict[str, Any]
             "invoice_number": inv.invoice_number,
             "customer": inv.customer.name if inv.customer else "Unknown",
             "email": inv.customer.email if inv.customer else "N/A",
+            "phone": inv.customer.phone if inv.customer else "N/A",
             "amount": float(inv.amount or 0),
             "due_date": str(inv.due_date),
             "days_overdue": days
@@ -63,6 +64,7 @@ def tool_get_payment_behavior(db: Session, business: Business) -> Dict[str, Any]
         results.append({
             "customer": c.name,
             "email": c.email,
+            "phone": c.phone,
             "total_invoices": len(invs),
             "paid_amount": paid_amt,
             "overdue_amount": overdue_amt,
@@ -71,9 +73,9 @@ def tool_get_payment_behavior(db: Session, business: Business) -> Dict[str, Any]
     return {"customers": results}
 
 
-def tool_prepare_all_overdue_reminders(db: Session, business: Business) -> Dict[str, Any]:
+def tool_prepare_all_overdue_reminders(db: Session, business: Business, language: str = "en", channel: str = "email") -> Dict[str, Any]:
     """
-    Safely creates draft approval requests for all overdue invoices so the owner can review.
+    Safely creates draft approval requests for all overdue invoices in the requested language.
     """
     invoices = db.query(Invoice).filter(
         Invoice.business_id == business.id,
@@ -81,22 +83,29 @@ def tool_prepare_all_overdue_reminders(db: Session, business: Business) -> Dict[
     ).all()
 
     created_approvals = 0
+    lang_tag = {"en": "English", "ta": "Tamil", "en_ta": "English + Tamil"}.get(language, "English")
+
     for inv in invoices:
         cust = inv.customer
         c_name = cust.name if cust else "Valued Customer"
         c_email = cust.email if cust else "billing@example.com"
+        c_phone = cust.phone if cust else ""
         
-        # Check if pending approval already exists for this invoice
+        # Check if pending approval already exists for this invoice and language
         existing = db.query(Approval).filter(
             Approval.business_id == business.id,
             Approval.status == "pending"
         ).all()
-        already_has = any(a.action_data.get("invoice_id") == inv.id for a in existing if a.action_data)
+        already_has = any(
+            a.action_data.get("invoice_id") == inv.id and a.action_data.get("language") == language
+            for a in existing if a.action_data
+        )
         
         if not already_has:
-            draft = generate_business_email(
+            draft = generate_customer_communication(
                 customer_name=c_name,
                 customer_email=c_email,
+                customer_phone=c_phone,
                 invoice_number=inv.invoice_number,
                 amount=float(inv.amount or 0),
                 currency=inv.currency or business.currency or "USD",
@@ -104,15 +113,18 @@ def tool_prepare_all_overdue_reminders(db: Session, business: Business) -> Dict[
                 business_name=business.name,
                 business_signature=business.email_signature,
                 template_type="payment_reminder",
-                tone="urgent"
+                tone="urgent",
+                language=language,
+                channel=channel
             )
             app = Approval(
                 business_id=business.id,
-                action_type="send_payment_reminder",
+                action_type="send_payment_reminder" if channel == "email" else "send_sms",
                 action_data={
                     "customer_id": cust.id if cust else None,
                     "customer_name": c_name,
                     "customer_email": c_email,
+                    "customer_phone": c_phone,
                     "invoice_id": inv.id,
                     "invoice_number": inv.invoice_number,
                     "amount": float(inv.amount or 0),
@@ -120,10 +132,13 @@ def tool_prepare_all_overdue_reminders(db: Session, business: Business) -> Dict[
                     "due_date": str(inv.due_date),
                     "subject": draft["subject"],
                     "body": draft["body"],
-                    "recipient_email": c_email
+                    "recipient_email": c_email,
+                    "recipient_phone": c_phone,
+                    "language": language,
+                    "channel": channel
                 },
                 status="pending",
-                recommendation=f"Automated reminder batch for overdue invoice {inv.invoice_number} ({format_currency(float(inv.amount), inv.currency)})."
+                recommendation=f"Automated {lang_tag} reminder for overdue invoice {inv.invoice_number} ({format_currency(float(inv.amount), inv.currency)})."
             )
             db.add(app)
             created_approvals += 1
@@ -135,18 +150,18 @@ def tool_prepare_all_overdue_reminders(db: Session, business: Business) -> Dict[
             business_id=business.id,
             actor_type="AI Agent",
             action="Batch Reminders Prepared",
-            description=f"Generated {created_approvals} payment reminder drafts in Approval Center."
+            description=f"Generated {created_approvals} payment reminder drafts ({lang_tag}) in Approval Center."
         )
         create_notification(
             db,
             business_id=business.id,
             title="Batch Payment Reminders Prepared",
-            message=f"{created_approvals} reminder drafts prepared and waiting in Approval Center.",
+            message=f"{created_approvals} reminder drafts ({lang_tag}) prepared and waiting in Approval Center.",
             priority="High",
             action_url="/approvals"
         )
 
-    return {"prepared_count": created_approvals, "message": f"{created_approvals} reminder drafts generated in Approval Center."}
+    return {"prepared_count": created_approvals, "language": language, "message": f"{created_approvals} reminder drafts ({lang_tag}) generated in Approval Center."}
 
 
 # ----------------- MAIN COMMAND CENTER AGENT -----------------
@@ -155,6 +170,15 @@ def process_command_center_query(db: Session, business: Business, user_message: 
     msg_lower = user_message.lower().strip()
     currency = business.currency or "USD"
     today = date.today()
+
+    # Detect language requirement from user request
+    req_lang = "en"
+    if "tamil" in msg_lower and ("english" in msg_lower or "bilingual" in msg_lower or "+" in msg_lower or "and" in msg_lower):
+        req_lang = "en_ta"
+    elif "tamil" in msg_lower or "தமிழ்" in msg_lower or "in ta" in msg_lower:
+        req_lang = "ta"
+
+    req_channel = "sms" if ("sms" in msg_lower or "text message" in msg_lower) else "email"
 
     # 1. Fetch relevant business data context from real database
     customers = db.query(Customer).filter(Customer.business_id == business.id).all()
@@ -168,7 +192,87 @@ def process_command_center_query(db: Session, business: Business, user_message: 
     paid_invoices = [i for i in invoices if i.status == "paid"]
     high_tasks = [t for t in tasks if t.priority == "High" and t.status in ["Pending", "In Progress"]]
 
-    # 2. Match Deterministic High-Precision Tool Intents
+    # 2. Match Specific Customer Reminders or Targeted Queries
+    # E.g., "Prepare a payment reminder for ABC Ltd", "Prepare it in Tamil", "Prepare it in English and Tamil"
+    target_cust = None
+    for c in customers:
+        if c.name.lower() in msg_lower or (c.company and c.company.lower() in msg_lower):
+            target_cust = c
+            break
+
+    # If user asks to prepare reminder for specific customer
+    if ("prepare" in msg_lower or "draft" in msg_lower or "send" in msg_lower or "remind" in msg_lower) and (target_cust or ("reminder" in msg_lower and req_lang in ["ta", "en_ta"])):
+        cust = target_cust or (overdue_invoices[0].customer if overdue_invoices else (customers[0] if customers else None))
+        if cust:
+            cust_inv = next((inv for inv in cust.invoices if inv.status == "overdue"), None) or (cust.invoices[0] if cust.invoices else None)
+            inv_num = cust_inv.invoice_number if cust_inv else "INV-1001"
+            inv_amt = float(cust_inv.amount) if cust_inv else 50000.0
+            inv_due = str(cust_inv.due_date) if cust_inv else "Due Now"
+            
+            draft = generate_customer_communication(
+                customer_name=cust.name,
+                customer_email=cust.email,
+                customer_phone=cust.phone,
+                invoice_number=inv_num,
+                amount=inv_amt,
+                currency=currency,
+                due_date=inv_due,
+                business_name=business.name,
+                business_signature=business.email_signature,
+                template_type="payment_reminder",
+                tone="urgent" if cust_inv and cust_inv.status == "overdue" else "professional",
+                language=req_lang,
+                channel=req_channel
+            )
+
+            # Queue approval draft
+            app = Approval(
+                business_id=business.id,
+                action_type="send_payment_reminder" if req_channel == "email" else "send_sms",
+                action_data={
+                    "customer_id": cust.id,
+                    "customer_name": cust.name,
+                    "customer_email": cust.email,
+                    "customer_phone": cust.phone,
+                    "invoice_id": cust_inv.id if cust_inv else None,
+                    "invoice_number": inv_num,
+                    "amount": inv_amt,
+                    "currency": currency,
+                    "due_date": inv_due,
+                    "subject": draft["subject"],
+                    "body": draft["body"],
+                    "recipient_email": cust.email,
+                    "recipient_phone": cust.phone,
+                    "language": req_lang,
+                    "channel": req_channel
+                },
+                status="pending",
+                recommendation=f"Owner review requested for {req_lang.upper()} {req_channel.upper()} reminder to {cust.name}."
+            )
+            db.add(app)
+            db.commit()
+
+            lang_label = {"en": "English", "ta": "Tamil", "en_ta": "English + Tamil"}[req_lang]
+            response_text = f"""### ✅ Payment Reminder Prepared ({lang_label})
+
+I have prepared the **{req_channel.upper()}** payment reminder for **{cust.name}** in **{lang_label}** and queued it in the **Approval Center** for your review.
+
+**Subject:** `{draft['subject']}`
+
+**Message Content:**
+```
+{draft['body']}
+```
+
+**Recipient:** {cust.email if req_channel == 'email' else (cust.phone or 'No phone number')}
+"""
+            return {
+                "response": response_text.strip(),
+                "suggested_actions": [
+                    {"label": "Review in Approval Center", "action": "navigate", "target": "/approvals"},
+                    {"label": "Open Customers Page", "action": "navigate", "target": "/customers"}
+                ]
+            }
 
     # Intent A: Root Cause Analysis ("why are payments getting delayed?")
     if "why" in msg_lower and ("delayed" in msg_lower or "late" in msg_lower or "payment" in msg_lower or "overdue" in msg_lower):
@@ -193,10 +297,11 @@ def process_command_center_query(db: Session, business: Business, user_message: 
 
     # Intent B: Prepare reminders batch
     if "prepare" in msg_lower and ("reminder" in msg_lower or "reminders" in msg_lower or "email" in msg_lower):
-        res = tool_prepare_all_overdue_reminders(db, business)
-        text = f"### ✅ Payment Reminder Workflow Initiated\n\n"
-        text += f"I have analyzed all **{len(overdue_invoices)} overdue accounts** against your business policies and prepared **{res['prepared_count']} customized reminder drafts** in the **Approval Center**.\n\n"
-        text += f"**Human-in-the-Loop Safe Mode**: No emails are dispatched until you review and approve them."
+        res = tool_prepare_all_overdue_reminders(db, business, language=req_lang, channel=req_channel)
+        lang_title = {"en": "English", "ta": "Tamil", "en_ta": "English + Tamil"}.get(req_lang, "English")
+        text = f"### ✅ Payment Reminder Workflow Initiated ({lang_title})\n\n"
+        text += f"I have analyzed all **{len(overdue_invoices)} overdue accounts** and prepared **{res['prepared_count']} customized reminder drafts** in **{lang_title}** in the **Approval Center**.\n\n"
+        text += f"**Human-in-the-Loop Safe Mode**: No communications are dispatched until you review and approve them."
         return {
             "response": text,
             "suggested_actions": [
@@ -245,12 +350,13 @@ def process_command_center_query(db: Session, business: Business, user_message: 
             days_overdue = (today - inv.due_date).days if inv.due_date else 0
             response_text += f"- 🔴 **{c_name}** ({c_email}): Invoice **{inv.invoice_number}** of **{format_currency(float(inv.amount), currency)}** is **{days_overdue} days overdue**.\n"
         
-        response_text += "\n*Would you like me to prepare reminder emails for these overdue accounts?*"
+        response_text += "\n*Would you like me to prepare reminder communications (English / Tamil / Bilingual) for these accounts?*"
         return {
             "response": response_text.strip(),
             "suggested_actions": [
-                {"label": "Prepare Payment Reminders", "action": "prompt", "target": "Prepare payment reminders for all overdue customers."},
-                {"label": "View Approval Requests", "action": "navigate", "target": "/approvals"}
+                {"label": "Prepare English Reminders", "action": "prompt", "target": "Prepare payment reminders for all overdue customers."},
+                {"label": "Prepare Tamil Reminders", "action": "prompt", "target": "Prepare payment reminders for all overdue customers in Tamil."},
+                {"label": "View Approvals", "action": "navigate", "target": "/approvals"}
             ]
         }
 
@@ -315,10 +421,11 @@ Answer the business owner's question using this REAL database information and AI
 User Question: "{user_message}"
 
 Operational Rules:
-- Give a concise, professional, data-backed answer.
+- The UI and your general conversation with the owner is in English.
+- If the owner asks for communication drafts in Tamil or Bilingual (English + Tamil), you may provide the sample draft in Tamil Unicode / Bilingual format within your response.
 - Reference specific real invoice numbers, amounts ({currency}), and customer names where relevant.
 - Recommend actionable next steps.
-- Respect Human-in-the-Loop policy: Do not claim to send emails directly without owner approval.
+- Respect Human-in-the-Loop policy: Do not claim to send emails/SMS directly without owner approval.
 """
 
     gemini_resp = gemini_client.generate_text(prompt, system_instruction="You are an intelligent executive business operations AI digital employee.")
@@ -333,7 +440,7 @@ Operational Rules:
 
     # Fallback answer
     return {
-        "response": f"I analyzed your business database. You currently have **{len(overdue_invoices)} overdue invoices** and **{len(high_tasks)} high-priority tasks**. Please let me know if you would like me to draft follow-up communications or review pending approvals.",
+        "response": f"I analyzed your business database. You currently have **{len(overdue_invoices)} overdue invoices** and **{len(high_tasks)} high-priority tasks**. Please let me know if you would like me to draft customer communications (English / Tamil / Bilingual) or review pending approvals.",
         "suggested_actions": [
             {"label": "Prepare Reminders", "action": "prompt", "target": "Prepare payment reminders for all overdue customers."},
             {"label": "Approval Center", "action": "navigate", "target": "/approvals"}

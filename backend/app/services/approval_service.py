@@ -1,10 +1,11 @@
 from datetime import datetime
 from typing import Dict, Any, Optional
 from sqlalchemy.orm import Session
-from backend.app.models.models import Approval, Activity, Email, Task, Invoice, Notification
+from backend.app.models.models import Approval, Activity, Email, Task, Invoice, Notification, CommunicationLog
 from backend.app.services.activity_service import log_activity
 from backend.app.services.notification_service import create_notification
 from backend.app.services.email_delivery import send_real_email
+from backend.app.services.sms_delivery import dispatch_sms
 from backend.app.utils.logger import logger
 
 def execute_approval_action(db: Session, approval: Approval, edited_data: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
@@ -14,12 +15,14 @@ def execute_approval_action(db: Session, approval: Approval, edited_data: Option
 
     execution_result = {"status": "executed", "message": "Action approved and executed successfully."}
 
-    if action_type == "send_payment_reminder":
+    if action_type in ["send_payment_reminder", "send_email", "send_multilingual_communication"]:
         recipient_email = action_data.get("recipient_email") or action_data.get("customer_email") or "customer@example.com"
         subject = action_data.get("subject", "Payment Reminder")
         body = action_data.get("body", "")
         customer_id = action_data.get("customer_id")
         invoice_id = action_data.get("invoice_id")
+        language = action_data.get("language", "en")
+        channel = action_data.get("channel", "email")
 
         # 1. Dispatch email via real SMTP if configured (or simulated)
         biz_name = approval.business.name if approval.business else "Business Operations"
@@ -42,13 +45,29 @@ def execute_approval_action(db: Session, approval: Approval, edited_data: Option
             approval_id=approval.id
         )
         db.add(email_record)
-        db.commit()
 
-        # 3. Update associated task if any
+        # 3. Record in communication_logs
+        comm_log = CommunicationLog(
+            business_id=business_id,
+            customer_id=customer_id,
+            communication_type="email",
+            language=language,
+            recipient=recipient_email,
+            subject=subject,
+            message=body,
+            status="sent" if delivery_res.get("delivered") else "failed",
+            sent_at=datetime.utcnow() if delivery_res.get("delivered") else None
+        )
+        db.add(comm_log)
+        db.commit()
+        db.refresh(email_record)
+        db.refresh(comm_log)
+
+        # 4. Update associated task if any
         if invoice_id:
             task = db.query(Task).filter(
                 Task.business_id == business_id,
-                Task.source_type == "AI Workflow",
+                Task.source_type.in_(["AI Workflow", "AI Document"]),
                 Task.source_id == invoice_id
             ).first()
             if task:
@@ -61,8 +80,8 @@ def execute_approval_action(db: Session, approval: Approval, edited_data: Option
             business_id=business_id,
             actor_type="AI Agent",
             action="Payment Reminder Dispatched",
-            description=f"Sent payment reminder email ({mode_text}) to {recipient_email} for invoice {action_data.get('invoice_number', 'N/A')}.",
-            metadata={"email_id": email_record.id, "recipient": recipient_email, "delivery": delivery_res}
+            description=f"Sent payment reminder email ({mode_text}, Lang: {language.upper()}) to {recipient_email} for invoice {action_data.get('invoice_number', 'N/A')}.",
+            metadata={"email_id": email_record.id, "communication_id": comm_log.id, "recipient": recipient_email, "delivery": delivery_res}
         )
 
         create_notification(
@@ -74,8 +93,69 @@ def execute_approval_action(db: Session, approval: Approval, edited_data: Option
         )
         
         execution_result["email_id"] = email_record.id
+        execution_result["communication_id"] = comm_log.id
         execution_result["delivery"] = delivery_res
         execution_result["message"] = delivery_res.get("message", f"Payment reminder email dispatched to {recipient_email}.")
+
+    elif action_type == "send_sms":
+        recipient_phone = action_data.get("recipient_phone") or action_data.get("phone") or ""
+        body = action_data.get("body") or action_data.get("message") or ""
+        customer_id = action_data.get("customer_id")
+        invoice_id = action_data.get("invoice_id")
+        language = action_data.get("language", "en")
+
+        biz_name = approval.business.name if approval.business else "Business Operations"
+        sms_res = dispatch_sms(
+            to_phone=recipient_phone,
+            message=body,
+            sender_name=biz_name
+        )
+
+        comm_log = CommunicationLog(
+            business_id=business_id,
+            customer_id=customer_id,
+            communication_type="sms",
+            language=language,
+            recipient=recipient_phone,
+            subject=action_data.get("subject", "SMS Notice"),
+            message=body,
+            status="sent" if sms_res.get("delivered") else "failed",
+            sent_at=datetime.utcnow() if sms_res.get("delivered") else None
+        )
+        db.add(comm_log)
+        db.commit()
+        db.refresh(comm_log)
+
+        if invoice_id:
+            task = db.query(Task).filter(
+                Task.business_id == business_id,
+                Task.source_type.in_(["AI Workflow", "AI Document"]),
+                Task.source_id == invoice_id
+            ).first()
+            if task:
+                task.status = "Completed"
+                db.commit()
+
+        log_activity(
+            db,
+            business_id=business_id,
+            actor_type="AI Agent",
+            action="SMS Communication Dispatched",
+            description=f"Dispatched SMS ({sms_res.get('mode')}, Lang: {language.upper()}) to {recipient_phone}.",
+            metadata={"communication_id": comm_log.id, "recipient": recipient_phone, "delivery": sms_res}
+        )
+
+        create_notification(
+            db,
+            business_id=business_id,
+            title="SMS Communication Prepared",
+            message=f"SMS for {recipient_phone} processed successfully.",
+            priority="Low"
+        )
+
+        execution_result["communication_id"] = comm_log.id
+        execution_result["delivery"] = sms_res
+        execution_result["message"] = sms_res.get("message", f"SMS processed for {recipient_phone}.")
 
     elif action_type == "dispatch_task":
         task_title = action_data.get("title", "AI Generated Task")

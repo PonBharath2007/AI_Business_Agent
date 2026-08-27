@@ -39,6 +39,7 @@ const EmailAssistantPage = ({ onNavigate }) => {
   const [selectedInvoiceId, setSelectedInvoiceId] = useState('');
   const [templateType, setTemplateType] = useState('payment_reminder');
   const [tone, setTone] = useState('professional');
+  const [language, setLanguage] = useState('en'); // 'en', 'ta', 'en_ta'
   const [customInstructions, setCustomInstructions] = useState('');
 
   // Draft state
@@ -151,6 +152,7 @@ const EmailAssistantPage = ({ onNavigate }) => {
         invoice_id: selectedInvoiceId ? parseInt(selectedInvoiceId) : null,
         template_type: templateType,
         tone: tone,
+        language: language,
         custom_instructions: customInstructions
       });
 
@@ -373,6 +375,30 @@ const EmailAssistantPage = ({ onNavigate }) => {
             </div>
 
             <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1">Message Language</label>
+              <div className="grid grid-cols-3 gap-1.5 bg-slate-900/80 p-1 rounded-xl border border-slate-800">
+                {[
+                  { id: 'en', label: 'English' },
+                  { id: 'ta', label: 'Tamil' },
+                  { id: 'en_ta', label: 'EN + தமிழ்' }
+                ].map((l) => (
+                  <button
+                    key={l.id}
+                    type="button"
+                    onClick={() => setLanguage(l.id)}
+                    className={`py-1.5 px-2 text-center rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                      language === l.id
+                        ? 'bg-indigo-600 text-white shadow-md'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    {l.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
               <label className="block text-xs font-semibold text-slate-300 mb-1">Desired Tone</label>
               <div className="grid grid-cols-2 gap-2">
                 {[
@@ -556,12 +582,12 @@ const EmailAssistantPage = ({ onNavigate }) => {
                       </button>
                       <button
                         type="button"
-                        onClick={() => handleTransformEmail('translate', 'Hindi')}
+                        onClick={() => handleTransformEmail('translate', 'Tamil')}
                         disabled={loading || !body}
                         className="px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 text-[10px] font-semibold hover:bg-emerald-500/20 transition-all cursor-pointer"
-                        title="Translate into Hindi"
+                        title="Translate body to Tamil"
                       >
-                        🇮🇳 Hindi
+                        🌐 Translate to தமிழ்
                       </button>
                     </div>
                   </div>

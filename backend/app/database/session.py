@@ -58,8 +58,40 @@ def get_db():
         db.close()
 
 def init_db():
+    from sqlalchemy import text
     from backend.app.models.models import (
         Business, User, Customer, Document, Invoice,
-        Task, Approval, Activity, Email, Notification
+        Task, Approval, Activity, Email, Notification,
+        CommunicationLog
     )
     Base.metadata.create_all(bind=engine)
+
+    # Safe schema migration for newly added User OAuth fields
+    with engine.connect() as conn:
+        dialect_name = engine.dialect.name
+        columns_to_add = [
+            ("auth_provider", "VARCHAR(50) DEFAULT 'local'"),
+            ("google_id", "VARCHAR(255)"),
+            ("profile_picture", "VARCHAR(500)"),
+            ("email_verified", "BOOLEAN DEFAULT FALSE")
+        ]
+
+        for col_name, col_type in columns_to_add:
+            try:
+                if dialect_name == "postgresql":
+                    conn.execute(text(f"ALTER TABLE users ADD COLUMN IF NOT EXISTS {col_name} {col_type};"))
+                    conn.commit()
+                elif dialect_name == "sqlite":
+                    conn.execute(text(f"ALTER TABLE users ADD COLUMN {col_name} {col_type};"))
+                    conn.commit()
+            except Exception:
+                # Column likely already exists
+                pass
+
+        # Ensure password_hash can be null in postgres
+        if dialect_name == "postgresql":
+            try:
+                conn.execute(text("ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL;"))
+                conn.commit()
+            except Exception:
+                pass
