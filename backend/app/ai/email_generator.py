@@ -107,60 +107,137 @@ Return strictly a JSON object with:
     due_str = due_date or "recent date"
     instruction_snippet = f"\n\nNote: {custom_instructions.strip()}" if custom_instructions and custom_instructions.strip() else ""
 
+    # Normalize template_type / purpose
+    t_type = (template_type or "payment_reminder").lower()
+
     # 1. SMS CHANNEL TEMPLATES
     if channel == "sms":
-        if "reminder" in template_type or template_type == "payment_reminder":
+        if "overdue" in t_type or t_type == "overdue_invoice":
+            if language == "ta":
+                subj = f"விலைப்பட்டியல் {inv_str} நிலுவைத் தொகை"
+                body = (
+                    f"வணக்கம் {customer_name},\n"
+                    f"உங்கள் {formatted_amount} மதிப்பிலான விலைப்பட்டியல் ({inv_str}) செலுத்த வேண்டிய காலம் முடிவடைந்துள்ளது. தயவுசெய்து உடனடியாக பணம் செலுத்தவும்.\n"
+                    f"- {business_name}"
+                )
+            elif language == "en_ta":
+                subj = f"Overdue Invoice / நிலுவைத் தொகை - {inv_str}"
+                body = (
+                    f"Dear {customer_name},\n"
+                    f"This is a reminder that your invoice {inv_str} of {formatted_amount} is overdue. Please complete the payment at your earliest convenience.\n\n"
+                    f"வணக்கம் {customer_name},\n"
+                    f"உங்கள் {formatted_amount} விலைப்பட்டியலுக்கான ({inv_str}) பணம் செலுத்த வேண்டிய தேதி முடிவடைந்துள்ளது. தயவுசெய்து விரைவில் பணம் செலுத்தவும்.\n\n"
+                    f"Thank you / நன்றி.\n"
+                    f"- {business_name}"
+                )
+            else:  # English
+                subj = f"Overdue Notice: Invoice {inv_str}"
+                body = (
+                    f"Dear {customer_name},\n"
+                    f"This is a reminder that your invoice {inv_str} of {formatted_amount} is overdue. "
+                    f"Please complete the payment at your earliest convenience.\n"
+                    f"Thank you.\n"
+                    f"- {business_name}"
+                )
+        elif "reminder" in t_type or t_type == "payment_reminder":
             if language == "ta":
                 subj = f"விலைப்பட்டியல் {inv_str} நினைவூட்டல்"
                 body = (
                     f"வணக்கம் {customer_name},\n"
                     f"உங்கள் {formatted_amount} மதிப்பிலான விலைப்பட்டியல் ({inv_str}) பணம் செலுத்த வேண்டிய தேதி ({due_str}) முடிவடைந்துள்ளது. "
                     f"தயவுசெய்து விரைவில் பணம் செலுத்தவும்.\n"
+                    f"நன்றி.\n"
                     f"- {business_name}"
                 )
             elif language == "en_ta":
                 subj = f"Payment Reminder / பணம் செலுத்தும் நினைவூட்டல் - {inv_str}"
                 body = (
                     f"Dear {customer_name},\n"
-                    f"Your invoice {inv_str} of {formatted_amount} is overdue (Due: {due_str}). Please complete the payment.\n\n"
+                    f"This is a reminder that your invoice of {formatted_amount} is overdue. Please complete the payment at your earliest convenience.\n\n"
                     f"வணக்கம் {customer_name},\n"
-                    f"உங்கள் {formatted_amount} விலைப்பட்டியலுக்கான ({inv_str}) பணம் செலுத்த வேண்டிய தேதி முடிவடைந்துள்ளது. தயவுசெய்து விரைவில் செலுத்தவும்.\n"
+                    f"உங்கள் {formatted_amount} விலைப்பட்டியலுக்கான பணம் செலுத்த வேண்டிய தேதி முடிவடைந்துள்ளது. தயவுசெய்து விரைவில் பணம் செலுத்தவும்.\n\n"
+                    f"Thank you / நன்றி.\n"
                     f"- {business_name}"
                 )
             else:  # English default
                 subj = f"Payment Reminder: Invoice {inv_str}"
                 body = (
                     f"Dear {customer_name},\n"
-                    f"Your invoice {inv_str} for {formatted_amount} is overdue (Due: {due_str}). "
-                    f"Please arrange payment at your earliest convenience.\n"
+                    f"This is a reminder that your invoice of {formatted_amount} is overdue. "
+                    f"Please complete the payment at your earliest convenience.\n"
+                    f"Thank you.\n"
                     f"- {business_name}"
                 )
-        elif template_type == "appointment_confirmation":
+        elif "appointment" in t_type or t_type == "appointment_reminder":
             if language == "ta":
-                subj = "சந்திப்பு உறுதிப்படுத்தல்"
-                body = f"வணக்கம் {customer_name}, {business_name} உடனான உங்கள் வணிகச் சந்திப்பு உறுதி செய்யப்பட்டுள்ளது. நன்றி."
+                subj = "சந்திப்பு நினைவூட்டல்"
+                body = f"வணக்கம் {customer_name}, {business_name} உடனான உங்கள் வரவிருக்கும் சந்திப்பு நினைவூட்டப்படுகிறது. நன்றி."
             elif language == "en_ta":
-                subj = "Meeting Confirmation / சந்திப்பு உறுதிப்படுத்தல்"
+                subj = "Appointment Reminder / சந்திப்பு நினைவூட்டல்"
                 body = (
-                    f"Dear {customer_name}, your meeting with {business_name} is confirmed.\n\n"
-                    f"வணக்கம் {customer_name}, {business_name} உடனான உங்கள் சந்திப்பு உறுதி செய்யப்பட்டுள்ளது."
+                    f"Dear {customer_name}, reminder for your upcoming appointment with {business_name}.\n\n"
+                    f"வணக்கம் {customer_name}, {business_name} உடனான உங்கள் சந்திப்பு நினைவூட்டப்படுகிறது.\n\n"
+                    f"Thank you / நன்றி."
                 )
             else:
-                subj = "Meeting Confirmation"
-                body = f"Dear {customer_name}, your business checkpoint with {business_name} is confirmed. Thank you."
+                subj = "Appointment Reminder"
+                body = f"Dear {customer_name}, this is a reminder for your upcoming appointment with {business_name}. Thank you."
+        elif "follow" in t_type or t_type == "followup":
+            if language == "ta":
+                subj = f"பின்தொடர்தல் - {business_name}"
+                body = f"வணக்கம் {customer_name}, எங்களது சமீபத்திய உரையாடலைத் தொடர்ந்து தொடர்பு கொள்கிறோம். உங்களுக்கு ஏதேனும் உதவி தேவைப்பட்டால் தெரிவிக்கவும். நன்றி."
+            elif language == "en_ta":
+                subj = f"Follow-up / பின்தொடர்தல் - {business_name}"
+                body = (
+                    f"Dear {customer_name}, following up on our recent conversation. Please let us know if you have any questions.\n\n"
+                    f"வணக்கம் {customer_name}, எங்களது சமீபத்திய உரையாடலைத் தொடர்ந்து தொடர்பு கொள்கிறோம். உதவி தேவைப்பட்டால் தெரிவிக்கவும்.\n\n"
+                    f"Thank you / நன்றி."
+                )
+            else:
+                subj = f"Follow-up from {business_name}"
+                body = f"Dear {customer_name}, following up on our recent discussion. Please let us know if we can assist you further. Thank you."
+        elif "order" in t_type or t_type == "order_update":
+            if language == "ta":
+                subj = f"ஆர்டர் தகவல் - {business_name}"
+                body = f"வணக்கம் {customer_name}, உங்கள் ஆர்டர் / கணக்கு நிலை புதுப்பிக்கப்பட்டுள்ளது. மேலும் விவரங்களுக்கு எங்களைத் தொடர்பு கொள்ளவும். நன்றி."
+            elif language == "en_ta":
+                subj = f"Order Update / ஆர்டர் தகவல் - {business_name}"
+                body = (
+                    f"Dear {customer_name}, your order/account status has been updated with {business_name}.\n\n"
+                    f"வணக்கம் {customer_name}, உங்கள் ஆர்டர் நிலை புதுப்பிக்கப்பட்டுள்ளது.\n\n"
+                    f"Thank you / நன்றி."
+                )
+            else:
+                subj = f"Order Update: {business_name}"
+                body = f"Dear {customer_name}, your order with {business_name} has been updated. Please contact us for details. Thank you."
+        elif "notification" in t_type or t_type == "customer_notification":
+            if language == "ta":
+                subj = f"வாடிக்கையாளர் அறிவிப்பு - {business_name}"
+                body = f"வணக்கம் {customer_name}, {business_name} இலிருந்து ஒரு முக்கிய அறிவிப்பு. மேலும் தகவலுக்கு எங்களைத் தொடர்பு கொள்ளவும்."
+            elif language == "en_ta":
+                subj = f"Notification / அறிவிப்பு - {business_name}"
+                body = (
+                    f"Dear {customer_name}, important customer notification from {business_name}.\n\n"
+                    f"வணக்கம் {customer_name}, {business_name} இலிருந்து ஒரு முக்கிய அறிவிப்பு.\n\n"
+                    f"Thank you / நன்றி."
+                )
+            else:
+                subj = f"Notification from {business_name}"
+                body = f"Dear {customer_name}, an important update regarding your account with {business_name}. Thank you."
         else:  # General SMS
             if language == "ta":
-                subj = f"{business_name} அறிவிப்பு"
-                body = f"வணக்கம் {customer_name}, {business_name} இலிருந்து ஒரு முக்கிய வணிகத் தகவல். மேலும் தகவலுக்கு எங்களைத் தொடர்பு கொள்ளவும்."
+                subj = f"{business_name} தகவல்"
+                body = f"வணக்கம் {customer_name}, {business_name} இலிருந்து ஒரு முக்கிய வணிகத் தகவல். மேலும் தகவலுக்கு எங்களைத் தொடர்பு கொள்ளவும். நன்றி."
             elif language == "en_ta":
-                subj = f"Update / அறிவிப்பு - {business_name}"
+                subj = f"Notice / அறிவிப்பு - {business_name}"
                 body = (
-                    f"Dear {customer_name}, important business update from {business_name}. Please contact us if needed.\n\n"
-                    f"வணக்கம் {customer_name}, {business_name} இலிருந்து ஒரு முக்கிய வணிகத் தகவல்."
+                    f"Dear {customer_name}, important business notice from {business_name}. Please contact us if needed.\n\n"
+                    f"வணக்கம் {customer_name}, {business_name} இலிருந்து ஒரு முக்கிய வணிகத் தகவல்.\n\n"
+                    f"Thank you / நன்றி."
                 )
             else:
                 subj = f"Notice from {business_name}"
-                body = f"Dear {customer_name}, an important update regarding your account with {business_name}. Please reach out if you have questions."
+                body = f"Dear {customer_name}, an important message regarding your business relationship with {business_name}. Thank you."
 
         return {
             "subject": subj,
@@ -174,7 +251,38 @@ Return strictly a JSON object with:
         }
 
     # 2. EMAIL CHANNEL TEMPLATES
-    if "reminder" in template_type or template_type == "payment_reminder":
+    if "overdue" in t_type or t_type == "overdue_invoice":
+        if language == "ta":
+            subj = f"முக்கியமானது: நிலுவைத் தொகை அறிவிப்பு - விலைப்பட்டியல் {inv_str}"
+            body = (
+                f"வணக்கம் {customer_name},\n\n"
+                f"உங்கள் {formatted_amount} மதிப்பிலான விலைப்பட்டியல் ({inv_str}) பணம் செலுத்த வேண்டிய தேதி ({due_str}) முடிவடைந்துள்ளது. "
+                f"தயவுசெய்து உடனடியாக பணப்பரிவர்த்தனையை நிறைவு செய்யுமாறு கேட்டுக்கொள்கிறோம்.{instruction_snippet}\n\n"
+                f"ஏற்கனவே பணம் செலுத்தியிருந்தால், தயவுசெய்து இந்த செய்தியை புறக்கணிக்கவும்.\n\n"
+                f"{sig_ta}"
+            )
+        elif language == "en_ta":
+            subj = f"Overdue Invoice / நிலுவைத் தொகை - Invoice {inv_str}"
+            body = (
+                f"Dear {customer_name},\n\n"
+                f"This is an urgent reminder that your invoice {inv_str} of {formatted_amount} is overdue (Due Date: {due_str}). "
+                f"Please arrange payment at your earliest convenience.{instruction_snippet}\n\n"
+                f"--------------------------------------------------\n\n"
+                f"வணக்கம் {customer_name},\n\n"
+                f"உங்கள் {formatted_amount} விலைப்பட்டியலுக்கான ({inv_str}) பணம் செலுத்த வேண்டிய தேதி ({due_str}) முடிவடைந்துள்ளது. "
+                f"தயவுசெய்து உடனடியாக பணம் செலுத்தவும்.\n\n"
+                f"{sig_bilingual}"
+            )
+        else:
+            subj = f"URGENT: Overdue Invoice {inv_str}"
+            body = (
+                f"Dear {customer_name},\n\n"
+                f"Our records indicate that invoice {inv_str} for {formatted_amount} is overdue (Due Date: {due_str}). "
+                f"Please arrange for this balance to be settled immediately.{instruction_snippet}\n\n"
+                f"If payment has already been sent, please share the confirmation reference.\n\n"
+                f"{sig_en}"
+            )
+    elif "reminder" in t_type or t_type == "payment_reminder":
         if language == "ta":
             if tone == "urgent":
                 subj = f"முக்கியமானது: நிலுவைத் தொகை அறிவிப்பு - விலைப்பட்டியல் {inv_str}"
@@ -251,7 +359,7 @@ Return strictly a JSON object with:
                     f"{sig_en}"
                 )
 
-    elif template_type == "customer_followup":
+    elif "follow" in t_type or t_type == "customer_followup" or t_type == "followup":
         if language == "ta":
             subj = f"வணிகத் தொடர்பு மற்றும் பின்தொடர்தல் - {business_name}"
             body = (
@@ -279,7 +387,7 @@ Return strictly a JSON object with:
                 f"{sig_en}"
             )
 
-    elif template_type == "appointment_confirmation":
+    elif "appointment" in t_type or t_type == "appointment_confirmation" or t_type == "appointment_reminder":
         if language == "ta":
             subj = f"வணிகச் சந்திப்பு உறுதிப்படுத்தல் - {business_name}"
             body = (
@@ -303,6 +411,62 @@ Return strictly a JSON object with:
                 f"Dear {customer_name},\n\n"
                 f"This email confirms our upcoming scheduled review and operations checkpoint with {business_name}.{instruction_snippet}\n\n"
                 f"Please let us know if you need to adjust the timing or add additional attendees.\n\n"
+                f"{sig_en}"
+            )
+
+    elif "order" in t_type or t_type == "order_update":
+        if language == "ta":
+            subj = f"ஆர்டர் நிலை புதுப்பிப்பு - {business_name}"
+            body = (
+                f"வணக்கம் {customer_name},\n\n"
+                f"உங்கள் கணக்கு மற்றும் ஆர்டர் தொடர்பான புதிய விவரங்கள் புதுப்பிக்கப்பட்டுள்ளன.{instruction_snippet}\n\n"
+                f"மேலும் ஏதேனும் கேள்விகள் இருந்தால் எங்களைத் தொடர்பு கொள்ளவும்.\n\n"
+                f"{sig_ta}"
+            )
+        elif language == "en_ta":
+            subj = f"Order Update / ஆர்டர் புதுப்பிப்பு - {business_name}"
+            body = (
+                f"Dear {customer_name},\n\n"
+                f"This is an update regarding your order and account activity with {business_name}.{instruction_snippet}\n\n"
+                f"--------------------------------------------------\n\n"
+                f"வணக்கம் {customer_name},\n\n"
+                f"உங்கள் கணக்கு மற்றும் ஆர்டர் தொடர்பான புதிய விவரங்கள் புதுப்பிக்கப்பட்டுள்ளன.\n\n"
+                f"{sig_bilingual}"
+            )
+        else:
+            subj = f"Order & Activity Update - {business_name}"
+            body = (
+                f"Dear {customer_name},\n\n"
+                f"We are pleased to provide an update regarding your ongoing order and account services with {business_name}.{instruction_snippet}\n\n"
+                f"Please feel free to reach out if you require any further information.\n\n"
+                f"{sig_en}"
+            )
+
+    elif "notification" in t_type or t_type == "customer_notification":
+        if language == "ta":
+            subj = f"வாடிக்கையாளர் அறிவிப்பு - {business_name}"
+            body = (
+                f"வணக்கம் {customer_name},\n\n"
+                f"{business_name} இலிருந்து ஒரு முக்கிய வாடிக்கையாளர் அறிவிப்பு.{instruction_snippet}\n\n"
+                f"தயவுசெய்து இந்த தகவலைப் பரிசீலிக்கவும். நன்றி.\n\n"
+                f"{sig_ta}"
+            )
+        elif language == "en_ta":
+            subj = f"Customer Notification / அறிவிப்பு - {business_name}"
+            body = (
+                f"Dear {customer_name},\n\n"
+                f"Please find an important notification regarding your account with {business_name}.{instruction_snippet}\n\n"
+                f"--------------------------------------------------\n\n"
+                f"வணக்கம் {customer_name},\n\n"
+                f"{business_name} இலிருந்து ஒரு முக்கிய வாடிக்கையாளர் அறிவிப்பு.\n\n"
+                f"{sig_bilingual}"
+            )
+        else:
+            subj = f"Customer Notification - {business_name}"
+            body = (
+                f"Dear {customer_name},\n\n"
+                f"Please review this important operational notification regarding your account with {business_name}.{instruction_snippet}\n\n"
+                f"Thank you for your continued partnership.\n\n"
                 f"{sig_en}"
             )
 

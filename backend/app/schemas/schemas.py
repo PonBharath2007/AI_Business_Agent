@@ -81,7 +81,7 @@ class BusinessOut(BusinessBase):
 # ----------------- CUSTOMER SCHEMAS -----------------
 class CustomerBase(BaseModel):
     name: str
-    email: str
+    email: Optional[str] = None
     phone: Optional[str] = None
     company: Optional[str] = None
     status: Optional[str] = "active"
@@ -505,7 +505,9 @@ class CommunicationGenerateRequest(BaseModel):
     communication_type: Optional[str] = "email" # email, sms
     language: Optional[str] = "en" # en, ta, en_ta
     template_type: Optional[str] = "payment_reminder"
+    purpose: Optional[str] = None # alias for template_type
     tone: Optional[str] = "professional"
+    phone_number: Optional[str] = None
     custom_instructions: Optional[str] = None
 
 class CommunicationGenerateResponse(BaseModel):

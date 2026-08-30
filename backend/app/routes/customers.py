@@ -57,15 +57,13 @@ def create_customer(
     business: Business = Depends(get_current_business)
 ):
     name = (customer_in.name or "").strip()
-    email = (customer_in.email or "").strip().lower()
+    email = (customer_in.email or "").strip().lower() or None
     phone = (customer_in.phone or "").strip() or None
     company = (customer_in.company or "").strip() or name
     status_val = (customer_in.status or "active").strip().lower()
 
     if not name:
         raise HTTPException(status_code=400, detail="Customer name is required.")
-    if not email:
-        raise HTTPException(status_code=400, detail="Customer email address is required.")
 
     try:
         customer = Customer(
@@ -86,7 +84,7 @@ def create_customer(
                 business_id=business.id,
                 actor_type="Business Owner",
                 action="Customer Created",
-                description=f"Added customer profile '{customer.name}' ({customer.email})."
+                description=f"Added customer profile '{customer.name}' ({customer.email or customer.phone or 'No contact details'})."
             )
         except Exception as act_err:
             logger.warning(f"Could not log customer creation activity: {act_err}")
