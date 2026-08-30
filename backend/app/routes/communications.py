@@ -70,8 +70,12 @@ def generate_communication_endpoint(
                 customer_email = inv.customer.email or customer_email
                 customer_phone = inv.customer.phone or customer_phone
 
+    if req.phone_number and req.phone_number.strip():
+        customer_phone = req.phone_number.strip()
+
     lang = req.language if req.language in ["en", "ta", "en_ta"] else "en"
     chan = req.communication_type if req.communication_type in ["email", "sms"] else "email"
+    effective_template = req.purpose or req.template_type or "payment_reminder"
 
     draft = generate_customer_communication(
         customer_name=customer_name,
@@ -83,7 +87,7 @@ def generate_communication_endpoint(
         due_date=due_date_str,
         business_name=business.name,
         business_signature=business.email_signature,
-        template_type=req.template_type or "payment_reminder",
+        template_type=effective_template,
         tone=req.tone or "professional",
         language=lang,
         channel=chan,
