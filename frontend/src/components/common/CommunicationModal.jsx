@@ -16,7 +16,9 @@ import {
   Building,
   Receipt,
   Copy,
-  Check
+  Check,
+  RotateCcw,
+  X
 } from 'lucide-react';
 import api from '../../services/api';
 import { useBusiness } from '../../context/BusinessContext';
@@ -54,17 +56,28 @@ const CommunicationModal = ({
   const [sending, setSending] = useState(false);
   const [generatedEngine, setGeneratedEngine] = useState('');
 
+  // Check customer availability
+  const hasEmail = Boolean(customer?.email && customer.email.includes('@'));
+  const hasPhone = Boolean(customer?.phone && customer.phone.trim().length >= 4);
+
   // Sync recipient and defaults when customer or commType changes
   useEffect(() => {
     if (!customer) return;
-    setCommType(initialType);
+    // Determine smart default type if initialType is unavailable
+    let targetType = initialType;
+    if (targetType === 'email' && !hasEmail && hasPhone) {
+      targetType = 'sms';
+    } else if (targetType === 'sms' && !hasPhone && hasEmail) {
+      targetType = 'email';
+    }
+    setCommType(targetType);
     setDeviceUri('');
-    if (initialType === 'email') {
+    if (targetType === 'email') {
       setRecipient(customer.email || '');
     } else {
       setRecipient(customer.phone || '');
     }
-  }, [customer, initialType, isOpen]);
+  }, [customer, initialType, isOpen, hasEmail, hasPhone]);
 
   useEffect(() => {
     if (!customer) return;
@@ -85,7 +98,9 @@ const CommunicationModal = ({
         communication_type: commType,
         language: language,
         template_type: templateType,
+        purpose: templateType,
         tone: tone,
+        phone_number: commType !== 'email' ? recipient : undefined,
         custom_instructions: customInstructions
       });
 
@@ -100,17 +115,25 @@ const CommunicationModal = ({
         setRecipient(res.data.recipient_phone);
       }
 
+      const langLabel = language === 'en' ? 'English' : (language === 'ta' ? 'Tamil' : 'English + Tamil');
       addToast(
         'success',
         'Message Generated',
-        `AI generated ${language === 'en' ? 'English' : (language === 'ta' ? 'Tamil' : 'Bilingual')} ${commType.toUpperCase()} content.`
+        `AI generated ${langLabel} ${commType === 'sms' ? 'Message' : commType.toUpperCase()} draft.`
       );
     } catch (err) {
       console.error('Generation error:', err);
-      addToast('error', 'Generation Failed', 'Could not generate message. Please verify inputs.');
+      addToast('error', 'Generation Failed', 'Unable to generate the message. Please try again.');
     } finally {
       setGenerating(false);
     }
+  };
+
+  const handleClear = () => {
+    setMessage('');
+    if (commType === 'email') setSubject('');
+    setDeviceUri('');
+    addToast('info', 'Cleared', 'Message composer cleared.');
   };
 
   const handleSend = async () => {
@@ -120,7 +143,7 @@ const CommunicationModal = ({
         return;
       }
       if (!message.trim()) {
-        addToast('warning', 'Empty Message', 'Please enter or generate message content before sending.');
+        addToast('warning', 'Empty Message', 'Message cannot be empty.');
         return;
       }
 
@@ -147,11 +170,11 @@ const CommunicationModal = ({
       }
     } else if (commType === 'sms') {
       if (!recipient || !recipient.trim()) {
-        addToast('warning', 'Missing Phone', 'Customer phone number is not available.');
+        addToast('warning', 'Missing Phone', 'Phone number is not available for this customer.');
         return;
       }
       if (!message.trim()) {
-        addToast('warning', 'Empty Message', 'Please enter or generate SMS message content.');
+        addToast('warning', 'Empty Message', 'Message cannot be empty.');
         return;
       }
 
@@ -162,14 +185,14 @@ const CommunicationModal = ({
           communication_type: 'sms',
           language: language,
           recipient: recipient,
-          subject: subject || 'SMS Notice',
+          subject: subject || 'Message Notice',
           message: message
         });
 
         setDeviceUri(res.data.device_uri || '');
-        addToast('success', 'SMS Processed', res.data.message || 'SMS link generated and logged.');
+        addToast('success', 'Message Processed', res.data.message || 'Message link prepared and recorded.');
 
-        // If on mobile or device supports direct URI
+        // Open native SMS app
         if (res.data.device_uri) {
           window.location.href = res.data.device_uri;
         }
@@ -177,14 +200,14 @@ const CommunicationModal = ({
         if (onSuccess) onSuccess();
       } catch (err) {
         console.error('SMS send error:', err);
-        const errMsg = err.response?.data?.detail || 'Unable to process SMS. Please try again.';
-        addToast('error', 'SMS Error', errMsg);
+        const errMsg = err.response?.data?.detail || 'Unable to open the messaging application.';
+        addToast('error', 'Message Error', errMsg);
       } finally {
         setSending(false);
       }
     } else if (commType === 'call') {
       if (!recipient || !recipient.trim()) {
-        addToast('warning', 'Missing Phone', 'Customer phone number is not available.');
+        addToast('warning', 'Missing Phone', 'Phone number is not available for this customer.');
         return;
       }
 
@@ -196,7 +219,7 @@ const CommunicationModal = ({
         });
 
         setDeviceUri(res.data.device_uri || `tel:${recipient}`);
-        addToast('info', 'Call Logged', `Recorded phone call to ${recipient}.`);
+        addToast('info', 'Call Initiated', `Recorded phone call to ${recipient}.`);
 
         // Trigger native tel dialer
         window.location.href = res.data.device_uri || `tel:${recipient}`;
@@ -219,14 +242,26 @@ const CommunicationModal = ({
     addToast('info', 'Copied to Clipboard', 'Message text copied to clipboard.');
   };
 
-  const isEmailMissing = commType === 'email' && (!customer.email || !customer.email.includes('@'));
-  const isPhoneMissing = (commType === 'sms' || commType === 'call') && (!customer.phone || !customer.phone.trim());
+  // Character calculation & segmentation
+  const charCount = message.length;
+  const hasTamil = /[\u0B80-\u0BFF]/.test(message);
+  const segmentLimit = hasTamil ? 70 : 160;
+  const segments = Math.ceil(charCount / segmentLimit) || (charCount > 0 ? 1 : 0);
+  const isMultiSegment = charCount > segmentLimit;
+
+  // Title calculation
+  const modalTitle =
+    commType === 'sms'
+      ? 'Send Message'
+      : commType === 'call'
+      ? 'Direct Phone Call'
+      : 'Send Email';
 
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Customer Communication"
+      title={modalTitle}
       maxWidth="max-w-3xl"
     >
       <div className="space-y-4 text-xs">
@@ -244,11 +279,11 @@ const CommunicationModal = ({
               <div className="flex flex-wrap items-center gap-3 text-[11px] text-slate-400 mt-0.5">
                 <span className="flex items-center gap-1">
                   <Mail className="w-3 h-3 text-slate-500" />
-                  {customer.email || <em className="text-rose-400">No email</em>}
+                  {customer.email || <em className="text-amber-400 font-normal">Email not available</em>}
                 </span>
                 <span className="flex items-center gap-1">
                   <Phone className="w-3 h-3 text-slate-500" />
-                  {customer.phone || <em className="text-rose-400">No phone</em>}
+                  {customer.phone || <em className="text-amber-400 font-normal">Phone not available</em>}
                 </span>
               </div>
             </div>
@@ -264,17 +299,23 @@ const CommunicationModal = ({
           )}
         </div>
 
-        {/* Validation Warning Alert if Required Field Missing */}
-        {isEmailMissing && (
-          <div className="p-3 rounded-xl bg-rose-950/30 border border-rose-500/30 text-rose-300 flex items-center gap-2">
+        {/* Global Warnings based on customer data */}
+        {!hasEmail && !hasPhone && (
+          <div className="p-3 rounded-xl bg-rose-950/40 border border-rose-500/40 text-rose-300 flex items-center gap-2">
             <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
-            <span>Customer email address is not available. Please edit customer profile or enter recipient email manually below.</span>
+            <span>No communication details available for this customer. Please update customer contact information.</span>
           </div>
         )}
-        {isPhoneMissing && (
-          <div className="p-3 rounded-xl bg-rose-950/30 border border-rose-500/30 text-rose-300 flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
-            <span>Customer phone number is not available. Please edit customer profile or enter recipient phone manually below.</span>
+        {!hasEmail && hasPhone && commType === 'email' && (
+          <div className="p-3 rounded-xl bg-amber-950/30 border border-amber-500/30 text-amber-300 flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0 text-amber-400" />
+            <span>Email is not available for this customer. You can switch to <strong>Message</strong> or <strong>Call</strong> to contact them directly.</span>
+          </div>
+        )}
+        {!hasPhone && hasEmail && (commType === 'sms' || commType === 'call') && (
+          <div className="p-3 rounded-xl bg-amber-950/30 border border-amber-500/30 text-amber-300 flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0 text-amber-400" />
+            <span>Phone number is not available for this customer. You can use <strong>Email</strong> to contact them.</span>
           </div>
         )}
 
@@ -283,13 +324,13 @@ const CommunicationModal = ({
           {/* Communication Type */}
           <div>
             <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
-              Communication Type
+              Communication Option
             </label>
             <div className="grid grid-cols-3 gap-1.5 bg-slate-900/80 p-1 rounded-xl border border-slate-800">
               {[
-                { id: 'email', label: 'Email', icon: Mail },
-                { id: 'sms', label: 'SMS', icon: MessageSquare },
-                { id: 'call', label: 'Call', icon: Phone }
+                { id: 'email', label: 'Email', icon: Mail, disabled: !hasEmail, reason: 'Email not available' },
+                { id: 'sms', label: 'Message', icon: MessageSquare, disabled: !hasPhone, reason: 'Phone not available' },
+                { id: 'call', label: 'Phone', icon: Phone, disabled: !hasPhone, reason: 'Phone not available' }
               ].map((t) => {
                 const Icon = t.icon;
                 const active = commType === t.id;
@@ -297,12 +338,17 @@ const CommunicationModal = ({
                   <button
                     key={t.id}
                     type="button"
+                    disabled={t.disabled}
+                    title={t.disabled ? t.reason : t.label}
                     onClick={() => {
+                      if (t.disabled) return;
                       setCommType(t.id);
                       setDeviceUri('');
                     }}
                     className={`flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg font-semibold transition-all ${
-                      active
+                      t.disabled
+                        ? 'opacity-40 cursor-not-allowed text-slate-600 bg-transparent'
+                        : active
                         ? 'bg-indigo-600 text-white shadow-md'
                         : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
                     }`}
@@ -319,7 +365,7 @@ const CommunicationModal = ({
           <div>
             <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5 flex items-center justify-between">
               <span>Message Language</span>
-              <span className="text-[10px] text-indigo-400 normal-case">UI stays English</span>
+              <span className="text-[10px] text-indigo-400 normal-case">UI remains English</span>
             </label>
             <div className="grid grid-cols-3 gap-1.5 bg-slate-900/80 p-1 rounded-xl border border-slate-800">
               {[
@@ -350,24 +396,24 @@ const CommunicationModal = ({
           </div>
         </div>
 
-        {/* AI Generation Control Bar (Only for Email and SMS) */}
+        {/* AI Generation Control Bar (For Email and Message / SMS) */}
         {commType !== 'call' && (
           <div className="p-3.5 rounded-2xl bg-indigo-950/20 border border-indigo-500/20 space-y-3">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-indigo-500/10">
               <div className="flex items-center gap-1.5 text-indigo-300 font-bold">
                 <Sparkles className="w-4 h-4" />
-                <span>AI Message Assistant</span>
+                <span>AI Message Generator</span>
                 <Badge variant="ai">Gemini</Badge>
               </div>
               <span className="text-[11px] text-slate-400">
-                Context: {customer.overdue_amount > 0 ? 'Overdue Invoices Detected' : 'Active Account'}
+                Context: {customer.overdue_amount > 0 ? 'Overdue Invoice Detected' : 'Active Account'}
               </span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
               <div>
                 <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">
-                  Template Goal
+                  Message Purpose
                 </label>
                 <select
                   value={templateType}
@@ -375,9 +421,12 @@ const CommunicationModal = ({
                   className="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-2.5 py-1.5 text-white focus:outline-none focus:border-indigo-500"
                 >
                   <option value="payment_reminder">Payment Reminder</option>
-                  <option value="customer_followup">Customer Follow-up</option>
-                  <option value="appointment_confirmation">Meeting / Milestone Confirmation</option>
-                  <option value="general_inquiry">General Business Notice</option>
+                  <option value="overdue_invoice">Overdue Invoice</option>
+                  <option value="appointment_reminder">Appointment Reminder</option>
+                  <option value="followup">Follow-up</option>
+                  <option value="customer_notification">Customer Notification</option>
+                  <option value="order_update">Order / Update Notification</option>
+                  <option value="general">General Message</option>
                 </select>
               </div>
 
@@ -399,13 +448,13 @@ const CommunicationModal = ({
 
               <div>
                 <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">
-                  Special Instructions
+                  Custom Instructions (Optional)
                 </label>
                 <input
                   type="text"
                   value={customInstructions}
                   onChange={(e) => setCustomInstructions(e.target.value)}
-                  placeholder="e.g. mention 5% prompt discount"
+                  placeholder="e.g. mention invoice INV-1001"
                   className="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-2.5 py-1.5 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
                 />
               </div>
@@ -421,7 +470,7 @@ const CommunicationModal = ({
                 icon={Sparkles}
                 className="font-bold text-xs"
               >
-                Generate with AI ({language === 'en' ? 'English' : (language === 'ta' ? 'Tamil' : 'English + Tamil')})
+                AI Generate ({language === 'en' ? 'English' : (language === 'ta' ? 'Tamil' : 'English + Tamil')})
               </Button>
             </div>
           </div>
@@ -436,13 +485,13 @@ const CommunicationModal = ({
             <div>
               <h3 className="text-base font-bold text-white">Direct Phone Call</h3>
               <p className="text-slate-400 text-xs mt-1">
-                Initiate a call to {customer.name} using your device's native calling application.
+                Initiate a call to {customer.name} using your device's native calling application (tel:).
               </p>
             </div>
 
             <div className="max-w-xs mx-auto">
               <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1 text-left">
-                Phone Number
+                Recipient Phone Number
               </label>
               <input
                 type="tel"
@@ -467,13 +516,13 @@ const CommunicationModal = ({
             </div>
           </div>
         ) : (
-          /* Email / SMS Editor Area */
+          /* Email / Message Editor Area */
           <div className="space-y-3">
             {/* Recipient & Subject Row */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">
-                  {commType === 'email' ? 'Recipient Email' : 'Recipient Phone Number'}
+                  {commType === 'email' ? 'To (Email)' : 'To (Phone Number)'}
                 </label>
                 <input
                   type={commType === 'email' ? 'email' : 'tel'}
@@ -501,11 +550,11 @@ const CommunicationModal = ({
               )}
             </div>
 
-            {/* View Mode Toggle: Editor vs Live Preview */}
+            {/* View Mode Toggle: Editor vs Live Preview & Copy / Clear */}
             <div className="flex items-center justify-between pt-1">
               <div className="flex items-center gap-2">
                 <span className="text-[10px] uppercase font-bold text-slate-400">
-                  {commType === 'email' ? 'Email Body' : 'SMS Message'} ({language === 'en' ? 'English' : (language === 'ta' ? 'Tamil' : 'English + Tamil')})
+                  {commType === 'email' ? 'Email Body' : 'Message Content'} ({language === 'en' ? 'English' : (language === 'ta' ? 'Tamil' : 'English + Tamil')})
                 </span>
                 {generatedEngine && (
                   <Badge variant="ai">{generatedEngine}</Badge>
@@ -515,9 +564,19 @@ const CommunicationModal = ({
               <div className="flex items-center gap-1.5">
                 <button
                   type="button"
+                  onClick={handleClear}
+                  disabled={!message && !subject}
+                  className="px-2 py-1 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 flex items-center gap-1 text-[11px] transition-colors disabled:opacity-40"
+                  title="Clear composer"
+                >
+                  <RotateCcw className="w-3 h-3" />
+                  <span>Clear</span>
+                </button>
+                <button
+                  type="button"
                   onClick={handleCopyMessage}
                   disabled={!message}
-                  className="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center gap-1 text-[11px] transition-colors"
+                  className="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center gap-1 text-[11px] transition-colors disabled:opacity-40"
                 >
                   {copied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
                   <span>{copied ? 'Copied' : 'Copy'}</span>
@@ -547,21 +606,38 @@ const CommunicationModal = ({
 
             {/* Editor Textarea / Preview Box */}
             {activeView === 'editor' ? (
-              <div className="relative">
-                <textarea
-                  value={message}
-                  onChange={(e) => setMessage(e.target.value)}
-                  rows={commType === 'email' ? 7 : 4}
-                  placeholder={
-                    commType === 'email'
-                      ? 'Write or generate your business email in English, Tamil, or English + Tamil...'
-                      : 'Write or generate SMS text in English, Tamil, or English + Tamil...'
-                  }
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-slate-200 focus:outline-none focus:border-indigo-500 leading-relaxed font-sans text-xs"
-                />
+              <div className="space-y-1.5">
+                <div className="relative">
+                  <textarea
+                    value={message}
+                    onChange={(e) => setMessage(e.target.value)}
+                    rows={commType === 'email' ? 7 : 5}
+                    placeholder={
+                      commType === 'email'
+                        ? 'Write or generate your business email in English, Tamil, or English + Tamil...'
+                        : 'Write or generate normal message in English, Tamil, or English + Tamil...'
+                    }
+                    className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-slate-200 focus:outline-none focus:border-indigo-500 leading-relaxed font-sans text-xs"
+                  />
+                </div>
+
+                {/* Character Counter & Segment Warning for SMS / Normal Message */}
                 {commType === 'sms' && (
-                  <div className="absolute right-3 bottom-2.5 text-[10px] text-slate-500">
-                    {message.length} characters • {Math.ceil(message.length / 160) || 1} SMS part(s)
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 px-1">
+                    <div className="text-[11px] text-slate-400 flex items-center gap-2">
+                      <span>Characters: <strong className="text-white">{charCount}</strong></span>
+                      <span>•</span>
+                      <span>Segments: <strong className="text-white">{segments}</strong></span>
+                      {hasTamil && (
+                        <span className="text-indigo-400 text-[10px]">(Tamil Unicode detected)</span>
+                      )}
+                    </div>
+                    {isMultiSegment && (
+                      <div className="text-[11px] text-amber-400 flex items-center gap-1 font-medium">
+                        <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                        <span>This message may be split into multiple SMS segments.</span>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -620,7 +696,7 @@ const CommunicationModal = ({
                 icon={Send}
                 className="font-bold"
               >
-                {commType === 'email' ? 'Send Email (SMTP)' : 'Send SMS (Device App)'}
+                {commType === 'email' ? 'Send Email (SMTP)' : 'Send Message'}
               </Button>
             </div>
           )}
