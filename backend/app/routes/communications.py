@@ -113,6 +113,19 @@ def generate_communication_endpoint(
     return draft
 
 
+@router.post("/message/generate", response_model=CommunicationGenerateResponse)
+def generate_message_alias(
+    req: CommunicationGenerateRequest,
+    db: Session = Depends(get_db),
+    business: Business = Depends(get_current_business)
+):
+    """
+    Alias for normal message / SMS AI generation endpoint.
+    """
+    req.communication_type = "sms"
+    return generate_communication_endpoint(req, db, business)
+
+
 @router.post("/email")
 def send_email_communication(
     req: CommunicationSendRequest,
@@ -259,6 +272,19 @@ def send_sms_communication(
         "delivery": sms_res,
         "status": status_str
     }
+
+
+@router.post("/message/send")
+def send_message_alias(
+    req: CommunicationSendRequest,
+    db: Session = Depends(get_db),
+    business: Business = Depends(get_current_business)
+):
+    """
+    Alias for normal message / SMS send endpoint.
+    """
+    req.communication_type = "sms"
+    return send_sms_communication(req, db, business)
 
 
 @router.post("/call")

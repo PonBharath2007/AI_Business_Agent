@@ -133,13 +133,36 @@ const CustomersPage = ({ onNavigate }) => {
     }
   };
 
+  const handleInitiateCall = (customer) => {
+    if (!customer?.phone || !customer.phone.trim()) {
+      addToast('warning', 'Missing Phone', 'Phone number is not available for this customer.');
+      return;
+    }
+    const cleanPhone = customer.phone.trim();
+    // Fire and forget server-side call logging
+    api.post('/communications/call', {
+      customer_id: customer.id,
+      phone_number: cleanPhone
+    }).catch((err) => console.warn('Call log note:', err));
+
+    const sanitizedNumber = cleanPhone.replace(/[^0-9+]/g, '');
+    window.location.href = `tel:${sanitizedNumber}`;
+    addToast('info', 'Calling Customer', `Opening calling application for ${cleanPhone}.`);
+  };
+
   const handleCreateCustomer = async (e) => {
     e.preventDefault();
     const name = newCustomer.name?.trim();
-    const email = newCustomer.email?.trim();
+    const email = newCustomer.email?.trim() || '';
+    const phone = newCustomer.phone?.trim() || '';
 
-    if (!name || !email) {
-      addToast('warning', 'Missing Fields', 'Please provide customer name and email.');
+    if (!name) {
+      addToast('warning', 'Missing Name', 'Please provide customer name.');
+      return;
+    }
+
+    if (!email && !phone) {
+      addToast('warning', 'Missing Contact Info', 'Please provide at least an email address or a phone number.');
       return;
     }
 
@@ -147,8 +170,8 @@ const CustomersPage = ({ onNavigate }) => {
     try {
       const payload = {
         name,
-        email,
-        phone: newCustomer.phone?.trim() || '',
+        email: email || null,
+        phone: phone || null,
         company: newCustomer.company?.trim() || name,
         status: newCustomer.status || 'active'
       };
@@ -343,36 +366,65 @@ const CustomersPage = ({ onNavigate }) => {
                 {/* Communication Action Buttons Strip */}
                 <div className="space-y-2 pt-2 border-t border-slate-800/80">
                   <div className="flex items-center justify-between text-[11px] text-slate-400 font-bold uppercase tracking-wider">
-                    <span>Actions</span>
+                    <span>Communication</span>
                     <span className="text-[10px] text-indigo-400 normal-case font-normal">Multilingual AI</span>
                   </div>
 
                   <div className="grid grid-cols-3 gap-1.5">
+                    {/* [ Email ] */}
                     <button
+                      type="button"
+                      disabled={!cust.email || !cust.email.includes('@')}
                       onClick={() => handleOpenCommunication(cust, 'email')}
-                      className="flex items-center justify-center gap-1 py-1.5 px-2 rounded-xl bg-slate-900 border border-slate-700/80 hover:border-indigo-500 text-xs font-semibold text-slate-200 hover:text-white transition-all shadow-sm"
-                      title="Compose Email (English / Tamil / Bilingual)"
+                      className={`flex items-center justify-center gap-1 py-1.5 px-2 rounded-xl text-xs font-semibold transition-all shadow-sm ${
+                        cust.email && cust.email.includes('@')
+                          ? 'bg-slate-900 border border-slate-700/80 hover:border-indigo-500 text-slate-200 hover:text-white cursor-pointer'
+                          : 'bg-slate-950/60 border border-slate-800/70 text-slate-500 opacity-50 cursor-not-allowed'
+                      }`}
+                      title={cust.email && cust.email.includes('@') ? `Email ${cust.email}` : 'Email not available'}
                     >
-                      <Mail className="w-3.5 h-3.5 text-indigo-400" />
+                      <Mail className={`w-3.5 h-3.5 ${cust.email && cust.email.includes('@') ? 'text-indigo-400' : 'text-slate-500'}`} />
                       <span>Email</span>
                     </button>
+
+                    {/* [ Phone ] */}
                     <button
-                      onClick={() => handleOpenCommunication(cust, 'sms')}
-                      className="flex items-center justify-center gap-1 py-1.5 px-2 rounded-xl bg-slate-900 border border-slate-700/80 hover:border-indigo-500 text-xs font-semibold text-slate-200 hover:text-white transition-all shadow-sm"
-                      title="Send SMS"
+                      type="button"
+                      disabled={!cust.phone || !cust.phone.trim()}
+                      onClick={() => handleInitiateCall(cust)}
+                      className={`flex items-center justify-center gap-1 py-1.5 px-2 rounded-xl text-xs font-semibold transition-all shadow-sm ${
+                        cust.phone && cust.phone.trim()
+                          ? 'bg-slate-900 border border-slate-700/80 hover:border-amber-500 text-slate-200 hover:text-white cursor-pointer'
+                          : 'bg-slate-950/60 border border-slate-800/70 text-slate-500 opacity-50 cursor-not-allowed'
+                      }`}
+                      title={cust.phone && cust.phone.trim() ? `Call ${cust.phone} (tel:)` : 'Phone number not available'}
                     >
-                      <MessageSquare className="w-3.5 h-3.5 text-emerald-400" />
-                      <span>SMS</span>
+                      <Phone className={`w-3.5 h-3.5 ${cust.phone && cust.phone.trim() ? 'text-amber-400' : 'text-slate-500'}`} />
+                      <span>Phone</span>
                     </button>
+
+                    {/* [ Message ] */}
                     <button
-                      onClick={() => handleOpenCommunication(cust, 'call')}
-                      className="flex items-center justify-center gap-1 py-1.5 px-2 rounded-xl bg-slate-900 border border-slate-700/80 hover:border-indigo-500 text-xs font-semibold text-slate-200 hover:text-white transition-all shadow-sm"
-                      title="Call Customer (tel:)"
+                      type="button"
+                      disabled={!cust.phone || !cust.phone.trim()}
+                      onClick={() => handleOpenCommunication(cust, 'sms')}
+                      className={`flex items-center justify-center gap-1 py-1.5 px-2 rounded-xl text-xs font-semibold transition-all shadow-sm ${
+                        cust.phone && cust.phone.trim()
+                          ? 'bg-slate-900 border border-slate-700/80 hover:border-emerald-500 text-slate-200 hover:text-white cursor-pointer'
+                          : 'bg-slate-950/60 border border-slate-800/70 text-slate-500 opacity-50 cursor-not-allowed'
+                      }`}
+                      title={cust.phone && cust.phone.trim() ? `Send Message / SMS to ${cust.phone}` : 'Phone number not available'}
                     >
-                      <Phone className="w-3.5 h-3.5 text-amber-400" />
-                      <span>Call</span>
+                      <MessageSquare className={`w-3.5 h-3.5 ${cust.phone && cust.phone.trim() ? 'text-emerald-400' : 'text-slate-500'}`} />
+                      <span>Message</span>
                     </button>
                   </div>
+
+                  {!cust.email && !cust.phone && (
+                    <p className="text-[10px] text-amber-400/90 text-center font-medium pt-0.5">
+                      No communication details available for this customer.
+                    </p>
+                  )}
                 </div>
 
                 {/* Bottom Tools */}
@@ -453,6 +505,8 @@ const CustomersPage = ({ onNavigate }) => {
                       setCustomer360ModalOpen(false);
                       handleOpenCommunication(customer360Data.customer, 'email');
                     }}
+                    disabled={!customer360Data.customer.email || !customer360Data.customer.email.includes('@')}
+                    title={customer360Data.customer.email ? `Email ${customer360Data.customer.email}` : 'Email not available'}
                     variant="secondary"
                     size="sm"
                     icon={Mail}
@@ -461,25 +515,28 @@ const CustomersPage = ({ onNavigate }) => {
                   </Button>
                   <Button
                     onClick={() => {
-                      setCustomer360ModalOpen(false);
-                      handleOpenCommunication(customer360Data.customer, 'sms');
+                      handleInitiateCall(customer360Data.customer);
                     }}
-                    variant="secondary"
-                    size="sm"
-                    icon={MessageSquare}
-                  >
-                    SMS
-                  </Button>
-                  <Button
-                    onClick={() => {
-                      setCustomer360ModalOpen(false);
-                      handleOpenCommunication(customer360Data.customer, 'call');
-                    }}
+                    disabled={!customer360Data.customer.phone || !customer360Data.customer.phone.trim()}
+                    title={customer360Data.customer.phone ? `Call ${customer360Data.customer.phone} (tel:)` : 'Phone number not available'}
                     variant="secondary"
                     size="sm"
                     icon={Phone}
                   >
-                    Call
+                    Phone
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      setCustomer360ModalOpen(false);
+                      handleOpenCommunication(customer360Data.customer, 'sms');
+                    }}
+                    disabled={!customer360Data.customer.phone || !customer360Data.customer.phone.trim()}
+                    title={customer360Data.customer.phone ? `Send Message to ${customer360Data.customer.phone}` : 'Phone number not available'}
+                    variant="secondary"
+                    size="sm"
+                    icon={MessageSquare}
+                  >
+                    Message
                   </Button>
                 </div>
               </div>
@@ -647,7 +704,7 @@ const CustomersPage = ({ onNavigate }) => {
               type="text"
               value={newCustomer.name}
               onChange={(e) => setNewCustomer({ ...newCustomer, name: e.target.value })}
-              placeholder="e.g. Acme Corp or Jane Doe"
+              placeholder="e.g. ABC Ltd or Jane Doe"
               required
               className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-indigo-500"
             />
@@ -656,24 +713,25 @@ const CustomersPage = ({ onNavigate }) => {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block font-semibold text-slate-300 mb-1">
-                Email Address <span className="text-rose-400">*</span>
+                Email Address <span className="text-slate-500 font-normal text-[10px]">(Optional)</span>
               </label>
               <input
                 type="email"
                 value={newCustomer.email}
                 onChange={(e) => setNewCustomer({ ...newCustomer, email: e.target.value })}
                 placeholder="accounts@example.com"
-                required
                 className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-indigo-500"
               />
             </div>
             <div>
-              <label className="block font-semibold text-slate-300 mb-1">Phone</label>
+              <label className="block font-semibold text-slate-300 mb-1">
+                Phone Number <span className="text-slate-500 font-normal text-[10px]">(Optional)</span>
+              </label>
               <input
                 type="text"
                 value={newCustomer.phone}
                 onChange={(e) => setNewCustomer({ ...newCustomer, phone: e.target.value })}
-                placeholder="+1 555 0192"
+                placeholder="+91XXXXXXXXXX"
                 className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-indigo-500"
               />
             </div>
@@ -721,21 +779,26 @@ const CustomersPage = ({ onNavigate }) => {
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block font-semibold text-slate-300 mb-1">Email Address</label>
+              <label className="block font-semibold text-slate-300 mb-1">
+                Email Address <span className="text-slate-500 font-normal text-[10px]">(Optional)</span>
+              </label>
               <input
                 type="email"
                 value={editCustomer.email}
                 onChange={(e) => setEditCustomer({ ...editCustomer, email: e.target.value })}
-                required
+                placeholder="accounts@example.com"
                 className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-indigo-500"
               />
             </div>
             <div>
-              <label className="block font-semibold text-slate-300 mb-1">Phone</label>
+              <label className="block font-semibold text-slate-300 mb-1">
+                Phone Number <span className="text-slate-500 font-normal text-[10px]">(Optional)</span>
+              </label>
               <input
                 type="text"
                 value={editCustomer.phone}
                 onChange={(e) => setEditCustomer({ ...editCustomer, phone: e.target.value })}
+                placeholder="+91XXXXXXXXXX"
                 className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-indigo-500"
               />
             </div>

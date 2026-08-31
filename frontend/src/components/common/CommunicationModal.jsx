@@ -329,8 +329,8 @@ const CommunicationModal = ({
             <div className="grid grid-cols-3 gap-1.5 bg-slate-900/80 p-1 rounded-xl border border-slate-800">
               {[
                 { id: 'email', label: 'Email', icon: Mail, disabled: !hasEmail, reason: 'Email not available' },
-                { id: 'sms', label: 'Message', icon: MessageSquare, disabled: !hasPhone, reason: 'Phone not available' },
-                { id: 'call', label: 'Phone', icon: Phone, disabled: !hasPhone, reason: 'Phone not available' }
+                { id: 'call', label: 'Phone', icon: Phone, disabled: !hasPhone, reason: 'Phone not available' },
+                { id: 'sms', label: 'Message', icon: MessageSquare, disabled: !hasPhone, reason: 'Phone not available' }
               ].map((t) => {
                 const Icon = t.icon;
                 const active = commType === t.id;

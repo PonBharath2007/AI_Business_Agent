@@ -17,7 +17,9 @@ def _format_customer(c: Customer) -> dict:
         pending_amount = sum(float(i.amount or 0) for i in invoices if i.status == "pending")
         overdue_amount = sum(float(i.amount or 0) for i in invoices if i.status == "overdue")
         emails = c.emails or []
-        last_comm = max([e.created_at for e in emails if e.created_at]) if emails else None
+        comms = c.communications or []
+        comm_dates = [e.created_at for e in emails if e.created_at] + [cm.created_at for cm in comms if cm.created_at]
+        last_comm = max(comm_dates) if comm_dates else None
     except Exception as e:
         logger.warning(f"Error computing customer summary for {c.id}: {e}")
         pending_amount = 0.0
