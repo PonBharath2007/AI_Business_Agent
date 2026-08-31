@@ -336,14 +336,33 @@ def initiate_call_communication(
 @router.get("", response_model=List[CommunicationLogOut])
 def get_all_communications(
     limit: int = 50,
+    type: Optional[str] = Query(None, description="Filter by communication_type (e.g. 'sms', 'email', 'call')"),
     db: Session = Depends(get_db),
     business: Business = Depends(get_current_business)
 ):
     """
     Lists communication history across Email, SMS, and Call for the business.
     """
+    query = db.query(CommunicationLog).filter(CommunicationLog.business_id == business.id)
+    if type and type.strip():
+        query = query.filter(CommunicationLog.communication_type == type.strip().lower())
+    
+    logs = query.order_by(CommunicationLog.created_at.desc()).limit(limit).all()
+    return [_format_comm_log(l) for l in logs]
+
+
+@router.get("/messages", response_model=List[CommunicationLogOut])
+def get_all_sms_messages(
+    limit: int = 50,
+    db: Session = Depends(get_db),
+    business: Business = Depends(get_current_business)
+):
+    """
+    Lists SMS / message communication history for the Message Center.
+    """
     logs = db.query(CommunicationLog).filter(
-        CommunicationLog.business_id == business.id
+        CommunicationLog.business_id == business.id,
+        CommunicationLog.communication_type == "sms"
     ).order_by(CommunicationLog.created_at.desc()).limit(limit).all()
 
     return [_format_comm_log(l) for l in logs]

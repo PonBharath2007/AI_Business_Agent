@@ -15,6 +15,7 @@ import CustomersPage from './pages/CustomersPage';
 import TasksPage from './pages/TasksPage';
 import ApprovalsPage from './pages/ApprovalsPage';
 import EmailAssistantPage from './pages/EmailAssistantPage';
+import MessageCenterPage from './pages/MessageCenterPage';
 import AnalyticsPage from './pages/AnalyticsPage';
 import ActivityLogPage from './pages/ActivityLogPage';
 import SettingsPage from './pages/SettingsPage';
@@ -91,6 +92,8 @@ const AppContent = () => {
         return <ApprovalsPage onNavigate={(tab) => setActiveTab(tab)} />;
       case 'email_assistant':
         return <EmailAssistantPage onNavigate={(tab) => setActiveTab(tab)} />;
+      case 'message_center':
+        return <MessageCenterPage onNavigate={(tab) => setActiveTab(tab)} />;
       case 'analytics':
         return <AnalyticsPage onNavigate={(tab) => setActiveTab(tab)} />;
       case 'activity':

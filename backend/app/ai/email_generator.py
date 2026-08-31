@@ -210,6 +210,32 @@ Return strictly a JSON object with:
             else:
                 subj = f"Order Update: {business_name}"
                 body = f"Dear {customer_name}, your order with {business_name} has been updated. Please contact us for details. Thank you."
+        elif "confirmation" in t_type or t_type == "payment_confirmation":
+            if language == "ta":
+                subj = f"பணம் பெறப்பட்டது - {inv_str}"
+                body = (
+                    f"வணக்கம் {customer_name},\n"
+                    f"விலைப்பட்டியல் {inv_str}-க்கான உங்கள் {formatted_amount} பணம் வெற்றிகரமாகப் பெறப்பட்டது. மிக்க நன்றி!\n"
+                    f"- {business_name}"
+                )
+            elif language == "en_ta":
+                subj = f"Payment Received / பணம் பெறப்பட்டது - {inv_str}"
+                body = (
+                    f"Dear {customer_name},\n"
+                    f"We have successfully received your payment of {formatted_amount} for invoice {inv_str}.\n\n"
+                    f"வணக்கம் {customer_name},\n"
+                    f"விலைப்பட்டியல் {inv_str}-க்கான உங்கள் {formatted_amount} பணம் பெறப்பட்டது.\n\n"
+                    f"Thank you / நன்றி.\n"
+                    f"- {business_name}"
+                )
+            else:
+                subj = f"Payment Received: Invoice {inv_str}"
+                body = (
+                    f"Dear {customer_name},\n"
+                    f"We have received your payment of {formatted_amount} for invoice {inv_str}. "
+                    f"Thank you for your prompt payment!\n"
+                    f"- {business_name}"
+                )
         elif "notification" in t_type or t_type == "customer_notification":
             if language == "ta":
                 subj = f"வாடிக்கையாளர் அறிவிப்பு - {business_name}"
