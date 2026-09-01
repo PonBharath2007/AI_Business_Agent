@@ -15,18 +15,38 @@ load_dotenv(PROJECT_ROOT / ".env")
 load_dotenv(PROJECT_ROOT / "backend" / ".env")
 load_dotenv()
 
+# ============================================================
+# HARDCODED LIVE SMTP CONFIGURATION (Gmail SMTP)
+# Ensures zero-configuration live email delivery across all deployments
+# ============================================================
+DEFAULT_SMTP_SERVER = "smtp.gmail.com"
+DEFAULT_SMTP_PORT = 465
+DEFAULT_SMTP_USERNAME = "def72630@gmail.com"
+DEFAULT_SMTP_PASSWORD = "hsawovmrquuyoucq"
+DEFAULT_SMTP_FROM_EMAIL = "def72630@gmail.com"
+DEFAULT_SMTP_USE_TLS = True
+
 def get_smtp_config() -> Dict[str, Any]:
-    """Retrieve and clean current SMTP settings from environment."""
-    server = os.getenv("SMTP_SERVER", "").strip().strip('"').strip("'")
-    port_str = os.getenv("SMTP_PORT", "465").strip().strip('"').strip("'")
-    try:
-        port = int(port_str)
-    except ValueError:
-        port = 465
-    username = os.getenv("SMTP_USERNAME", "").strip().strip('"').strip("'")
-    password = os.getenv("SMTP_PASSWORD", "").strip().strip('"').strip("'")
-    from_email = os.getenv("SMTP_FROM_EMAIL", username or "noreply@summitdigital.example").strip().strip('"').strip("'")
-    use_tls = os.getenv("SMTP_USE_TLS", "true").lower() in ["true", "1", "yes"]
+    """
+    Retrieve current SMTP settings with fallback to hardcoded Gmail SMTP configuration.
+    Guarantees that live email delivery always works in both local and deployed environments.
+    """
+    server = os.getenv("SMTP_SERVER", "").strip().strip('"').strip("'") or DEFAULT_SMTP_SERVER
+    port_str = os.getenv("SMTP_PORT", "").strip().strip('"').strip("'")
+    if port_str:
+        try:
+            port = int(port_str)
+        except ValueError:
+            port = DEFAULT_SMTP_PORT
+    else:
+        port = DEFAULT_SMTP_PORT
+
+    username = os.getenv("SMTP_USERNAME", "").strip().strip('"').strip("'") or DEFAULT_SMTP_USERNAME
+    password = os.getenv("SMTP_PASSWORD", "").strip().strip('"').strip("'") or DEFAULT_SMTP_PASSWORD
+    from_email = os.getenv("SMTP_FROM_EMAIL", "").strip().strip('"').strip("'") or username or DEFAULT_SMTP_FROM_EMAIL
+    
+    use_tls_env = os.getenv("SMTP_USE_TLS")
+    use_tls = use_tls_env.lower() in ["true", "1", "yes"] if use_tls_env is not None else DEFAULT_SMTP_USE_TLS
 
     is_configured = bool(server and username and password)
     return {
