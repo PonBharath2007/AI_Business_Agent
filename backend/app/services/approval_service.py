@@ -33,6 +33,10 @@ def execute_approval_action(db: Session, approval: Approval, edited_data: Option
             sender_name=biz_name
         )
 
+        is_live = delivery_res.get("mode") == "live"
+        is_simulated = delivery_res.get("mode") == "simulated"
+        status_str = "sent" if is_live else ("simulated" if is_simulated else "failed")
+
         # 2. Record email in database
         email_record = Email(
             business_id=business_id,
@@ -40,7 +44,7 @@ def execute_approval_action(db: Session, approval: Approval, edited_data: Option
             subject=subject,
             body=body,
             recipient_email=recipient_email,
-            status="sent" if delivery_res.get("delivered") else "failed",
+            status=status_str,
             generated_by_ai=True,
             approval_id=approval.id
         )
@@ -55,8 +59,8 @@ def execute_approval_action(db: Session, approval: Approval, edited_data: Option
             recipient=recipient_email,
             subject=subject,
             message=body,
-            status="sent" if delivery_res.get("delivered") else "failed",
-            sent_at=datetime.utcnow() if delivery_res.get("delivered") else None
+            status=status_str,
+            sent_at=datetime.utcnow() if is_live else None
         )
         db.add(comm_log)
         db.commit()
@@ -74,7 +78,7 @@ def execute_approval_action(db: Session, approval: Approval, edited_data: Option
                 task.status = "Completed"
                 db.commit()
 
-        mode_text = "Live SMTP" if delivery_res.get("mode") == "live" else "Simulated"
+        mode_text = "Live SMTP" if is_live else ("Simulated" if is_simulated else "Failed")
         log_activity(
             db,
             business_id=business_id,
@@ -87,15 +91,16 @@ def execute_approval_action(db: Session, approval: Approval, edited_data: Option
         create_notification(
             db,
             business_id=business_id,
-            title="Payment Reminder Sent",
-            message=f"Email ({mode_text}) delivered to {recipient_email}.",
-            priority="Low"
+            title=f"Payment Reminder {'Sent' if is_live else ('Recorded' if is_simulated else 'Failed')}",
+            message=f"{'Delivered live email' if is_live else ('Recorded draft' if is_simulated else 'Failed delivery')} to {recipient_email} ({mode_text}).",
+            priority="High" if not is_live and not is_simulated else "Low"
         )
         
         execution_result["email_id"] = email_record.id
         execution_result["communication_id"] = comm_log.id
         execution_result["delivery"] = delivery_res
-        execution_result["message"] = delivery_res.get("message", f"Payment reminder email dispatched to {recipient_email}.")
+        execution_result["status"] = status_str
+        execution_result["message"] = delivery_res.get("message", f"Payment reminder email processed for {recipient_email}.")
 
     elif action_type == "send_sms":
         recipient_phone = action_data.get("recipient_phone") or action_data.get("phone") or ""

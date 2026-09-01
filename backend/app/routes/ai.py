@@ -173,13 +173,17 @@ def send_email_direct(
         sender_name=business.name
     )
 
+    is_live = delivery_res.get("mode") == "live"
+    is_simulated = delivery_res.get("mode") == "simulated"
+    status_str = "sent" if is_live else ("simulated" if is_simulated else "failed")
+
     email_rec = Email(
         business_id=business.id,
         customer_id=req.customer_id,
         subject=req.subject,
         body=req.body,
         recipient_email=req.recipient_email,
-        status="sent" if delivery_res.get("delivered") else "failed",
+        status=status_str,
         generated_by_ai=True,
         approval_id=req.approval_id
     )
@@ -194,15 +198,15 @@ def send_email_direct(
         recipient=req.recipient_email,
         subject=req.subject,
         message=req.body,
-        status="sent" if delivery_res.get("delivered") else "failed",
-        sent_at=datetime.utcnow() if delivery_res.get("delivered") else None
+        status=status_str,
+        sent_at=datetime.utcnow() if is_live else None
     )
     db.add(comm_log)
     db.commit()
     db.refresh(email_rec)
     db.refresh(comm_log)
 
-    mode_tag = "Live SMTP" if delivery_res.get("mode") == "live" else "Simulated"
+    mode_tag = "Live SMTP" if is_live else ("Simulated" if is_simulated else "Failed")
     log_activity(
         db,
         business_id=business.id,
@@ -215,17 +219,18 @@ def send_email_direct(
     create_notification(
         db,
         business_id=business.id,
-        title="Email Sent",
-        message=f"Delivered email to {req.recipient_email} ({mode_tag}).",
-        priority="Low"
+        title=f"Email {'Sent' if is_live else ('Recorded' if is_simulated else 'Failed')}",
+        message=f"{'Delivered live email' if is_live else ('Recorded draft' if is_simulated else 'Failed delivery')} to {req.recipient_email} ({mode_tag}).",
+        priority="High" if not is_live and not is_simulated else "Low"
     )
 
     return {
-        "message": delivery_res.get("message", f"Email successfully dispatched to {req.recipient_email}."),
+        "message": delivery_res.get("message", f"Email processed for {req.recipient_email}."),
         "email_id": email_rec.id,
         "communication_id": comm_log.id,
         "delivery": delivery_res,
-        "status": "sent"
+        "status": status_str,
+        "mode": delivery_res.get("mode")
     }
 
 

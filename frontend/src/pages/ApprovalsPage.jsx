@@ -57,7 +57,19 @@ const ApprovalsPage = ({ onNavigate }) => {
     try {
       const payload = editedData || approval.action_data;
       const res = await api.post(`/approvals/${approval.id}/approve`, payload);
-      addToast('success', 'Action Approved & Executed', res.data.message || 'Workflow executed successfully.');
+      const isLive = res.data.delivery?.mode === 'live';
+      const isSimulated = res.data.delivery?.mode === 'simulated';
+      const isFailed = res.data.status === 'failed' || res.data.delivery?.mode === 'failed';
+
+      if (isLive) {
+        addToast('success', 'Action Approved (Live Email Sent)', res.data.message || 'Live email dispatched to recipient.');
+      } else if (isSimulated) {
+        addToast('warning', 'Action Approved (Simulated)', res.data.message || 'Recorded in system database.');
+      } else if (isFailed) {
+        addToast('error', 'Execution Error', res.data.message || 'Action executed but email delivery failed.');
+      } else {
+        addToast('success', 'Action Approved & Executed', res.data.message || 'Workflow executed successfully.');
+      }
       if (editingApproval) setEditingApproval(null);
       fetchApprovals();
     } catch (err) {

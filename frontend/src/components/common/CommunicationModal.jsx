@@ -158,7 +158,20 @@ const CommunicationModal = ({
           message: message
         });
 
-        addToast('success', 'Email Sent', res.data.message || 'Email successfully dispatched.');
+        const isLive = res.data.mode === 'live' || res.data.delivery?.mode === 'live';
+        const isSimulated = res.data.mode === 'simulated' || res.data.delivery?.mode === 'simulated';
+        const isFailed = res.data.status === 'failed' || res.data.delivery?.mode === 'failed';
+
+        if (isLive) {
+          addToast('success', 'Live Email Sent', res.data.message || `Email delivered to ${recipient} via Gmail SMTP.`);
+        } else if (isSimulated) {
+          addToast('warning', 'Simulated Mode', res.data.message || 'Email recorded locally. Set SMTP credentials in your deployment environment variables for live sending.');
+        } else if (isFailed) {
+          addToast('error', 'SMTP Delivery Failed', res.data.message || 'Failed to dispatch email via SMTP server.');
+        } else {
+          addToast('success', 'Email Processed', res.data.message || 'Email processed successfully.');
+        }
+
         if (onSuccess) onSuccess();
         onClose();
       } catch (err) {

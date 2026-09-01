@@ -126,6 +126,59 @@ def generate_message_alias(
     return generate_communication_endpoint(req, db, business)
 
 
+from backend.app.services.email_delivery import send_real_email, test_smtp_connection, get_smtp_config
+
+@router.get("/smtp-status")
+def get_smtp_status_endpoint(
+    business: Business = Depends(get_current_business)
+):
+    """
+    Returns live SMTP configuration and connection status for the deployed environment.
+    """
+    config = get_smtp_config()
+    test_result = test_smtp_connection()
+    return {
+        "configured": config["configured"],
+        "server": config["server"],
+        "port": config["port"],
+        "from_email": config["from_email"],
+        "username_masked": (config["username"][:3] + "***" + config["username"][config["username"].find("@"):]) if config["username"] and "@" in config["username"] else "",
+        "connection_test": test_result
+    }
+
+
+@router.post("/test-smtp")
+def send_test_smtp_endpoint(
+    recipient: Optional[str] = Body(None, embed=True),
+    db: Session = Depends(get_db),
+    business: Business = Depends(get_current_business)
+):
+    """
+    Sends a test verification email to confirm that live SMTP is working.
+    """
+    target_email = recipient or business.email
+    if not target_email or "@" not in target_email:
+        raise HTTPException(status_code=400, detail="Valid recipient email is required for test dispatch.")
+
+    delivery_res = test_smtp_connection(test_recipient=target_email)
+    
+    log_activity(
+        db,
+        business_id=business.id,
+        actor_type="Business Owner",
+        action="SMTP Test",
+        description=f"SMTP verification test ({'Success' if delivery_res.get('delivered') else 'Failed'}) sent to {target_email}.",
+        metadata={"delivery": delivery_res}
+    )
+
+    return {
+        "delivery": delivery_res,
+        "recipient": target_email,
+        "success": delivery_res.get("delivered", False),
+        "message": delivery_res.get("message")
+    }
+
+
 @router.post("/email")
 def send_email_communication(
     req: CommunicationSendRequest,
@@ -148,9 +201,10 @@ def send_email_communication(
         sender_name=business.name
     )
 
-    is_delivered = delivery_res.get("delivered", False)
-    status_str = "sent" if is_delivered else "failed"
-    sent_time = datetime.utcnow() if is_delivered else None
+    is_live = delivery_res.get("mode") == "live"
+    is_simulated = delivery_res.get("mode") == "simulated"
+    status_str = "sent" if is_live else ("simulated" if is_simulated else "failed")
+    sent_time = datetime.utcnow() if is_live else None
 
     # 1. Record in emails table
     email_rec = Email(
@@ -182,7 +236,7 @@ def send_email_communication(
     db.refresh(email_rec)
     db.refresh(comm_log)
 
-    mode_tag = "Live SMTP" if delivery_res.get("mode") == "live" else "Simulated"
+    mode_tag = "Live SMTP" if is_live else ("Simulated" if is_simulated else "Failed")
     log_activity(
         db,
         business_id=business.id,
@@ -195,17 +249,18 @@ def send_email_communication(
     create_notification(
         db,
         business_id=business.id,
-        title="Email Sent",
-        message=f"Delivered email to {req.recipient} ({mode_tag}).",
-        priority="Low"
+        title=f"Email {'Sent' if is_live else ('Recorded' if is_simulated else 'Failed')}",
+        message=f"{'Delivered live email' if is_live else ('Recorded draft' if is_simulated else 'Failed delivery')} to {req.recipient} ({mode_tag}).",
+        priority="High" if not is_live and not is_simulated else "Low"
     )
 
     return {
-        "message": delivery_res.get("message", f"Email successfully dispatched to {req.recipient}."),
+        "message": delivery_res.get("message", f"Email processed for {req.recipient}."),
         "communication_id": comm_log.id,
         "email_id": email_rec.id,
         "delivery": delivery_res,
-        "status": status_str
+        "status": status_str,
+        "mode": delivery_res.get("mode")
     }
 
 

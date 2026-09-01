@@ -1,16 +1,14 @@
+from pathlib import Path
 import os
 import urllib.parse
 from typing import Dict, Any, Optional
 from dotenv import load_dotenv
 from backend.app.utils.logger import logger
 
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
+load_dotenv(PROJECT_ROOT / ".env")
+load_dotenv(PROJECT_ROOT / "backend" / ".env")
 load_dotenv()
-
-# Future provider credentials
-TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID", "").strip()
-TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN", "").strip()
-TWILIO_PHONE_NUMBER = os.getenv("TWILIO_PHONE_NUMBER", "").strip()
-SMS_API_KEY = os.getenv("SMS_API_KEY", "").strip()
 
 def format_phone_number(phone: str) -> str:
     """
@@ -59,14 +57,18 @@ def dispatch_sms(
     device_uri = build_sms_device_uri(clean_phone, message)
 
     # 1. If Twilio / live gateway is configured, attempt live dispatch
-    if TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN and TWILIO_PHONE_NUMBER:
+    twilio_sid = os.getenv("TWILIO_ACCOUNT_SID", "").strip()
+    twilio_auth = os.getenv("TWILIO_AUTH_TOKEN", "").strip()
+    twilio_phone = os.getenv("TWILIO_PHONE_NUMBER", "").strip()
+
+    if twilio_sid and twilio_auth and twilio_phone:
         try:
             # Dynamically use twilio if installed
             from twilio.rest import Client
-            client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
+            client = Client(twilio_sid, twilio_auth)
             twilio_msg = client.messages.create(
                 body=message,
-                from_=TWILIO_PHONE_NUMBER,
+                from_=twilio_phone,
                 to=clean_phone
             )
             logger.info(f"[Live SMS Dispatched] Twilio message SID: {twilio_msg.sid} to {clean_phone}")
