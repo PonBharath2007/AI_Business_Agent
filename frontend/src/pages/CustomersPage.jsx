@@ -100,6 +100,18 @@ const CustomersPage = ({ onNavigate }) => {
     setCommModalOpen(true);
   };
 
+  const handleOpenMessage = (customer) => {
+    if (!customer?.phone || !customer.phone.trim()) {
+      addToast('warning', 'Missing Phone', 'Phone number is not available for this customer.');
+      return;
+    }
+    if (onNavigate) {
+      onNavigate('message_center', { customerId: customer.id });
+    } else {
+      handleOpenCommunication(customer, 'sms');
+    }
+  };
+
   const handleOpen360 = async (customer) => {
     setCustomer360ModalOpen(true);
     setLoading360(true);
@@ -407,13 +419,13 @@ const CustomersPage = ({ onNavigate }) => {
                     <button
                       type="button"
                       disabled={!cust.phone || !cust.phone.trim()}
-                      onClick={() => handleOpenCommunication(cust, 'sms')}
+                      onClick={() => handleOpenMessage(cust)}
                       className={`flex items-center justify-center gap-1 py-1.5 px-2 rounded-xl text-xs font-semibold transition-all shadow-sm ${
                         cust.phone && cust.phone.trim()
                           ? 'bg-slate-900 border border-slate-700/80 hover:border-emerald-500 text-slate-200 hover:text-white cursor-pointer'
                           : 'bg-slate-950/60 border border-slate-800/70 text-slate-500 opacity-50 cursor-not-allowed'
                       }`}
-                      title={cust.phone && cust.phone.trim() ? `Send Message / SMS to ${cust.phone}` : 'Phone number not available'}
+                      title={cust.phone && cust.phone.trim() ? `Open Message Center for ${cust.name}` : 'Phone number not available'}
                     >
                       <MessageSquare className={`w-3.5 h-3.5 ${cust.phone && cust.phone.trim() ? 'text-emerald-400' : 'text-slate-500'}`} />
                       <span>Message</span>

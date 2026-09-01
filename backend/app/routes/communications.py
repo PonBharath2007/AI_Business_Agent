@@ -114,6 +114,7 @@ def generate_communication_endpoint(
 
 
 @router.post("/message/generate", response_model=CommunicationGenerateResponse)
+@router.post("/messages/generate", response_model=CommunicationGenerateResponse)
 def generate_message_alias(
     req: CommunicationGenerateRequest,
     db: Session = Depends(get_db),
@@ -330,6 +331,7 @@ def send_sms_communication(
 
 
 @router.post("/message/send")
+@router.post("/messages/send")
 def send_message_alias(
     req: CommunicationSendRequest,
     db: Session = Depends(get_db),
@@ -421,6 +423,26 @@ def get_all_sms_messages(
     ).order_by(CommunicationLog.created_at.desc()).limit(limit).all()
 
     return [_format_comm_log(l) for l in logs]
+
+
+@router.get("/messages/{message_id}", response_model=CommunicationLogOut)
+def get_single_sms_message(
+    message_id: int,
+    db: Session = Depends(get_db),
+    business: Business = Depends(get_current_business)
+):
+    """
+    Retrieves a single SMS / message communication record by ID.
+    """
+    comm = db.query(CommunicationLog).filter(
+        CommunicationLog.id == message_id,
+        CommunicationLog.business_id == business.id,
+        CommunicationLog.communication_type == "sms"
+    ).first()
+    if not comm:
+        raise HTTPException(status_code=404, detail="Message record not found.")
+
+    return _format_comm_log(comm)
 
 
 @router.get("/customer/{customer_id}", response_model=List[CommunicationLogOut])

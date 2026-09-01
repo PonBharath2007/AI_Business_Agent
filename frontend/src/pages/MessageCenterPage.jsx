@@ -186,6 +186,18 @@ const MessageCenterPage = ({ onNavigate, preSelectedCustomerId = null }) => {
     addToast('info', 'Cleared', 'Message composer cleared.');
   };
 
+  useEffect(() => {
+    if (preSelectedCustomerId) {
+      setSelectedCustomerId(String(preSelectedCustomerId));
+      if (customers.length > 0) {
+        const found = customers.find((c) => String(c.id) === String(preSelectedCustomerId));
+        if (found) {
+          setRecipientPhone(found.phone || '');
+        }
+      }
+    }
+  }, [preSelectedCustomerId, customers]);
+
   // Send SMS Message
   const handleSendMessage = async () => {
     const cleanPhone = recipientPhone?.trim();
@@ -210,7 +222,13 @@ const MessageCenterPage = ({ onNavigate, preSelectedCustomerId = null }) => {
       });
 
       setDeviceUri(res.data.device_uri || '');
-      addToast('success', 'Message Processed', res.data.message || 'SMS link prepared and recorded in history.');
+
+      const isLiveProvider = res.data.delivery?.mode === 'live';
+      if (isLiveProvider) {
+        addToast('success', 'Message Sent', 'Message sent successfully.');
+      } else {
+        addToast('success', 'SMS Composer Ready', 'SMS composer opened with the message and recipient.');
+      }
 
       // Automatically trigger device native SMS messaging application
       if (res.data.device_uri) {
@@ -221,8 +239,8 @@ const MessageCenterPage = ({ onNavigate, preSelectedCustomerId = null }) => {
       fetchHistory();
     } catch (err) {
       console.error('Send error:', err);
-      const errMsg = err.response?.data?.detail || 'Unable to open the messaging application.';
-      addToast('error', 'Delivery Failed', errMsg);
+      const errMsg = err.response?.data?.detail || 'Unable to send the message. Please try again.';
+      addToast('error', 'SMS Failure', errMsg);
     } finally {
       setSending(false);
     }

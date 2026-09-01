@@ -70,45 +70,57 @@ const AppContent = () => {
     return <LoginPage onSwitchToRegister={() => setAuthView('register')} />;
   }
 
+  const [navParams, setNavParams] = useState({});
+
+  const handleNavigate = (tab, params = {}) => {
+    setNavParams(params || {});
+    setActiveTab(tab);
+  };
+
   const renderActivePage = () => {
     switch (activeTab) {
       case 'dashboard':
-        return <DashboardPage onNavigate={(tab) => setActiveTab(tab)} />;
+        return <DashboardPage onNavigate={handleNavigate} />;
       case 'command_center':
-        return <CommandCenterPage onNavigate={(tab) => setActiveTab(tab)} />;
+        return <CommandCenterPage onNavigate={handleNavigate} />;
       case 'exceptions':
-        return <ExceptionCenterPage onNavigate={(tab) => setActiveTab(tab)} />;
+        return <ExceptionCenterPage onNavigate={handleNavigate} />;
       case 'workflows':
-        return <WorkflowBuilderPage onNavigate={(tab) => setActiveTab(tab)} />;
+        return <WorkflowBuilderPage onNavigate={handleNavigate} />;
       case 'documents':
-        return <DocumentsPage onNavigate={(tab) => setActiveTab(tab)} />;
+        return <DocumentsPage onNavigate={handleNavigate} />;
       case 'invoices':
-        return <InvoicesPage onNavigate={(tab) => setActiveTab(tab)} />;
+        return <InvoicesPage onNavigate={handleNavigate} />;
       case 'customers':
-        return <CustomersPage onNavigate={(tab) => setActiveTab(tab)} />;
+        return <CustomersPage onNavigate={handleNavigate} />;
       case 'tasks':
-        return <TasksPage onNavigate={(tab) => setActiveTab(tab)} />;
+        return <TasksPage onNavigate={handleNavigate} />;
       case 'approvals':
-        return <ApprovalsPage onNavigate={(tab) => setActiveTab(tab)} />;
+        return <ApprovalsPage onNavigate={handleNavigate} />;
       case 'email_assistant':
-        return <EmailAssistantPage onNavigate={(tab) => setActiveTab(tab)} />;
+        return <EmailAssistantPage onNavigate={handleNavigate} />;
       case 'message_center':
-        return <MessageCenterPage onNavigate={(tab) => setActiveTab(tab)} />;
+        return (
+          <MessageCenterPage
+            onNavigate={handleNavigate}
+            preSelectedCustomerId={navParams.customerId || null}
+          />
+        );
       case 'analytics':
-        return <AnalyticsPage onNavigate={(tab) => setActiveTab(tab)} />;
+        return <AnalyticsPage onNavigate={handleNavigate} />;
       case 'activity':
-        return <ActivityLogPage onNavigate={(tab) => setActiveTab(tab)} />;
+        return <ActivityLogPage onNavigate={handleNavigate} />;
       case 'settings':
-        return <SettingsPage onNavigate={(tab) => setActiveTab(tab)} />;
+        return <SettingsPage onNavigate={handleNavigate} />;
       default:
-        return <DashboardPage onNavigate={(tab) => setActiveTab(tab)} />;
+        return <DashboardPage onNavigate={handleNavigate} />;
     }
   };
 
   return (
     <MainLayout
       activeTab={activeTab}
-      setActiveTab={setActiveTab}
+      setActiveTab={(tab) => handleNavigate(tab, {})}
       pendingApprovalsCount={pendingApprovalsCount}
     >
       {renderActivePage()}
