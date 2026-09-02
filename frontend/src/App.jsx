@@ -29,6 +29,7 @@ const AppContent = () => {
   const [authView, setAuthView] = useState('login'); // 'login' or 'register'
   const [activeTab, setActiveTab] = useState('dashboard');
   const [pendingApprovalsCount, setPendingApprovalsCount] = useState(0);
+  const [navParams, setNavParams] = useState({});
 
   // Periodic check for pending approvals badge (only when authenticated)
   useEffect(() => {
@@ -51,6 +52,11 @@ const AppContent = () => {
     return () => clearInterval(interval);
   }, [activeTab, token, user]);
 
+  const handleNavigate = (tab, params = {}) => {
+    setNavParams(params || {});
+    setActiveTab(tab);
+  };
+
   if (authLoading) {
     return (
       <div className="min-h-screen bg-[#0b0f19] flex items-center justify-center">
@@ -69,13 +75,6 @@ const AppContent = () => {
     }
     return <LoginPage onSwitchToRegister={() => setAuthView('register')} />;
   }
-
-  const [navParams, setNavParams] = useState({});
-
-  const handleNavigate = (tab, params = {}) => {
-    setNavParams(params || {});
-    setActiveTab(tab);
-  };
 
   const renderActivePage = () => {
     switch (activeTab) {

@@ -22,25 +22,38 @@ if DATABASE_URL.startswith("sqlite:///./") or DATABASE_URL == "sqlite:///ai_busi
     abs_db_path = PROJECT_ROOT / db_file_name
     DATABASE_URL = f"sqlite:///{abs_db_path.as_posix()}"
 
-connect_args = {}
-if DATABASE_URL.startswith("sqlite"):
-    connect_args = {"check_same_thread": False}
+# Determine if SQLite or PostgreSQL
+is_sqlite = DATABASE_URL.startswith("sqlite")
+
+def create_configured_engine(url: str):
+    if url.startswith("sqlite"):
+        return create_engine(
+            url,
+            connect_args={"check_same_thread": False}
+        )
+    else:
+        # Postgres connection with 5s timeout and pre-ping
+        eng = create_engine(
+            url,
+            connect_args={"connect_timeout": 5},
+            pool_pre_ping=True
+        )
+        # Test connection immediately
+        with eng.connect() as conn:
+            pass
+        return eng
 
 try:
-    engine = create_engine(
-        DATABASE_URL,
-        connect_args=connect_args,
-        pool_pre_ping=True
-    )
+    engine = create_configured_engine(DATABASE_URL)
 except Exception as e:
     if not allow_sqlite_fallback:
         raise RuntimeError(
-            "Database initialization failed and SQLite fallback is disabled. "
-            "Check DATABASE_URL and the Supabase connection settings."
+            f"Database initialization failed ({DATABASE_URL}): {e} and SQLite fallback is disabled. "
+            "Check DATABASE_URL and Supabase connection settings."
         ) from e
 
-    # Keep local development usable when the configured database is unavailable.
-    print(f"[Warning] Failed to initialize {DATABASE_URL}: {e}. Falling back to local SQLite.")
+    # Fallback to local SQLite
+    print(f"[Warning] Failed to connect to {DATABASE_URL}: {e}. Falling back to local SQLite.")
     abs_db_path = PROJECT_ROOT / "ai_business_agent.db"
     DATABASE_URL = f"sqlite:///{abs_db_path.as_posix()}"
     engine = create_engine(

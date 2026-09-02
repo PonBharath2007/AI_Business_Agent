@@ -11,6 +11,13 @@ from backend.app.utils.logger import logger
 
 router = APIRouter(prefix="/api/customers", tags=["Customers"])
 
+def _to_naive_utc(dt):
+    if dt is None:
+        return None
+    if getattr(dt, "tzinfo", None) is not None:
+        return dt.replace(tzinfo=None)
+    return dt
+
 def _format_customer(c: Customer) -> dict:
     try:
         invoices = c.invoices or []
@@ -18,7 +25,11 @@ def _format_customer(c: Customer) -> dict:
         overdue_amount = sum(float(i.amount or 0) for i in invoices if i.status == "overdue")
         emails = c.emails or []
         comms = c.communications or []
-        comm_dates = [e.created_at for e in emails if e.created_at] + [cm.created_at for cm in comms if cm.created_at]
+        comm_dates = [
+            _to_naive_utc(e.created_at) for e in emails if e.created_at
+        ] + [
+            _to_naive_utc(cm.created_at) for cm in comms if cm.created_at
+        ]
         last_comm = max(comm_dates) if comm_dates else None
     except Exception as e:
         logger.warning(f"Error computing customer summary for {c.id}: {e}")
