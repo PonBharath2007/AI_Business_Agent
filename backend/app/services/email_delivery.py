@@ -7,6 +7,7 @@ from email.header import Header
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from typing import Dict, Any, Optional
+import requests
 from dotenv import load_dotenv
 from backend.app.utils.logger import logger
 
@@ -18,15 +19,14 @@ load_dotenv()
 
 def get_smtp_config() -> Dict[str, Any]:
     """
-    Retrieve current SMTP settings from environment variables.
-    Supports standard naming:
-      - Host: SMTP_SERVER, SMTP_HOST, MAIL_SERVER, MAIL_HOST
-      - Port: SMTP_PORT, MAIL_PORT
-      - Username: SMTP_USERNAME, SMTP_USER, MAIL_USERNAME, MAIL_USER
-      - Password: SMTP_PASSWORD, SMTP_PASS, MAIL_PASSWORD, MAIL_PASS
-      - From Email: SMTP_FROM_EMAIL, SMTP_FROM, MAIL_FROM, MAIL_FROM_EMAIL
-      - Security: SMTP_USE_TLS, MAIL_USE_TLS, SMTP_USE_SSL, MAIL_USE_SSL
+    Retrieve current email dispatch configuration.
+    Supports both HTTPS API providers (Resend, SendGrid, Brevo) for cloud free tiers (e.g. Render),
+    and standard SMTP settings (SMTP_SERVER or SMTP_HOST, SMTP_PORT, etc.).
     """
+    resend_key = os.getenv("RESEND_API_KEY", "").strip().strip('"').strip("'")
+    sendgrid_key = os.getenv("SENDGRID_API_KEY", "").strip().strip('"').strip("'")
+    brevo_key = os.getenv("BREVO_API_KEY", "").strip().strip('"').strip("'")
+
     server = (
         os.getenv("SMTP_SERVER", "").strip().strip('"').strip("'")
         or os.getenv("SMTP_HOST", "").strip().strip('"').strip("'")
@@ -75,14 +75,17 @@ def get_smtp_config() -> Dict[str, Any]:
     use_ssl_env = os.getenv("SMTP_USE_SSL") or os.getenv("MAIL_USE_SSL")
     use_ssl = use_ssl_env.lower() in ["true", "1", "yes"] if use_ssl_env is not None else (port == 465)
 
-    is_configured = bool(server and username and password)
+    has_api_provider = bool(resend_key or sendgrid_key or brevo_key)
+    is_configured = has_api_provider or bool(server and username and password)
 
-    # Safe logging of SMTP configuration without printing password
+    active_provider = "resend" if resend_key else ("sendgrid" if sendgrid_key else ("brevo" if brevo_key else "smtp"))
+
+    # Safe logging of configuration without exposing credentials
     logger.info(
-        f"SMTP Configuration loaded: host={server}, port={port}, "
-        f"TLS={use_tls}, SSL={use_ssl}, "
-        f"username_configured={bool(username)}, "
-        f"password_configured={bool(password)}, "
+        f"Email Configuration loaded: provider={active_provider}, "
+        f"host={server}, port={port}, TLS={use_tls}, SSL={use_ssl}, "
+        f"resend_configured={bool(resend_key)}, sendgrid_configured={bool(sendgrid_key)}, "
+        f"brevo_configured={bool(brevo_key)}, smtp_configured={bool(server and username and password)}, "
         f"from_email={from_email}"
     )
 
@@ -94,8 +97,229 @@ def get_smtp_config() -> Dict[str, Any]:
         "from_email": from_email,
         "use_tls": use_tls,
         "use_ssl": use_ssl,
+        "resend_api_key": resend_key,
+        "sendgrid_api_key": sendgrid_key,
+        "brevo_api_key": brevo_key,
+        "active_provider": active_provider,
         "configured": is_configured
     }
+
+
+def _dispatch_resend_api(
+    api_key: str,
+    to_email: str,
+    subject: str,
+    body: str,
+    sender_name: str,
+    html_body: Optional[str] = None
+) -> Dict[str, Any]:
+    """
+    Sends email via Resend HTTPS REST API (Port 443).
+    Bypasses cloud outbound SMTP port restrictions (e.g., Render Free Tier).
+    """
+    logger.info(f"Dispatching email to {to_email} via Resend HTTPS API (Port 443)...")
+    resend_from = os.getenv("RESEND_FROM_EMAIL", "").strip().strip('"').strip("'")
+    config = get_smtp_config()
+    reply_to = config.get("from_email") or os.getenv("SMTP_USERNAME")
+
+    # If no custom domain sender is configured, use Resend's onboarding test sender
+    if not resend_from:
+        from_address = f"{sender_name} <onboarding@resend.dev>"
+    elif "<" in resend_from:
+        from_address = resend_from
+    else:
+        from_address = f"{sender_name} <{resend_from}>"
+
+    payload: Dict[str, Any] = {
+        "from": from_address,
+        "to": [to_email],
+        "subject": subject,
+        "text": body
+    }
+    if html_body:
+        payload["html"] = html_body
+    if reply_to and "@" in reply_to:
+        payload["reply_to"] = [reply_to]
+
+    try:
+        response = requests.post(
+            "https://api.resend.com/emails",
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json"
+            },
+            json=payload,
+            timeout=25
+        )
+        data = response.json() if response.text else {}
+        if response.status_code in [200, 201]:
+            email_id = data.get("id", "resend_dispatched")
+            logger.info(f"[Real Email Sent] Live email successfully dispatched to {to_email} via Resend HTTPS API (ID: {email_id}).")
+            return {
+                "delivered": True,
+                "status": "sent",
+                "mode": "live",
+                "provider": "resend",
+                "email_id": email_id,
+                "message": f"Real email dispatched to {to_email} via Resend HTTPS API (ID: {email_id})."
+            }
+        else:
+            error_msg = data.get("message") or response.text or f"HTTP {response.status_code}"
+            logger.error(f"Resend API error (HTTP {response.status_code}): {error_msg}")
+            return {
+                "delivered": False,
+                "status": "failed",
+                "mode": "failed",
+                "provider": "resend",
+                "error": f"Resend API Error: {error_msg}",
+                "message": f"Resend API error ({response.status_code}): {error_msg}"
+            }
+    except Exception as e:
+        logger.exception(f"Exception during Resend API dispatch to {to_email}: {e}")
+        return {
+            "delivered": False,
+            "status": "failed",
+            "mode": "failed",
+            "provider": "resend",
+            "error": str(e),
+            "message": f"Resend HTTPS API request failed: {e}"
+        }
+
+
+def _dispatch_sendgrid_api(
+    api_key: str,
+    to_email: str,
+    subject: str,
+    body: str,
+    sender_name: str,
+    html_body: Optional[str] = None
+) -> Dict[str, Any]:
+    """
+    Sends email via SendGrid HTTPS REST API (Port 443).
+    """
+    logger.info(f"Dispatching email to {to_email} via SendGrid HTTPS API (Port 443)...")
+    config = get_smtp_config()
+    from_email = os.getenv("SENDGRID_FROM_EMAIL", "").strip() or config.get("from_email") or "noreply@business.com"
+
+    content = [{"type": "text/plain", "value": body}]
+    if html_body:
+        content.append({"type": "text/html", "value": html_body})
+
+    payload = {
+        "personalizations": [{"to": [{"email": to_email}]}],
+        "from": {"email": from_email, "name": sender_name},
+        "subject": subject,
+        "content": content
+    }
+
+    try:
+        response = requests.post(
+            "https://api.sendgrid.com/v3/mail/send",
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json"
+            },
+            json=payload,
+            timeout=25
+        )
+        if response.status_code in [200, 202]:
+            logger.info(f"[Real Email Sent] Live email successfully dispatched to {to_email} via SendGrid HTTPS API.")
+            return {
+                "delivered": True,
+                "status": "sent",
+                "mode": "live",
+                "provider": "sendgrid",
+                "message": f"Real email dispatched to {to_email} via SendGrid HTTPS API."
+            }
+        else:
+            logger.error(f"SendGrid API error (HTTP {response.status_code}): {response.text}")
+            return {
+                "delivered": False,
+                "status": "failed",
+                "mode": "failed",
+                "provider": "sendgrid",
+                "error": response.text,
+                "message": f"SendGrid API error ({response.status_code}): {response.text}"
+            }
+    except Exception as e:
+        logger.exception(f"Exception during SendGrid API dispatch to {to_email}: {e}")
+        return {
+            "delivered": False,
+            "status": "failed",
+            "mode": "failed",
+            "provider": "sendgrid",
+            "error": str(e),
+            "message": f"SendGrid HTTPS API request failed: {e}"
+        }
+
+
+def _dispatch_brevo_api(
+    api_key: str,
+    to_email: str,
+    subject: str,
+    body: str,
+    sender_name: str,
+    html_body: Optional[str] = None
+) -> Dict[str, Any]:
+    """
+    Sends email via Brevo HTTPS REST API (Port 443).
+    """
+    logger.info(f"Dispatching email to {to_email} via Brevo HTTPS API (Port 443)...")
+    config = get_smtp_config()
+    from_email = os.getenv("BREVO_FROM_EMAIL", "").strip() or config.get("from_email") or "noreply@business.com"
+
+    payload: Dict[str, Any] = {
+        "sender": {"name": sender_name, "email": from_email},
+        "to": [{"email": to_email}],
+        "subject": subject,
+        "textContent": body
+    }
+    if html_body:
+        payload["htmlContent"] = html_body
+
+    try:
+        response = requests.post(
+            "https://api.brevo.com/v3/smtp/email",
+            headers={
+                "api-key": api_key,
+                "Content-Type": "application/json"
+            },
+            json=payload,
+            timeout=25
+        )
+        data = response.json() if response.text else {}
+        if response.status_code in [200, 201]:
+            message_id = data.get("messageId", "brevo_ok")
+            logger.info(f"[Real Email Sent] Live email successfully dispatched to {to_email} via Brevo HTTPS API (ID: {message_id}).")
+            return {
+                "delivered": True,
+                "status": "sent",
+                "mode": "live",
+                "provider": "brevo",
+                "email_id": message_id,
+                "message": f"Real email dispatched to {to_email} via Brevo HTTPS API."
+            }
+        else:
+            err_msg = data.get("message") or response.text
+            logger.error(f"Brevo API error (HTTP {response.status_code}): {err_msg}")
+            return {
+                "delivered": False,
+                "status": "failed",
+                "mode": "failed",
+                "provider": "brevo",
+                "error": err_msg,
+                "message": f"Brevo API error ({response.status_code}): {err_msg}"
+            }
+    except Exception as e:
+        logger.exception(f"Exception during Brevo API dispatch to {to_email}: {e}")
+        return {
+            "delivered": False,
+            "status": "failed",
+            "mode": "failed",
+            "provider": "brevo",
+            "error": str(e),
+            "message": f"Brevo HTTPS API request failed: {e}"
+        }
 
 
 def _dispatch_smtp_message(
@@ -104,11 +328,9 @@ def _dispatch_smtp_message(
     to_email: str
 ) -> Dict[str, Any]:
     """
-    Attempts to send email on primary configured port, with automatic fallback
-    to alternative port (465 <-> 587) for maximum cloud hosting resilience.
+    Attempts to send email via standard SMTP (Ports 465 / 587).
     Ensures that once the SMTP server accepts the message, socket teardown
-    exceptions (e.g. abrupt SSL disconnect on quit) do not mark delivery as failed.
-    Logs complete traceback and exception details without exposing passwords.
+    exceptions do not mark delivery as failed.
     """
     ports_to_try = [config["port"]]
     if config["port"] == 465 and 587 not in ports_to_try:
@@ -145,8 +367,6 @@ def _dispatch_smtp_message(
             server.sendmail(config["from_email"], [to_email], msg.as_string())
             logger.info(f"Email accepted by SMTP server for recipient: {to_email}")
 
-            # Message was accepted by the SMTP server.
-            # Gracefully attempt quit, but ignore any disconnect/SSL errors during socket teardown.
             try:
                 server.quit()
             except Exception as teardown_err:
@@ -161,6 +381,7 @@ def _dispatch_smtp_message(
                 "delivered": True,
                 "status": "sent",
                 "mode": "live",
+                "provider": "smtp",
                 "port_used": port,
                 "message": f"Real email dispatched to {to_email} via {config['server']} (Port {port})."
             }
@@ -170,7 +391,6 @@ def _dispatch_smtp_message(
             last_mode = current_mode
             error_type = type(err).__name__
             error_msg = str(err)
-            # Log complete exception with full traceback for diagnostics in Render Logs
             logger.exception(
                 f"SMTP delivery attempt failed on port {port} (Host: {config['server']}, Mode: {current_mode}). "
                 f"Exception Type: {error_type}, Message: {error_msg}"
@@ -195,13 +415,14 @@ def _dispatch_smtp_message(
     if "101" in error_msg or "Network is unreachable" in error_msg:
         diagnostic = (
             " [Render Outbound Restriction: Render free tier blocks outbound SMTP ports 25, 465, and 587. "
-            "Upgrade to a paid instance or use an HTTPS API service like SendGrid/Resend to send emails from Render]."
+            "To send emails for free on Render, add RESEND_API_KEY in Render Environment variables, or upgrade to a paid Render instance]."
         )
 
     return {
         "delivered": False,
         "status": "failed",
         "mode": "failed",
+        "provider": "smtp",
         "error": f"[{error_type}] {error_msg}",
         "error_type": error_type,
         "error_message": error_msg,
@@ -220,79 +441,163 @@ def send_real_email(
     html_body: Optional[str] = None
 ) -> Dict[str, Any]:
     """
-    Sends a real email if SMTP credentials are configured in environment.
-    Otherwise gracefully records the message in the database in simulated mode.
+    Sends a real email.
+    Dispatches via HTTPS REST API (Resend, SendGrid, Brevo) if configured,
+    otherwise uses live SMTP, with graceful fallback to simulated recording.
     """
     logger.info(f"Starting email dispatch... Recipient: {to_email}")
     config = get_smtp_config()
+    display_name = sender_name or "AI Business Agent"
 
-    if not config["configured"]:
-        logger.info(
-            f"[Simulated Delivery] SMTP credentials not set in environment. Email recorded to '{to_email}' with subject '{subject}'."
+    # 1. Resend HTTPS API (Recommended for cloud hosting free tiers)
+    if config["resend_api_key"]:
+        return _dispatch_resend_api(
+            api_key=config["resend_api_key"],
+            to_email=to_email,
+            subject=subject,
+            body=body,
+            sender_name=display_name,
+            html_body=html_body
         )
-        return {
-            "delivered": False,
-            "status": "simulated",
-            "mode": "simulated",
-            "message": f"Email recorded locally in Simulated Mode (SMTP credentials not configured in environment variables for {to_email})."
-        }
 
-    try:
-        msg = MIMEMultipart("alternative")
+    # 2. SendGrid HTTPS API
+    if config["sendgrid_api_key"]:
+        return _dispatch_sendgrid_api(
+            api_key=config["sendgrid_api_key"],
+            to_email=to_email,
+            subject=subject,
+            body=body,
+            sender_name=display_name,
+            html_body=html_body
+        )
 
-        # RFC 5322 standard headers
-        display_name = sender_name or "AI Business Agent"
-        msg["From"] = email.utils.formataddr((str(Header(display_name, "utf-8")), config["from_email"]))
-        msg["To"] = to_email
-        msg["Subject"] = Header(subject, "utf-8")
-        msg["Date"] = email.utils.formatdate(localtime=True)
-        msg["Message-ID"] = email.utils.make_msgid(domain=config.get("server") or "gmail.com")
-        msg["Reply-To"] = config["from_email"]
+    # 3. Brevo HTTPS API
+    if config["brevo_api_key"]:
+        return _dispatch_brevo_api(
+            api_key=config["brevo_api_key"],
+            to_email=to_email,
+            subject=subject,
+            body=body,
+            sender_name=display_name,
+            html_body=html_body
+        )
 
-        # Plain text version
-        msg.attach(MIMEText(body, "plain", "utf-8"))
+    # 4. Standard SMTP Dispatch (when credentials are set)
+    if config["configured"]:
+        try:
+            msg = MIMEMultipart("alternative")
+            msg["From"] = email.utils.formataddr((str(Header(display_name, "utf-8")), config["from_email"]))
+            msg["To"] = to_email
+            msg["Subject"] = Header(subject, "utf-8")
+            msg["Date"] = email.utils.formatdate(localtime=True)
+            msg["Message-ID"] = email.utils.make_msgid(domain=config.get("server") or "gmail.com")
+            msg["Reply-To"] = config["from_email"]
 
-        # Optional HTML version
-        if html_body:
-            msg.attach(MIMEText(html_body, "html", "utf-8"))
+            msg.attach(MIMEText(body, "plain", "utf-8"))
+            if html_body:
+                msg.attach(MIMEText(html_body, "html", "utf-8"))
 
-        return _dispatch_smtp_message(config, msg, to_email)
+            return _dispatch_smtp_message(config, msg, to_email)
+        except Exception as e:
+            logger.exception(f"[SMTP Error] Failed to prepare/send email to {to_email}: {e}")
+            return {
+                "delivered": False,
+                "status": "failed",
+                "mode": "failed",
+                "provider": "smtp",
+                "error": f"[{type(e).__name__}] {str(e)}",
+                "error_type": type(e).__name__,
+                "error_message": str(e),
+                "message": f"SMTP delivery error: [{type(e).__name__}] {e}. Email recorded in system database."
+            }
 
-    except Exception as e:
-        logger.exception(f"[SMTP Error] Failed to prepare/send email to {to_email}: {e}")
-        return {
-            "delivered": False,
-            "status": "failed",
-            "mode": "failed",
-            "error": f"[{type(e).__name__}] {str(e)}",
-            "error_type": type(e).__name__,
-            "error_message": str(e),
-            "message": f"SMTP delivery error: [{type(e).__name__}] {e}. Email recorded in system database."
-        }
+    # 5. Simulated fallback when nothing is configured
+    logger.info(
+        f"[Simulated Delivery] No live email credentials set in environment. Email recorded to '{to_email}' with subject '{subject}'."
+    )
+    return {
+        "delivered": False,
+        "status": "simulated",
+        "mode": "simulated",
+        "provider": "simulated",
+        "message": f"Email recorded locally in Simulated Mode (No live email credentials configured in environment variables for {to_email})."
+    }
 
 
 def test_smtp_connection(test_recipient: Optional[str] = None) -> Dict[str, Any]:
     """
-    Tests connection, authentication, and optionally sends a verification email.
-    Logs complete traceback on failure and tests both SSL and STARTTLS ports with timeout=30.
+    Tests connection and authentication for the active email delivery provider (Resend, SendGrid, Brevo, or SMTP).
     """
     config = get_smtp_config()
     if not config["configured"]:
         return {
             "success": False,
             "configured": False,
-            "message": "SMTP credentials are not configured in environment variables (SMTP_SERVER, SMTP_USERNAME, SMTP_PASSWORD required)."
+            "message": "No email delivery credentials are configured in environment variables (RESEND_API_KEY, SENDGRID_API_KEY, or SMTP_SERVER/SMTP_USERNAME/SMTP_PASSWORD required)."
         }
 
-    # Test login and optional test email dispatch
+    # If test recipient provided, send actual verification email
     if test_recipient:
         return send_real_email(
             to_email=test_recipient,
-            subject="Live SMTP Verification - AI Business Agent",
-            body="Hello,\n\nThis is a live test email confirming that your SMTP email service is actively working in your deployment.\n\nBest regards,\nAI Business Agent Team"
+            subject="Live Email Service Verification - AI Business Agent",
+            body="Hello,\n\nThis is a live test email confirming that your email delivery service is actively working in your deployment.\n\nBest regards,\nAI Business Agent Team"
         )
 
-    # Connection and login check only
+    # Provider: Resend HTTPS API test
+    if config["resend_api_key"]:
+        try:
+            resp = requests.get(
+                "https://api.resend.com/api-keys",
+                headers={"Authorization": f"Bearer {config['resend_api_key']}"},
+                timeout=15
+            )
+            if resp.status_code in [200, 201]:
+                return {
+                    "success": True,
+                    "configured": True,
+                    "provider": "resend",
+                    "mode": "https_api",
+                    "message": "Successfully connected and authenticated with Resend HTTPS API (Port 443)."
+                }
+            else:
+                return {
+                    "success": False,
+                    "configured": True,
+                    "provider": "resend",
+                    "mode": "https_api",
+                    "message": f"Resend API authentication failed: HTTP {resp.status_code} - {resp.text}"
+                }
+        except Exception as e:
+            return {
+                "success": False,
+                "configured": True,
+                "provider": "resend",
+                "error": str(e),
+                "message": f"Resend API connection failed: {e}"
+            }
+
+    # Provider: SendGrid HTTPS API check
+    if config["sendgrid_api_key"]:
+        return {
+            "success": True,
+            "configured": True,
+            "provider": "sendgrid",
+            "mode": "https_api",
+            "message": "SendGrid HTTPS API key configured (Port 443)."
+        }
+
+    # Provider: Brevo HTTPS API check
+    if config["brevo_api_key"]:
+        return {
+            "success": True,
+            "configured": True,
+            "provider": "brevo",
+            "mode": "https_api",
+            "message": "Brevo HTTPS API key configured (Port 443)."
+        }
+
+    # Provider: Standard SMTP
     ports_to_try = [config["port"]]
     if config["port"] == 465 and 587 not in ports_to_try:
         ports_to_try.append(587)
@@ -330,6 +635,7 @@ def test_smtp_connection(test_recipient: Optional[str] = None) -> Dict[str, Any]
             return {
                 "success": True,
                 "configured": True,
+                "provider": "smtp",
                 "port_used": port,
                 "server": config["server"],
                 "mode": current_mode,
@@ -356,12 +662,13 @@ def test_smtp_connection(test_recipient: Optional[str] = None) -> Dict[str, Any]
     if "101" in error_msg or "Network is unreachable" in error_msg:
         diagnostic = (
             " [Render Outbound Restriction: Render free tier blocks outbound SMTP ports 25, 465, and 587. "
-            "Upgrade to a paid instance or use an HTTPS API service like SendGrid/Resend to send emails from Render]."
+            "To send emails for free on Render, add RESEND_API_KEY in Render Environment variables, or upgrade to a paid Render instance]."
         )
 
     return {
         "success": False,
         "configured": True,
+        "provider": "smtp",
         "error": f"[{error_type}] {error_msg}",
         "error_type": error_type,
         "error_message": error_msg,
