@@ -195,32 +195,18 @@ def send_email_communication(
         raise HTTPException(status_code=400, detail="Message body cannot be empty.")
 
     subject = req.subject or "Business Operations Notice"
-    delivery_res = send_real_email(
-        to_email=req.recipient,
-        subject=subject,
-        body=req.message,
-        sender_name=business.name
-    )
 
-    is_live = delivery_res.get("mode") == "live"
-    is_simulated = delivery_res.get("mode") == "simulated"
-    status_str = "sent" if is_live else ("simulated" if is_simulated else "failed")
-    sent_time = datetime.utcnow() if is_live else None
-
-    # 1. Record in emails table
+    # 1. Record in emails and communication_logs with initial 'pending' status
     email_rec = Email(
         business_id=business.id,
         customer_id=req.customer_id,
         subject=subject,
         body=req.message,
         recipient_email=req.recipient,
-        status=status_str,
+        status="pending",
         generated_by_ai=True,
         approval_id=req.approval_id
     )
-    db.add(email_rec)
-
-    # 2. Record in communication_logs
     comm_log = CommunicationLog(
         business_id=business.id,
         customer_id=req.customer_id,
@@ -229,38 +215,93 @@ def send_email_communication(
         recipient=req.recipient,
         subject=subject,
         message=req.message,
-        status=status_str,
-        sent_at=sent_time
+        status="pending",
+        sent_at=None
     )
-    db.add(comm_log)
-    db.commit()
-    db.refresh(email_rec)
-    db.refresh(comm_log)
+    try:
+        db.add(email_rec)
+        db.add(comm_log)
+        db.commit()
+        db.refresh(email_rec)
+        db.refresh(comm_log)
+    except Exception as db_init_err:
+        logger.error(f"Failed to create initial communication records: {db_init_err}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Database error initializing communication: {str(db_init_err)}")
+
+    # 2. Execute SMTP email dispatch
+    logger.info(f"Starting email dispatch... Recipient: {req.recipient}")
+    delivery_res = send_real_email(
+        to_email=req.recipient,
+        subject=subject,
+        body=req.message,
+        sender_name=business.name
+    )
+
+    is_delivered = bool(delivery_res.get("delivered", False))
+    is_live = delivery_res.get("mode") == "live"
+    is_simulated = delivery_res.get("mode") == "simulated"
+
+    if is_delivered or is_live:
+        status_str = "sent"
+        sent_time = datetime.utcnow()
+        logger.info(f"Dispatch status updated to SENT for comm_id={comm_log.id}")
+    elif is_simulated:
+        status_str = "simulated"
+        sent_time = None
+        logger.info(f"Dispatch status updated to SIMULATED for comm_id={comm_log.id}")
+    else:
+        status_str = "failed"
+        sent_time = None
+        actual_error = delivery_res.get("error", "SMTP delivery failure")
+        logger.warning(f"Email dispatch failed for {req.recipient}. Error: {actual_error}. Dispatch status updated to FAILED for comm_id={comm_log.id}")
+
+    # 3. Update status in database
+    try:
+        email_rec.status = status_str
+        comm_log.status = status_str
+        comm_log.sent_at = sent_time
+        db.commit()
+        db.refresh(email_rec)
+        db.refresh(comm_log)
+    except Exception as db_update_err:
+        logger.error(f"Database error updating communication status to {status_str}: {db_update_err}")
+        db.rollback()
 
     mode_tag = "Live SMTP" if is_live else ("Simulated" if is_simulated else "Failed")
-    log_activity(
-        db,
-        business_id=business.id,
-        actor_type="Business Owner",
-        action="Email Dispatched",
-        description=f"Sent email ({mode_tag}, Lang: {(req.language or 'en').upper()}) '{subject}' to {req.recipient}.",
-        metadata={"communication_id": comm_log.id, "email_id": email_rec.id, "delivery": delivery_res}
-    )
+    try:
+        log_activity(
+            db,
+            business_id=business.id,
+            actor_type="Business Owner",
+            action="Email Dispatched",
+            description=f"Sent email ({mode_tag}, Lang: {(req.language or 'en').upper()}) '{subject}' to {req.recipient}.",
+            metadata={
+                "communication_id": comm_log.id,
+                "email_id": email_rec.id,
+                "delivery": delivery_res,
+                "status": status_str,
+                "error": delivery_res.get("error")
+            }
+        )
 
-    create_notification(
-        db,
-        business_id=business.id,
-        title=f"Email {'Sent' if is_live else ('Recorded' if is_simulated else 'Failed')}",
-        message=f"{'Delivered live email' if is_live else ('Recorded draft' if is_simulated else 'Failed delivery')} to {req.recipient} ({mode_tag}).",
-        priority="High" if not is_live and not is_simulated else "Low"
-    )
+        create_notification(
+            db,
+            business_id=business.id,
+            title=f"Email {'Sent' if (is_delivered or is_live) else ('Recorded' if is_simulated else 'Failed')}",
+            message=f"{'Delivered live email' if (is_delivered or is_live) else ('Recorded draft' if is_simulated else 'Failed delivery')} to {req.recipient} ({mode_tag}).",
+            priority="High" if not is_delivered and not is_simulated else "Low"
+        )
+    except Exception as notif_err:
+        logger.warning(f"Non-critical error creating activity/notification: {notif_err}")
 
     return {
-        "message": delivery_res.get("message", f"Email processed for {req.recipient}."),
+        "success": is_delivered or is_live,
+        "status": status_str,
+        "message": "Email sent successfully" if (is_delivered or is_live) else (delivery_res.get("message") or "Email delivery failed"),
         "communication_id": comm_log.id,
         "email_id": email_rec.id,
         "delivery": delivery_res,
-        "status": status_str,
         "mode": delivery_res.get("mode")
     }
 
@@ -480,24 +521,35 @@ def approve_communication(
         raise HTTPException(status_code=404, detail="Communication record not found.")
 
     if comm.communication_type == "email":
+        logger.info(f"Starting email dispatch for approval... Recipient: {comm.recipient}")
         delivery_res = send_real_email(to_email=comm.recipient, subject=comm.subject or "Notice", body=comm.message, sender_name=business.name)
+        is_sent = bool(delivery_res.get("delivered", False)) or delivery_res.get("mode") == "live"
     else:
         delivery_res = dispatch_sms(to_phone=comm.recipient, message=comm.message, sender_name=business.name)
+        is_sent = bool(delivery_res.get("delivered", False))
 
-    comm.status = "approved"
-    comm.sent_at = datetime.utcnow()
+    final_status = "sent" if is_sent else "failed"
+    comm.status = final_status
+    comm.sent_at = datetime.utcnow() if is_sent else None
     db.commit()
+
+    logger.info(f"Communication {comm.id} dispatch status updated to {final_status.upper()}")
 
     log_activity(
         db,
         business_id=business.id,
         actor_type="Business Owner",
         action="Communication Approved",
-        description=f"Approved and dispatched {comm.communication_type.upper()} to {comm.recipient}.",
-        metadata={"communication_id": comm.id}
+        description=f"Approved and dispatched {comm.communication_type.upper()} ({final_status.upper()}) to {comm.recipient}.",
+        metadata={"communication_id": comm.id, "status": final_status, "delivery": delivery_res}
     )
 
-    return {"message": "Communication approved and dispatched.", "delivery": delivery_res, "status": "approved"}
+    return {
+        "success": is_sent,
+        "message": "Communication approved and dispatched successfully." if is_sent else "Communication approved but delivery failed.",
+        "delivery": delivery_res,
+        "status": final_status
+    }
 
 
 @router.post("/{comm_id}/reject")

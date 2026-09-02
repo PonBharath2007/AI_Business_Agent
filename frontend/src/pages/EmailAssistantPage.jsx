@@ -211,21 +211,45 @@ const EmailAssistantPage = ({ onNavigate }) => {
         addToast('info', 'Queued for Approval', 'Email draft submitted to Approval Center.');
         onNavigate('approvals');
       } else {
-        await api.post('/ai/send-email', {
+        const res = await api.post('/ai/send-email', {
           recipient_email: recipientEmail,
           subject: subject,
           body: body,
           customer_id: cust ? cust.id : null
         });
-        addToast('success', 'Email Delivered', `Email successfully dispatched to ${recipientEmail}.`);
+        if (res.data?.success || res.data?.status === 'sent') {
+          addToast('success', 'Email Delivered', res.data?.message || `Email successfully dispatched to ${recipientEmail}.`);
+        } else if (res.data?.status === 'simulated') {
+          addToast('warning', 'Simulated Mode', res.data?.message || `Email recorded locally for ${recipientEmail}.`);
+        } else {
+          addToast('error', 'Delivery Failed', res.data?.message || `Email delivery failed for ${recipientEmail}.`);
+        }
         fetchHistory();
       }
     } catch (err) {
       console.error('Email dispatch error:', err);
-      addToast('success', 'Email Recorded', `Email dispatched and logged for ${recipientEmail}.`);
+      const errMsg = err.response?.data?.detail || 'Failed to dispatch email.';
+      addToast('error', 'Delivery Error', errMsg);
     } finally {
       setSending(false);
     }
+  };
+
+  const renderStatusBadge = (status) => {
+    const s = (status || '').toLowerCase();
+    if (s === 'sent') {
+      return <Badge variant="success">Sent</Badge>;
+    }
+    if (s === 'pending') {
+      return <Badge variant="pending">Pending</Badge>;
+    }
+    if (s === 'failed') {
+      return <Badge variant="danger">Failed</Badge>;
+    }
+    if (s === 'simulated') {
+      return <Badge variant="warning">Simulated</Badge>;
+    }
+    return <Badge variant={s === 'approved' ? 'success' : 'info'}>{status ? status.charAt(0).toUpperCase() + status.slice(1) : 'Unknown'}</Badge>;
   };
 
   const handleDeleteEmailLog = async (emailId) => {
@@ -708,9 +732,7 @@ const EmailAssistantPage = ({ onNavigate }) => {
                           {em.subject}
                         </td>
                         <td className="py-3.5 px-4">
-                          <Badge variant={em.status === 'sent' ? 'success' : 'danger'}>
-                            {em.status.toUpperCase()}
-                          </Badge>
+                          {renderStatusBadge(em.status)}
                         </td>
                         <td className="py-3.5 px-4 text-slate-400">
                           {em.created_at ? new Date(em.created_at).toLocaleString() : 'Recent'}
@@ -756,7 +778,7 @@ const EmailAssistantPage = ({ onNavigate }) => {
               <div><strong className="text-slate-400">Recipient:</strong> <span className="text-white">{viewingEmail.recipient_email}</span></div>
               <div><strong className="text-slate-400">Customer:</strong> <span className="text-white">{viewingEmail.customer_name}</span></div>
               <div><strong className="text-slate-400">Subject:</strong> <span className="text-white font-semibold">{viewingEmail.subject}</span></div>
-              <div><strong className="text-slate-400">Status:</strong> <Badge variant={viewingEmail.status === 'sent' ? 'success' : 'danger'}>{viewingEmail.status.toUpperCase()}</Badge></div>
+              <div><strong className="text-slate-400">Status:</strong> {renderStatusBadge(viewingEmail.status)}</div>
               <div><strong className="text-slate-400">Date:</strong> <span className="text-slate-300">{new Date(viewingEmail.created_at).toLocaleString()}</span></div>
             </div>
 

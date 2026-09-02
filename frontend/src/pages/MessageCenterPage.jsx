@@ -806,7 +806,7 @@ const MessageCenterPage = ({ onNavigate, preSelectedCustomerId = null }) => {
                       </td>
                       <td className="py-3 px-4">
                         <Badge variant={msg.status === 'sent' ? 'success' : (msg.status === 'failed' ? 'urgent' : 'warning')}>
-                          {msg.status.toUpperCase()}
+                          {msg.status === 'sent' ? 'Sent' : (msg.status === 'failed' ? 'Failed' : (msg.status === 'pending' ? 'Pending' : (msg.status ? msg.status.charAt(0).toUpperCase() + msg.status.slice(1) : 'Unknown')))}
                         </Badge>
                       </td>
                       <td className="py-3 px-4 text-slate-400 whitespace-nowrap">
@@ -851,8 +851,8 @@ const MessageCenterPage = ({ onNavigate, preSelectedCustomerId = null }) => {
               </div>
               <div>
                 <span className="text-[10px] text-slate-500 uppercase block font-semibold">Status</span>
-                <Badge variant={viewingMessage.status === 'sent' ? 'success' : 'warning'}>
-                  {viewingMessage.status.toUpperCase()}
+                <Badge variant={viewingMessage.status === 'sent' ? 'success' : (viewingMessage.status === 'failed' ? 'urgent' : 'warning')}>
+                  {viewingMessage.status === 'sent' ? 'Sent' : (viewingMessage.status === 'failed' ? 'Failed' : (viewingMessage.status === 'pending' ? 'Pending' : (viewingMessage.status ? viewingMessage.status.charAt(0).toUpperCase() + viewingMessage.status.slice(1) : 'Unknown')))}
                 </Badge>
               </div>
               <div>

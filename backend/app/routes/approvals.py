@@ -94,14 +94,18 @@ def approve_action(
         raise HTTPException(status_code=404, detail="Approval request not found")
 
     if app.status == "approved":
-        return {"message": "This action has already been approved.", "status": "approved"}
+        return {"success": True, "message": "This action has already been approved.", "status": "approved", "dispatch_status": "sent"}
 
     result = execute_approval_action(db, app, edited_data)
+    is_success = result.get("success", True) if "success" in result else (result.get("status") in ["sent", "executed"])
     return {
-        "message": "Action approved and executed.",
+        "success": is_success,
+        "message": result.get("message", "Action approved and executed."),
         "execution_result": result,
         "approval_id": app.id,
-        "status": app.status
+        "status": app.status,
+        "dispatch_status": result.get("status", "sent"),
+        "delivery": result.get("delivery")
     }
 
 

@@ -14,6 +14,7 @@ from backend.app.ai.email_generator import generate_business_email
 from backend.app.services.activity_service import log_activity
 from backend.app.services.notification_service import create_notification
 from backend.app.services.email_delivery import send_real_email
+from backend.app.utils.logger import logger
 
 router = APIRouter(prefix="/api/ai", tags=["AI Agent"])
 
@@ -165,31 +166,18 @@ def send_email_direct(
 ):
     from backend.app.models.models import CommunicationLog
     from datetime import datetime
-    # Send via real SMTP (or simulated if no credentials configured)
-    delivery_res = send_real_email(
-        to_email=req.recipient_email,
-        subject=req.subject,
-        body=req.body,
-        sender_name=business.name
-    )
 
-    is_live = delivery_res.get("mode") == "live"
-    is_simulated = delivery_res.get("mode") == "simulated"
-    status_str = "sent" if is_live else ("simulated" if is_simulated else "failed")
-
+    # 1. Create initial dispatch records with status 'pending'
     email_rec = Email(
         business_id=business.id,
         customer_id=req.customer_id,
         subject=req.subject,
         body=req.body,
         recipient_email=req.recipient_email,
-        status=status_str,
+        status="pending",
         generated_by_ai=True,
         approval_id=req.approval_id
     )
-    db.add(email_rec)
-
-    # Also record in CommunicationLog
     comm_log = CommunicationLog(
         business_id=business.id,
         customer_id=req.customer_id,
@@ -198,38 +186,94 @@ def send_email_direct(
         recipient=req.recipient_email,
         subject=req.subject,
         message=req.body,
-        status=status_str,
-        sent_at=datetime.utcnow() if is_live else None
+        status="pending",
+        sent_at=None
     )
-    db.add(comm_log)
-    db.commit()
-    db.refresh(email_rec)
-    db.refresh(comm_log)
+    try:
+        db.add(email_rec)
+        db.add(comm_log)
+        db.commit()
+        db.refresh(email_rec)
+        db.refresh(comm_log)
+    except Exception as db_init_err:
+        logger.error(f"Failed to create initial dispatch record: {db_init_err}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Database error initializing dispatch: {str(db_init_err)}")
+
+    # 2. Execute SMTP email delivery
+    logger.info(f"Starting email dispatch... Recipient: {req.recipient_email}")
+    delivery_res = send_real_email(
+        to_email=req.recipient_email,
+        subject=req.subject,
+        body=req.body,
+        sender_name=business.name
+    )
+
+    is_delivered = bool(delivery_res.get("delivered", False))
+    is_live = delivery_res.get("mode") == "live"
+    is_simulated = delivery_res.get("mode") == "simulated"
+
+    if is_delivered or is_live:
+        status_str = "sent"
+        sent_time = datetime.utcnow()
+        logger.info(f"Dispatch status updated to SENT for email_id={email_rec.id}")
+    elif is_simulated:
+        status_str = "simulated"
+        sent_time = None
+        logger.info(f"Dispatch status updated to SIMULATED for email_id={email_rec.id}")
+    else:
+        status_str = "failed"
+        sent_time = None
+        actual_error = delivery_res.get("error", "SMTP delivery failure")
+        logger.warning(f"Email dispatch failed for {req.recipient_email}. Error: {actual_error}. Dispatch status updated to FAILED for email_id={email_rec.id}")
+
+    # 3. Update database record with final status
+    try:
+        email_rec.status = status_str
+        comm_log.status = status_str
+        comm_log.sent_at = sent_time
+        db.commit()
+        db.refresh(email_rec)
+        db.refresh(comm_log)
+    except Exception as db_update_err:
+        logger.error(f"Database error updating email status to {status_str}: {db_update_err}")
+        db.rollback()
 
     mode_tag = "Live SMTP" if is_live else ("Simulated" if is_simulated else "Failed")
-    log_activity(
-        db,
-        business_id=business.id,
-        actor_type="Business Owner",
-        action="Email Dispatched",
-        description=f"Sent email ({mode_tag}) '{req.subject}' to {req.recipient_email}.",
-        metadata={"email_id": email_rec.id, "communication_id": comm_log.id, "recipient": req.recipient_email, "delivery": delivery_res}
-    )
+    try:
+        log_activity(
+            db,
+            business_id=business.id,
+            actor_type="Business Owner",
+            action="Email Dispatched",
+            description=f"Sent email ({mode_tag}) '{req.subject}' to {req.recipient_email}.",
+            metadata={
+                "email_id": email_rec.id,
+                "communication_id": comm_log.id,
+                "recipient": req.recipient_email,
+                "delivery": delivery_res,
+                "status": status_str,
+                "error": delivery_res.get("error")
+            }
+        )
 
-    create_notification(
-        db,
-        business_id=business.id,
-        title=f"Email {'Sent' if is_live else ('Recorded' if is_simulated else 'Failed')}",
-        message=f"{'Delivered live email' if is_live else ('Recorded draft' if is_simulated else 'Failed delivery')} to {req.recipient_email} ({mode_tag}).",
-        priority="High" if not is_live and not is_simulated else "Low"
-    )
+        create_notification(
+            db,
+            business_id=business.id,
+            title=f"Email {'Sent' if (is_delivered or is_live) else ('Recorded' if is_simulated else 'Failed')}",
+            message=f"{'Delivered live email' if (is_delivered or is_live) else ('Recorded draft' if is_simulated else 'Failed delivery')} to {req.recipient_email} ({mode_tag}).",
+            priority="High" if not is_delivered and not is_simulated else "Low"
+        )
+    except Exception as notif_err:
+        logger.warning(f"Non-critical error creating activity/notification: {notif_err}")
 
     return {
-        "message": delivery_res.get("message", f"Email processed for {req.recipient_email}."),
+        "success": is_delivered or is_live,
+        "status": status_str,
+        "message": "Email sent successfully" if (is_delivered or is_live) else (delivery_res.get("message") or "Email delivery failed"),
         "email_id": email_rec.id,
         "communication_id": comm_log.id,
         "delivery": delivery_res,
-        "status": status_str,
         "mode": delivery_res.get("mode")
     }
 

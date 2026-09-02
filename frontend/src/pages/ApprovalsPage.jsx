@@ -57,12 +57,13 @@ const ApprovalsPage = ({ onNavigate }) => {
     try {
       const payload = editedData || approval.action_data;
       const res = await api.post(`/approvals/${approval.id}/approve`, payload);
-      const isLive = res.data.delivery?.mode === 'live';
-      const isSimulated = res.data.delivery?.mode === 'simulated';
-      const isFailed = res.data.status === 'failed' || res.data.delivery?.mode === 'failed';
+      const delivery = res.data.delivery || res.data.execution_result?.delivery;
+      const isSent = res.data.success === true || res.data.dispatch_status === 'sent' || delivery?.delivered || delivery?.mode === 'live';
+      const isSimulated = res.data.dispatch_status === 'simulated' || delivery?.mode === 'simulated';
+      const isFailed = res.data.dispatch_status === 'failed' || delivery?.mode === 'failed' || (res.data.success === false && !isSimulated);
 
-      if (isLive) {
-        addToast('success', 'Action Approved (Live Email Sent)', res.data.message || 'Live email dispatched to recipient.');
+      if (isSent) {
+        addToast('success', 'Action Approved & Dispatched', res.data.message || 'Live email dispatched to recipient.');
       } else if (isSimulated) {
         addToast('warning', 'Action Approved (Simulated)', res.data.message || 'Recorded in system database.');
       } else if (isFailed) {

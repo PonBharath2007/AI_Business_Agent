@@ -24,33 +24,17 @@ def execute_approval_action(db: Session, approval: Approval, edited_data: Option
         language = action_data.get("language", "en")
         channel = action_data.get("channel", "email")
 
-        # 1. Dispatch email via real SMTP if configured (or simulated)
-        biz_name = approval.business.name if approval.business else "Business Operations"
-        delivery_res = send_real_email(
-            to_email=recipient_email,
-            subject=subject,
-            body=body,
-            sender_name=biz_name
-        )
-
-        is_live = delivery_res.get("mode") == "live"
-        is_simulated = delivery_res.get("mode") == "simulated"
-        status_str = "sent" if is_live else ("simulated" if is_simulated else "failed")
-
-        # 2. Record email in database
+        # 1. Create initial dispatch records with status 'pending'
         email_record = Email(
             business_id=business_id,
             customer_id=customer_id,
             subject=subject,
             body=body,
             recipient_email=recipient_email,
-            status=status_str,
+            status="pending",
             generated_by_ai=True,
             approval_id=approval.id
         )
-        db.add(email_record)
-
-        # 3. Record in communication_logs
         comm_log = CommunicationLog(
             business_id=business_id,
             customer_id=customer_id,
@@ -59,48 +43,115 @@ def execute_approval_action(db: Session, approval: Approval, edited_data: Option
             recipient=recipient_email,
             subject=subject,
             message=body,
-            status=status_str,
-            sent_at=datetime.utcnow() if is_live else None
+            status="pending",
+            sent_at=None
         )
-        db.add(comm_log)
-        db.commit()
-        db.refresh(email_record)
-        db.refresh(comm_log)
+        try:
+            db.add(email_record)
+            db.add(comm_log)
+            db.commit()
+            db.refresh(email_record)
+            db.refresh(comm_log)
+        except Exception as db_init_err:
+            logger.error(f"Failed to create initial approval dispatch records: {db_init_err}")
+            db.rollback()
+            raise db_init_err
+
+        # 2. Dispatch email via real SMTP if configured
+        biz_name = approval.business.name if approval.business else "Business Operations"
+        logger.info(f"Starting email dispatch for approval {approval.id}... Recipient: {recipient_email}")
+        delivery_res = send_real_email(
+            to_email=recipient_email,
+            subject=subject,
+            body=body,
+            sender_name=biz_name
+        )
+
+        is_delivered = bool(delivery_res.get("delivered", False))
+        is_live = delivery_res.get("mode") == "live"
+        is_simulated = delivery_res.get("mode") == "simulated"
+
+        if is_delivered or is_live:
+            status_str = "sent"
+            sent_time = datetime.utcnow()
+            logger.info(f"Dispatch status updated to SENT for approval {approval.id} (email_id={email_record.id})")
+            execution_result["success"] = True
+            execution_result["status"] = "sent"
+            execution_result["message"] = "Email sent successfully"
+        elif is_simulated:
+            status_str = "simulated"
+            sent_time = None
+            logger.info(f"Dispatch status updated to SIMULATED for approval {approval.id} (email_id={email_record.id})")
+            execution_result["success"] = True
+            execution_result["status"] = "simulated"
+            execution_result["message"] = delivery_res.get("message", "Email recorded in simulated mode.")
+        else:
+            status_str = "failed"
+            sent_time = None
+            actual_error = delivery_res.get("error", "SMTP delivery failure")
+            logger.warning(f"Email dispatch failed for approval {approval.id}. Error: {actual_error}. Dispatch status updated to FAILED")
+            execution_result["success"] = False
+            execution_result["status"] = "failed"
+            execution_result["message"] = delivery_res.get("message") or "Email delivery failed"
+
+        # 3. Update database records with final status
+        try:
+            email_record.status = status_str
+            comm_log.status = status_str
+            comm_log.sent_at = sent_time
+            db.commit()
+            db.refresh(email_record)
+            db.refresh(comm_log)
+        except Exception as db_update_err:
+            logger.error(f"Database error updating approval email status to {status_str}: {db_update_err}")
+            db.rollback()
 
         # 4. Update associated task if any
         if invoice_id:
-            task = db.query(Task).filter(
-                Task.business_id == business_id,
-                Task.source_type.in_(["AI Workflow", "AI Document"]),
-                Task.source_id == invoice_id
-            ).first()
-            if task:
-                task.status = "Completed"
-                db.commit()
+            try:
+                task = db.query(Task).filter(
+                    Task.business_id == business_id,
+                    Task.source_type.in_(["AI Workflow", "AI Document"]),
+                    Task.source_id == invoice_id
+                ).first()
+                if task:
+                    task.status = "Completed"
+                    db.commit()
+            except Exception as task_err:
+                logger.warning(f"Could not complete associated task for invoice {invoice_id}: {task_err}")
+                db.rollback()
 
         mode_text = "Live SMTP" if is_live else ("Simulated" if is_simulated else "Failed")
-        log_activity(
-            db,
-            business_id=business_id,
-            actor_type="AI Agent",
-            action="Payment Reminder Dispatched",
-            description=f"Sent payment reminder email ({mode_text}, Lang: {language.upper()}) to {recipient_email} for invoice {action_data.get('invoice_number', 'N/A')}.",
-            metadata={"email_id": email_record.id, "communication_id": comm_log.id, "recipient": recipient_email, "delivery": delivery_res}
-        )
+        try:
+            log_activity(
+                db,
+                business_id=business_id,
+                actor_type="AI Agent",
+                action="Payment Reminder Dispatched",
+                description=f"Sent payment reminder email ({mode_text}, Lang: {language.upper()}) to {recipient_email} for invoice {action_data.get('invoice_number', 'N/A')}.",
+                metadata={
+                    "email_id": email_record.id,
+                    "communication_id": comm_log.id,
+                    "recipient": recipient_email,
+                    "delivery": delivery_res,
+                    "status": status_str,
+                    "error": delivery_res.get("error")
+                }
+            )
 
-        create_notification(
-            db,
-            business_id=business_id,
-            title=f"Payment Reminder {'Sent' if is_live else ('Recorded' if is_simulated else 'Failed')}",
-            message=f"{'Delivered live email' if is_live else ('Recorded draft' if is_simulated else 'Failed delivery')} to {recipient_email} ({mode_text}).",
-            priority="High" if not is_live and not is_simulated else "Low"
-        )
-        
+            create_notification(
+                db,
+                business_id=business_id,
+                title=f"Payment Reminder {'Sent' if (is_delivered or is_live) else ('Recorded' if is_simulated else 'Failed')}",
+                message=f"{'Delivered live email' if (is_delivered or is_live) else ('Recorded draft' if is_simulated else 'Failed delivery')} to {recipient_email} ({mode_text}).",
+                priority="High" if not is_delivered and not is_simulated else "Low"
+            )
+        except Exception as notif_err:
+            logger.warning(f"Non-critical notification error: {notif_err}")
+
         execution_result["email_id"] = email_record.id
         execution_result["communication_id"] = comm_log.id
         execution_result["delivery"] = delivery_res
-        execution_result["status"] = status_str
-        execution_result["message"] = delivery_res.get("message", f"Payment reminder email processed for {recipient_email}.")
 
     elif action_type == "send_sms":
         recipient_phone = action_data.get("recipient_phone") or action_data.get("phone") or ""
@@ -116,6 +167,9 @@ def execute_approval_action(db: Session, approval: Approval, edited_data: Option
             sender_name=biz_name
         )
 
+        is_sms_delivered = bool(sms_res.get("delivered", False))
+        sms_status = "sent" if is_sms_delivered else "failed"
+
         comm_log = CommunicationLog(
             business_id=business_id,
             customer_id=customer_id,
@@ -124,22 +178,25 @@ def execute_approval_action(db: Session, approval: Approval, edited_data: Option
             recipient=recipient_phone,
             subject=action_data.get("subject", "SMS Notice"),
             message=body,
-            status="sent" if sms_res.get("delivered") else "failed",
-            sent_at=datetime.utcnow() if sms_res.get("delivered") else None
+            status=sms_status,
+            sent_at=datetime.utcnow() if is_sms_delivered else None
         )
         db.add(comm_log)
         db.commit()
         db.refresh(comm_log)
 
         if invoice_id:
-            task = db.query(Task).filter(
-                Task.business_id == business_id,
-                Task.source_type.in_(["AI Workflow", "AI Document"]),
-                Task.source_id == invoice_id
-            ).first()
-            if task:
-                task.status = "Completed"
-                db.commit()
+            try:
+                task = db.query(Task).filter(
+                    Task.business_id == business_id,
+                    Task.source_type.in_(["AI Workflow", "AI Document"]),
+                    Task.source_id == invoice_id
+                ).first()
+                if task:
+                    task.status = "Completed"
+                    db.commit()
+            except Exception:
+                db.rollback()
 
         log_activity(
             db,
@@ -147,20 +204,23 @@ def execute_approval_action(db: Session, approval: Approval, edited_data: Option
             actor_type="AI Agent",
             action="SMS Communication Dispatched",
             description=f"Dispatched SMS ({sms_res.get('mode')}, Lang: {language.upper()}) to {recipient_phone}.",
-            metadata={"communication_id": comm_log.id, "recipient": recipient_phone, "delivery": sms_res}
+            metadata={"communication_id": comm_log.id, "recipient": recipient_phone, "delivery": sms_res, "status": sms_status}
         )
 
         create_notification(
             db,
             business_id=business_id,
-            title="SMS Communication Prepared",
+            title=f"SMS Communication {'Sent' if is_sms_delivered else 'Prepared'}",
             message=f"SMS for {recipient_phone} processed successfully.",
             priority="Low"
         )
 
         execution_result["communication_id"] = comm_log.id
         execution_result["delivery"] = sms_res
+        execution_result["success"] = is_sms_delivered
+        execution_result["status"] = sms_status
         execution_result["message"] = sms_res.get("message", f"SMS processed for {recipient_phone}.")
+
 
     elif action_type == "dispatch_task":
         task_title = action_data.get("title", "AI Generated Task")
