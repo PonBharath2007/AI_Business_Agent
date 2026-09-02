@@ -1,25 +1,9 @@
 import axios from 'axios';
 
-const getBaseURL = () => {
-  let url = import.meta.env.VITE_API_URL;
-
-  if (!url) {
-    url = import.meta.env.PROD
-      ? 'https://ai-business-agent-ui7z.onrender.com/api'
-      : 'http://localhost:8000/api';
-  }
-
-  url = url.trim().replace(/\/+$/, '');
-
-  if (!url.endsWith('/api')) {
-    url = `${url}/api`;
-  }
-
-  return url;
-};
+const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 const api = axios.create({
-  baseURL: getBaseURL(),
+  baseURL: `${baseURL.replace(/\/+$/, '')}/api`,
   headers: {
     'Content-Type': 'application/json',
   },
