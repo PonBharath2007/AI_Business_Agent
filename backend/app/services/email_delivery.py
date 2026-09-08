@@ -98,6 +98,7 @@ def get_smtp_config() -> Dict[str, Any]:
         "use_tls": use_tls,
         "use_ssl": use_ssl,
         "resend_api_key": resend_key,
+        "resend_test_recipient": os.getenv("RESEND_TEST_RECIPIENT", "bharathbharath73944@gmail.com").strip(),
         "sendgrid_api_key": sendgrid_key,
         "brevo_api_key": brevo_key,
         "active_provider": active_provider,
@@ -166,6 +167,107 @@ def _dispatch_resend_api(
         else:
             error_msg = data.get("message") or response.text or f"HTTP {response.status_code}"
             logger.error(f"Resend API error (HTTP {response.status_code}): {error_msg}")
+
+            # --- AUTO-ROUTING FOR RESEND SANDBOX / UNVERIFIED DOMAIN (HTTP 403) ---
+            # Resend free tier strictly permits sending only to the account owner's email until a domain is verified.
+            is_sandbox_restriction = (
+                response.status_code == 403 and (
+                    "only send testing emails to your own email address" in error_msg.lower() or
+                    "verify a domain at resend.com" in error_msg.lower()
+                )
+            )
+
+            if is_sandbox_restriction:
+                import re
+                email_match = re.search(r"to your own email address\s*\(([^)]+)\)", error_msg, re.IGNORECASE)
+                if not email_match:
+                    email_match = re.search(r"\(([^)]+@[^)]+)\)", error_msg)
+
+                dev_test_address = (
+                    (email_match.group(1).strip() if email_match else "")
+                    or os.getenv("RESEND_TEST_RECIPIENT", "").strip()
+                    or "bharathbharath73944@gmail.com"
+                )
+
+                if dev_test_address and dev_test_address.lower() != to_email.lower():
+                    logger.warning(
+                        f"Resend Sandbox restriction detected. Re-routing email intended for '{to_email}' "
+                        f"to verified developer testing address '{dev_test_address}'..."
+                    )
+
+                    sandbox_subject = f"[Sandbox Demo -> {to_email}] {subject}"
+                    sandbox_body = (
+                        f"⚡ [RESEND SANDBOX TEST MODE NOTICE]\n"
+                        f"Intended Recipient: {to_email}\n"
+                        f"Delivered to your verified developer address ({dev_test_address}) because your sending domain is not yet verified on Resend.\n"
+                        f"To send directly to external customer email addresses in production, verify your custom domain at https://resend.com/domains.\n"
+                        f"--------------------------------------------------------------------------------\n\n"
+                        f"{body}"
+                    )
+                    sandbox_html = (
+                        f'<div style="background:#fffbeb;border:1px solid #fef3c7;border-left:4px solid #f59e0b;padding:12px;margin-bottom:16px;font-family:sans-serif;color:#92400e;border-radius:6px;">'
+                        f'<div style="font-weight:bold;margin-bottom:4px;">⚡ Resend Sandbox Test Mode Notice</div>'
+                        f'<div>This email was generated for <strong>{to_email}</strong> and delivered to your verified developer account (<code>{dev_test_address}</code>) because your sending domain is not yet verified on Resend.</div>'
+                        f'<div style="margin-top:6px;font-size:12px;color:#78350f;">To send directly to customer domains, verify a domain at <a href="https://resend.com/domains" target="_blank" style="color:#b45309;font-weight:600;">resend.com/domains</a>.</div>'
+                        f'</div>'
+                        f'{(html_body if html_body else f"<pre style=\'font-family:sans-serif;white-space:pre-wrap;\'>{body}</pre>")}'
+                    )
+
+                    retry_payload: Dict[str, Any] = {
+                        "from": from_address,
+                        "to": [dev_test_address],
+                        "subject": sandbox_subject,
+                        "text": sandbox_body,
+                        "html": sandbox_html
+                    }
+                    if reply_to and "@" in reply_to:
+                        retry_payload["reply_to"] = [reply_to]
+
+                    try:
+                        retry_resp = requests.post(
+                            "https://api.resend.com/emails",
+                            headers={
+                                "Authorization": f"Bearer {api_key}",
+                                "Content-Type": "application/json"
+                            },
+                            json=retry_payload,
+                            timeout=25
+                        )
+                        retry_data = retry_resp.json() if retry_resp.text else {}
+                        if retry_resp.status_code in [200, 201]:
+                            email_id = retry_data.get("id", "resend_sandbox_dispatched")
+                            logger.info(
+                                f"[Real Email Sent in Sandbox] Live email successfully dispatched to developer inbox {dev_test_address} (ID: {email_id})."
+                            )
+                            return {
+                                "delivered": True,
+                                "status": "sent",
+                                "mode": "live",
+                                "provider": "resend",
+                                "email_id": email_id,
+                                "redirected_to": dev_test_address,
+                                "original_recipient": to_email,
+                                "message": (
+                                    f"Real email delivered to your verified developer address ({dev_test_address}) "
+                                    f"for recipient {to_email} (Resend sandbox testing mode)."
+                                )
+                            }
+                        else:
+                            logger.error(f"Resend Sandbox retry to {dev_test_address} failed: {retry_resp.status_code} - {retry_resp.text}")
+                    except Exception as retry_exc:
+                        logger.error(f"Exception during Resend Sandbox retry: {retry_exc}")
+
+            # Fallback to simulated mode if live delivery failed so the app workflow never blocks
+            if os.getenv("ALLOW_SIMULATED_EMAIL_FALLBACK", "true").lower() in ["true", "1", "yes"]:
+                logger.warning("Resend delivery failed; gracefully recording email in simulated mode to preserve workflow.")
+                return {
+                    "delivered": False,
+                    "status": "simulated",
+                    "mode": "simulated",
+                    "provider": "simulated",
+                    "message": f"Email recorded locally in Simulated Mode (Resend note: {error_msg})."
+                }
+
             return {
                 "delivered": False,
                 "status": "failed",

@@ -16,5 +16,7 @@ else:
 
 if __name__ == "__main__":
     import uvicorn
-    print(f"Starting AI Business Agent API from root: {ROOT_DIR}")
-    uvicorn.run("backend.app.main:app", host="127.0.0.1", port=8000, reload=True)
+    host = os.getenv("HOST", "127.0.0.1")
+    port = int(os.getenv("PORT", 8000))
+    print(f"Starting AI Business Agent API from root: {ROOT_DIR} on {host}:{port}")
+    uvicorn.run("backend.app.main:app", host=host, port=port, reload=True)
