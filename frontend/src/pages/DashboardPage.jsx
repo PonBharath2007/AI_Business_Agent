@@ -86,30 +86,22 @@ const DashboardPage = ({ onNavigate }) => {
 
   const displayData = data || {
     summary: {
-      total_customers: 4,
-      pending_invoices_count: 1,
-      pending_invoices_amount: 3200.0,
-      overdue_invoices_count: 2,
-      overdue_invoices_amount: 17500.0,
-      pending_tasks_count: 4,
-      high_priority_tasks_count: 3,
-      pending_approvals_count: 2,
-      ai_actions_count: 3,
-      completed_tasks_count: 1,
-      currency: 'USD'
+      total_customers: 0,
+      pending_invoices_count: 0,
+      pending_invoices_amount: 0.0,
+      overdue_invoices_count: 0,
+      overdue_invoices_amount: 0.0,
+      pending_tasks_count: 0,
+      high_priority_tasks_count: 0,
+      pending_approvals_count: 0,
+      ai_actions_count: 0,
+      completed_tasks_count: 0,
+      currency: business?.currency || 'USD'
     },
     daily_brief: {
       headline: "Today's Business Operations Brief",
-      brief_markdown: "🤖 **AI Digital Employee Active**\n\n• **Financial Health**: 2 overdue accounts detected totaling $17,500.00.\n• **High Priority**: Overdue invoice INV-1001 for ABC Ltd ($5,000.00).\n• **Human-in-the-Loop**: 2 automated payment reminder drafts waiting in Approval Center.",
-      recommended_actions: [
-        {
-          id: 1,
-          title: "Review ABC Ltd Payment Reminder",
-          description: "Draft ready for owner approval in Approval Center.",
-          priority: "High",
-          action_type: "open_approvals"
-        }
-      ]
+      brief_markdown: "🤖 **AI Digital Employee Active**\n\n• **Operations Clear**: No overdue invoices or pending items requiring immediate action.\n• **Ready for Operations**: Upload your business invoices or add customers to activate real-time intelligence.",
+      recommended_actions: []
     },
     overdue_invoices: [],
     urgent_tasks: [],

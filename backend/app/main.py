@@ -37,8 +37,7 @@ from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse
-from backend.app.database.session import init_db, SessionLocal
-from backend.app.database.seed_data import seed_database
+from backend.app.database.session import init_db
 from backend.app.utils.logger import logger
 
 @asynccontextmanager
@@ -46,12 +45,7 @@ async def lifespan(app: FastAPI):
     logger.info("Initializing database tables...")
     try:
         init_db()
-        db = SessionLocal()
-        try:
-            seed_database(db, reset=False)
-            logger.info("Database initialized and ready.")
-        finally:
-            db.close()
+        logger.info("Database initialized and ready.")
     except Exception as exc:
         logger.error(f"Database initialization failed: {exc}", exc_info=True)
         raise

@@ -1,4 +1,4 @@
-from datetime import date, timedelta
+from datetime import datetime, date, timedelta
 from typing import Dict, Any, List
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
@@ -43,19 +43,57 @@ def get_analytics_overview(
         st = t.status or "Pending"
         task_status_dist[st] = task_status_dist.get(st, 0) + 1
 
-    # Monthly activity trend (simulated + live)
-    months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug"]
-    monthly_trend = [
-        {"month": "May", "invoiced": 18500, "collected": 16200, "ai_tasks": 24},
-        {"month": "Jun", "invoiced": 24000, "collected": 21500, "ai_tasks": 38},
-        {"month": "Jul", "invoiced": 29100, "collected": 22400, "ai_tasks": 45},
-        {"month": "Aug", "invoiced": sum(float(i.amount) for i in invoices), "collected": status_amounts["paid"], "ai_tasks": len(tasks) * 3}
-    ]
+    # Real Monthly activity trend calculated strictly from database records
+    today = date.today()
+    monthly_trend = []
+    has_any_data = False
 
-    # Automation metrics
+    for m_offset in range(5, -1, -1):
+        y = today.year
+        m = today.month - m_offset
+        while m <= 0:
+            m += 12
+            y -= 1
+
+        m_name = date(y, m, 1).strftime("%b")
+        start_dt = datetime(y, m, 1)
+        end_dt = datetime(y, m + 1, 1) if m < 12 else datetime(y + 1, 1, 1)
+
+        m_invoices = [
+            i for i in invoices
+            if i.issue_date and i.issue_date.year == y and i.issue_date.month == m
+        ]
+        m_invoiced = sum(float(i.amount or 0.0) for i in m_invoices)
+        m_collected = sum(float(i.amount or 0.0) for i in m_invoices if (i.status or "").lower() == "paid")
+
+        m_ai_tasks = db.query(Activity).filter(
+            Activity.business_id == business.id,
+            Activity.actor_type == "AI Agent",
+            Activity.created_at >= start_dt,
+            Activity.created_at < end_dt
+        ).count()
+
+        if m_invoiced > 0 or m_collected > 0 or m_ai_tasks > 0:
+            has_any_data = True
+
+        monthly_trend.append({
+            "month": m_name,
+            "invoiced": round(m_invoiced, 2),
+            "collected": round(m_collected, 2),
+            "ai_tasks": m_ai_tasks
+        })
+
+    if not has_any_data:
+        monthly_trend = []
+
+    # Automation metrics calculated strictly from real database records
     total_ai_activities = db.query(Activity).filter(
         Activity.business_id == business.id,
         Activity.actor_type == "AI Agent"
+    ).count()
+
+    total_approvals = db.query(Approval).filter(
+        Approval.business_id == business.id
     ).count()
 
     approved_count = db.query(Approval).filter(
@@ -63,14 +101,16 @@ def get_analytics_overview(
         Approval.status == "approved"
     ).count()
 
-    hours_saved = max(4.5, total_ai_activities * 0.45)
+    hours_saved = round(total_ai_activities * 0.45, 1)
+    approval_rate = f"{round((approved_count / total_approvals) * 100, 1)}%" if total_approvals > 0 else "0%"
+    efficiency = f"{round((approved_count / total_approvals) * 100, 1)}%" if total_approvals > 0 else "0%"
 
     automation_metrics = {
-        "hours_saved_this_month": round(hours_saved, 1),
-        "ai_actions_performed": max(total_ai_activities, 18),
-        "approval_rate": f"{round((approved_count / max(1, approved_count + 1)) * 100, 1)}%",
-        "human_interventions_requested": db.query(Approval).filter(Approval.business_id == business.id).count(),
-        "workflow_automation_efficiency": "92.4%"
+        "hours_saved_this_month": hours_saved,
+        "ai_actions_performed": total_ai_activities,
+        "approval_rate": approval_rate,
+        "human_interventions_requested": total_approvals,
+        "workflow_automation_efficiency": efficiency
     }
 
     return {

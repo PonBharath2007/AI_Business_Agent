@@ -76,32 +76,6 @@ const DocumentsPage = ({ onNavigate }) => {
     }
   };
 
-  const handleSampleInvoiceUpload = async () => {
-    setUploading(true);
-    try {
-      // Create a mock sample invoice file in memory and upload
-      const sampleText = `INVOICE
-Invoice Number: INV-1001
-Customer: ABC Ltd
-Email: accounts@abc.example
-Date: July 10, 2026
-Due Date: August 10, 2026
-Status: OVERDUE
-
-Description: Enterprise Cloud Operations Architecture & Automation
-Total Amount Due: $5,000.00 (USD)
-
-Payment Terms: Net 30 days. Late fee of 1.5% applies for overdue balances.`;
-
-      const blob = new Blob([sampleText], { type: 'text/plain' });
-      const file = new File([blob], 'sample_invoice_ABC_Ltd.txt', { type: 'text/plain' });
-      await handleFileUpload(file);
-    } catch (err) {
-      console.error('Sample upload error:', err);
-    } finally {
-      setUploading(false);
-    }
-  };
 
   const handleReanalyze = async (docId) => {
     setAnalyzingDocId(docId);
@@ -169,16 +143,6 @@ Payment Terms: Net 30 days. Late fee of 1.5% applies for overdue balances.`;
         </div>
 
         <div className="flex items-center gap-2.5">
-          <Button
-            onClick={handleSampleInvoiceUpload}
-            variant="secondary"
-            size="sm"
-            loading={uploading}
-            icon={Sparkles}
-            className="text-xs border-indigo-500/30 text-indigo-300 hover:bg-indigo-600/20"
-          >
-            Quick Demo: Upload ABC Ltd Invoice
-          </Button>
 
           <Button
             onClick={() => fileInputRef.current?.click()}
@@ -252,9 +216,9 @@ Payment Terms: Net 30 days. Late fee of 1.5% applies for overdue balances.`;
               <EmptyState
                 icon={FileText}
                 title="No documents yet"
-                description="Upload an invoice or click the Quick Demo button above."
-                actionText="Upload Sample Invoice"
-                onAction={handleSampleInvoiceUpload}
+                description="Upload an invoice, receipt, or bill to begin automated extraction."
+                actionText="Upload Document"
+                onAction={() => fileInputRef.current?.click()}
               />
             ) : (
               documents.map((doc) => {

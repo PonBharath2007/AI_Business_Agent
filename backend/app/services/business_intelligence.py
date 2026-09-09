@@ -59,6 +59,51 @@ def calculate_business_health_score(db: Session, business: Business) -> Dict[str
     activities = db.query(Activity).filter(Activity.business_id == business.id).all()
     approvals = db.query(Approval).filter(Approval.business_id == business.id).all()
 
+    if not invoices and not tasks and not customers:
+        return {
+            "overall_score": 100,
+            "rating": "Fresh Account – Clean State",
+            "currency": business.currency or "USD",
+            "categories": [
+                {
+                    "name": "Payment Health",
+                    "score": 100,
+                    "weight": 0.30,
+                    "status": "Clear",
+                    "insight": "No invoices logged yet. Ready to track payment health upon first invoice."
+                },
+                {
+                    "name": "Customer Health",
+                    "score": 100,
+                    "weight": 0.20,
+                    "status": "Clear",
+                    "insight": "No customers created yet. Add customers to begin tracking relationship health."
+                },
+                {
+                    "name": "Task & Operations Health",
+                    "score": 100,
+                    "weight": 0.20,
+                    "status": "Clear",
+                    "insight": "0 open operational tasks. Clean operational queue."
+                },
+                {
+                    "name": "Cash Flow & Liquidity",
+                    "score": 100,
+                    "weight": 0.15,
+                    "status": "Clear",
+                    "insight": "No receivables recorded. Awaiting invoice uploads."
+                },
+                {
+                    "name": "AI Automation Efficiency",
+                    "score": 100,
+                    "weight": 0.15,
+                    "status": "Ready",
+                    "insight": "Digital Employee is online and waiting for new operations."
+                }
+            ],
+            "ai_recommendations": []
+        }
+
     # 1. Payment Health Score (30%)
     total_inv_amount = sum(float(i.amount or 0.0) for i in invoices) or 1.0
     overdue_amount = sum(float(i.amount or 0.0) for i in invoices if i.status == "overdue")
@@ -147,7 +192,6 @@ def calculate_business_health_score(db: Session, business: Business) -> Dict[str
         recs.append(f"Execute reminder workflows for {len([i for i in invoices if i.status == 'overdue'])} overdue accounts to recover {format_currency(overdue_amount, business.currency)}.")
     if len(high_tasks) > 0:
         recs.append(f"Resolve {len(high_tasks)} high-priority operational items to prevent client service bottlenecks.")
-    recs.append("Maintain weekly automated follow-ups to keep payment aging under 30 days.")
 
     return {
         "overall_score": overall,
@@ -161,7 +205,7 @@ def calculate_business_health_score(db: Session, business: Business) -> Dict[str
 def calculate_cash_flow_forecast(db: Session, business: Business) -> Dict[str, Any]:
     currency = business.currency or "USD"
     aging = calculate_payment_aging(db, business.id)
-    
+
     invoices = db.query(Invoice).filter(Invoice.business_id == business.id).all()
     pending = sum(float(i.amount or 0.0) for i in invoices if i.status == "pending")
     overdue = sum(float(i.amount or 0.0) for i in invoices if i.status == "overdue")
@@ -170,10 +214,15 @@ def calculate_cash_flow_forecast(db: Session, business: Business) -> Dict[str, A
     expected_inflow_30d = pending * 0.85 + overdue * 0.50
     projected_net_position = expected_inflow_30d
 
-    summary = (
-        f"Your projected 30-day cash inflow is estimated at {format_currency(expected_inflow_30d, currency)}. "
-        f"Currently, {format_currency(outstanding, currency)} is outstanding, with {format_currency(overdue, currency)} overdue."
-    )
+    if not invoices:
+        summary = "No invoice records found. Upload or create your first invoice to activate cash flow forecasting."
+        confidence = "Awaiting initial invoice data"
+    else:
+        summary = (
+            f"Your projected 30-day cash inflow is estimated at {format_currency(expected_inflow_30d, currency)}. "
+            f"Currently, {format_currency(outstanding, currency)} is outstanding, with {format_currency(overdue, currency)} overdue."
+        )
+        confidence = f"Computed from {len(invoices)} active database invoice(s)"
 
     return {
         "currency": currency,
@@ -183,7 +232,7 @@ def calculate_cash_flow_forecast(db: Session, business: Business) -> Dict[str, A
         "projected_net_position": round(projected_net_position, 2),
         "aging_buckets": aging,
         "ai_cashflow_summary": summary,
-        "confidence_level": "91% (Historical Payment Probability Model)"
+        "confidence_level": confidence
     }
 
 
@@ -192,9 +241,22 @@ def analyze_root_cause_for_delays(db: Session, business: Business, user_query: s
     invoices = db.query(Invoice).filter(Invoice.business_id == business.id).all()
     overdue_invoices = [i for i in invoices if i.status == "overdue"]
     total_invoices = max(1, len(invoices))
-    
+
+    if not overdue_invoices:
+        return {
+            "query": user_query,
+            "overall_assessment": "All accounts are clear. No overdue or delayed customer payments found in the database.",
+            "delay_rate_percentage": 0.0,
+            "average_overdue_days": 0,
+            "key_contributing_factors": [],
+            "action_plan": [
+                {"step": 1, "action": "Maintain healthy receivables", "expected_impact": "Zero delayed payments"}
+            ],
+            "confidence_score": 100
+        }
+
     delay_rate_pct = round((len(overdue_invoices) / total_invoices) * 100, 1)
-    
+
     today = date.today()
     avg_overdue_days = 0
     if overdue_invoices:

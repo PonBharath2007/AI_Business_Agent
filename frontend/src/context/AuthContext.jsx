@@ -151,10 +151,6 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
   };
 
-  const quickDemoLogin = async () => {
-    return await login('admin@summitdigital.com', 'admin123');
-  };
-
   const clearAuthNotification = () => setAuthNotification(null);
 
   return (
@@ -167,7 +163,6 @@ export const AuthProvider = ({ children }) => {
       loginWithGoogle,
       initiateGoogleLogin,
       logout,
-      quickDemoLogin,
       authNotification,
       clearAuthNotification,
       refreshUser: fetchCurrentUser

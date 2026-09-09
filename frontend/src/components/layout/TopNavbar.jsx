@@ -40,12 +40,6 @@ const TopNavbar = ({ onMenuClick, onNavigate }) => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handleReset = async () => {
-    if (window.confirm('Reset all demo data (ABC Ltd, Invoices, Tasks, Approvals) to initial pristine state?')) {
-      await resetDemoData();
-      window.location.reload();
-    }
-  };
 
   return (
     <header className="sticky top-0 z-30 h-16 glass-panel border-b border-slate-800 flex items-center justify-between px-4 sm:px-6 bg-slate-900/80 backdrop-blur-md">
@@ -61,7 +55,7 @@ const TopNavbar = ({ onMenuClick, onNavigate }) => {
         <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-800/80 border border-slate-700/60">
           <div className="w-2 h-2 rounded-full bg-indigo-400 animate-pulse" />
           <span className="text-xs font-medium text-slate-200 truncate max-w-[200px] md:max-w-none">
-            {business?.name || 'Summit Digital Agency'}
+            {business?.name || 'My Business'}
           </span>
           <span className="text-[10px] px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 font-semibold uppercase">
             {business?.currency || 'USD'}
@@ -71,17 +65,6 @@ const TopNavbar = ({ onMenuClick, onNavigate }) => {
 
       {/* Right actions */}
       <div className="flex items-center gap-2.5">
-        {/* Quick Demo Data Reset Button */}
-        <Button
-          onClick={handleReset}
-          variant="outline"
-          size="sm"
-          loading={loading}
-          icon={RotateCcw}
-          className="hidden sm:inline-flex text-xs text-slate-300 hover:border-indigo-500/50"
-        >
-          Reset Demo State
-        </Button>
 
         {/* AI Command Center Quick trigger */}
         <Button

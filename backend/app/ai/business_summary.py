@@ -73,21 +73,33 @@ def generate_daily_brief(db: Session, business: Business) -> Dict[str, Any]:
 
     # Prepare markdown summary
     headline = f"Today's Business Brief for {business.name}"
-    brief_md = f"""
+    has_items = bool(overdue_invoices or pending_invoices or pending_tasks or pending_approvals)
+
+    if not has_items:
+        brief_md = f"""
 ### 📊 Today's Operations Brief
-- 🔴 **{len(overdue_invoices)} Overdue Invoices**: Total outstanding **{format_currency(overdue_total, currency)}**
-- ⏳ **{len(pending_invoices)} Pending Invoices**: Total **{format_currency(pending_total, currency)}**
-- 📋 **{len(pending_tasks)} Pending Tasks** ({len(high_priority_tasks)} High Priority)
-- ⚖️ **{len(pending_approvals)} Action(s) awaiting Owner Approval**
-
-#### 💡 Recommended Next Best Actions:
-1. **Follow up with overdue accounts** to maintain healthy cash flow.
-2. **Review pending AI Approval actions** in the Approval Center.
-3. **Execute high-priority operational tasks** before upcoming deadlines.
+- ✅ **Operations Clear**: No overdue invoices, pending tasks, or approvals requiring immediate action.
+- 📋 **Active Digital Assistant**: Ready to process new invoices, automate customer communications, and manage workflows.
 """.strip()
+    else:
+        brief_lines = [
+            "### 📊 Today's Operations Brief",
+            f"- 🔴 **{len(overdue_invoices)} Overdue Invoices**: Total outstanding **{format_currency(overdue_total, currency)}**" if overdue_invoices else None,
+            f"- ⏳ **{len(pending_invoices)} Pending Invoices**: Total **{format_currency(pending_total, currency)}**" if pending_invoices else None,
+            f"- 📋 **{len(pending_tasks)} Pending Tasks** ({len(high_priority_tasks)} High Priority)" if pending_tasks else None,
+            f"- ⚖️ **{len(pending_approvals)} Action(s) awaiting Owner Approval**" if pending_approvals else None,
+        ]
+        brief_lines = [l for l in brief_lines if l is not None]
 
-    # Optional Gemini Polish
-    prompt = f"""
+        if recommended_actions:
+            brief_lines.append("\n#### 💡 Recommended Next Best Actions:")
+            for idx, action in enumerate(recommended_actions, 1):
+                brief_lines.append(f"{idx}. **{action['title']}**: {action['description']}")
+
+        brief_md = "\n".join(brief_lines).strip()
+
+        # Optional Gemini Polish only when operational data exists
+        prompt = f"""
 Given this business snapshot:
 - Business Name: {business.name}
 - Overdue Invoices: {len(overdue_invoices)} totaling {format_currency(overdue_total, currency)}
@@ -96,9 +108,9 @@ Given this business snapshot:
 
 Provide a concise, motivating, professional 3-bullet morning business briefing markdown.
 """
-    ai_polished = gemini_client.generate_text(prompt, system_instruction="You are a smart AI Operations Executive.")
-    if ai_polished and len(ai_polished) > 40:
-        brief_md = ai_polished
+        ai_polished = gemini_client.generate_text(prompt, system_instruction="You are a smart AI Operations Executive.")
+        if ai_polished and len(ai_polished) > 40:
+            brief_md = ai_polished
 
     return {
         "headline": headline,

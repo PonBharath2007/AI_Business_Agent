@@ -28,14 +28,13 @@ const GoogleIcon = () => (
 );
 
 const LoginPage = ({ onSwitchToRegister }) => {
-  const { login, quickDemoLogin, initiateGoogleLogin, authNotification, clearAuthNotification } = useAuth();
+  const { login, initiateGoogleLogin, authNotification, clearAuthNotification } = useAuth();
   const { addToast } = useNotifications();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
-  const [demoLoading, setDemoLoading] = useState(false);
 
   // Forgot Password state
   const [forgotModalOpen, setForgotModalOpen] = useState(false);
@@ -84,19 +83,6 @@ const LoginPage = ({ onSwitchToRegister }) => {
     }
   };
 
-  const handleDemoClick = async (e) => {
-    e.preventDefault();
-    setDemoLoading(true);
-    try {
-      await quickDemoLogin();
-      addToast('success', 'Demo Account Active', 'Signed in as Summit Digital Agency (Demo Account).');
-    } catch (err) {
-      console.error('Demo login error:', err);
-      addToast('error', 'Demo Error', 'Could not start demo session. Please try again.');
-    } finally {
-      setDemoLoading(false);
-    }
-  };
 
   const openForgotPassword = () => {
     setResetEmail(email.trim());
@@ -240,7 +226,7 @@ const LoginPage = ({ onSwitchToRegister }) => {
           <button
             type="button"
             onClick={handleGoogleClick}
-            disabled={googleLoading || loading || demoLoading}
+            disabled={googleLoading || loading}
             className={`w-full flex items-center justify-center py-2.5 px-4 rounded-xl border border-slate-700/80 bg-slate-900/90 hover:bg-slate-800/90 text-white text-xs font-semibold shadow-md transition-all ${
               googleLoading ? 'opacity-80 cursor-wait' : 'cursor-pointer hover:border-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/50'
             }`}
@@ -254,24 +240,6 @@ const LoginPage = ({ onSwitchToRegister }) => {
           </button>
         </div>
 
-        {/* 1-Click Quick Demo Login Pill */}
-        <div className="pt-2 border-t border-slate-800/80">
-          <div className="p-3 rounded-2xl bg-indigo-950/30 border border-indigo-500/20 text-center space-y-1.5">
-            <span className="text-[10px] text-indigo-300 font-semibold uppercase tracking-wider block">
-              ⚡ Demonstration Mode
-            </span>
-            <Button
-              type="button"
-              onClick={handleDemoClick}
-              variant="secondary"
-              size="sm"
-              loading={demoLoading}
-              className="w-full text-xs font-bold py-2 cursor-pointer"
-            >
-              1-Click Demo Login (Summit Digital)
-            </Button>
-          </div>
-        </div>
 
         <div className="text-center text-xs text-slate-400 pt-2 border-t border-slate-800">
           Don't have an account?{' '}

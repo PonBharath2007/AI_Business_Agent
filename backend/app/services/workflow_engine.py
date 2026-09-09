@@ -36,16 +36,17 @@ def run_document_workflow(db: Session, business: Business, document: Document) -
     db.commit()
     execution_steps.append({"step": "AI Extraction", "time": datetime.utcnow().isoformat(), "status": "completed", "confidence": extracted.get("ai_confidence", 95)})
 
-    customer_name = extracted.get("customer_name") or "ABC Ltd"
-    customer_email = extracted.get("customer_email") or "accounts@abc.example"
+    customer_name = extracted.get("customer_name") or "Unspecified Customer"
+    customer_email = extracted.get("customer_email") or ""
+    customer_phone = extracted.get("customer_phone") or ""
     customer_company = extracted.get("customer_company") or customer_name
-    invoice_number = extracted.get("invoice_number") or f"INV-{date.today().year}01"
-    amount = float(extracted.get("amount") or 50000.0)
+    invoice_number = extracted.get("invoice_number") or f"INV-{int(datetime.utcnow().timestamp())}"
+    amount = float(extracted.get("amount") or 0.0)
     currency = extracted.get("currency") or business.currency or "USD"
-    issue_date_val = parse_date(extracted.get("issue_date")) or (date.today() - timedelta(days=30))
-    due_date_val = parse_date(extracted.get("due_date")) or (date.today() - timedelta(days=5))
-    is_overdue = due_date_val < date.today()
-    status = "overdue" if is_overdue else extracted.get("payment_status", "pending")
+    issue_date_val = parse_date(extracted.get("issue_date")) or date.today()
+    due_date_val = parse_date(extracted.get("due_date")) or (issue_date_val + timedelta(days=14))
+    is_overdue = extracted.get("is_overdue", False)
+    status = extracted.get("payment_status", "pending")
 
     # 2. Duplicate Detection Check
     duplicate_inv = db.query(Invoice).filter(
@@ -66,6 +67,7 @@ def run_document_workflow(db: Session, business: Business, document: Document) -
             business_id=business.id,
             name=customer_name,
             email=customer_email,
+            phone=customer_phone,
             company=customer_company,
             status="active"
         )

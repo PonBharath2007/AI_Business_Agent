@@ -82,8 +82,8 @@ Add the following configuration to your `backend/.env` file:
 
 ```env
 # Google OAuth 2.0 Credentials (Backend Only)
-GOOGLE_CLIENT_ID=your-google-oauth-client-id.apps.googleusercontent.com
-GOOGLE_CLIENT_SECRET=your-google-oauth-client-secret
+GOOGLE_CLIENT_ID=your-google-client-id.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=your-google-client-secret
 GOOGLE_REDIRECT_URI=http://localhost:8000/api/auth/google/callback
 FRONTEND_URL=http://localhost:5173
 ```
@@ -92,8 +92,8 @@ FRONTEND_URL=http://localhost:5173
 1. Go to your [Render Dashboard](https://dashboard.render.com/).
 2. Select your FastAPI web service (`ai-business-agent-ui7z` or similar).
 3. Navigate to **Environment** > **Add Environment Variable**:
-   - `GOOGLE_CLIENT_ID`: `your-google-oauth-client-id.apps.googleusercontent.com`
-   - `GOOGLE_CLIENT_SECRET`: `your-google-oauth-client-secret`
+   - `GOOGLE_CLIENT_ID`: `your-google-client-id.apps.googleusercontent.com`
+   - `GOOGLE_CLIENT_SECRET`: `your-google-client-secret`
    - `GOOGLE_REDIRECT_URI`: `https://ai-business-agent-ui7z.onrender.com/api/auth/google/callback`
    - `FRONTEND_URL`: `https://ai-business-agent-ten.vercel.app`
 4. Click **Save Changes** (Render will redeploy automatically).

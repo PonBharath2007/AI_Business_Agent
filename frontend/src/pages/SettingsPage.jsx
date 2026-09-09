@@ -45,7 +45,6 @@ const SettingsPage = () => {
   });
 
   const [saving, setSaving] = useState(false);
-  const [resetting, setResetting] = useState(false);
 
   // Policies State
   const [policies, setPolicies] = useState([]);
@@ -177,21 +176,6 @@ const SettingsPage = () => {
     }
   };
 
-  const handleReset = async () => {
-    if (window.confirm('Reset all demo data (ABC Ltd, Invoices, Tasks, Approvals) to initial pristine state?')) {
-      setResetting(true);
-      try {
-        await resetDemoData();
-        addToast('success', 'Demo Reset Complete', 'Database refreshed to initial state.');
-        window.location.reload();
-      } catch (err) {
-        addToast('error', 'Error', 'Failed to reset demo data.');
-      } finally {
-        setResetting(false);
-      }
-    }
-  };
-
   return (
     <div className="space-y-6 max-w-4xl">
       {/* Header & Tabs */}
@@ -202,7 +186,7 @@ const SettingsPage = () => {
             <Badge variant="ai">Configuration</Badge>
           </h2>
           <p className="text-xs sm:text-sm text-slate-400 mt-1">
-            Configure company identity, business policies, AI business memory, and demo baseline data.
+            Configure company identity, business policies, and AI business memory.
           </p>
         </div>
 
@@ -211,8 +195,7 @@ const SettingsPage = () => {
           {[
             { id: 'profile', label: 'Profile' },
             { id: 'policies', label: `Policies (${policies.length})` },
-            { id: 'memory', label: `AI Memory (${memories.length})` },
-            { id: 'demo', label: 'Demo Data' }
+            { id: 'memory', label: `AI Memory (${memories.length})` }
           ].map((tab) => (
             <button
               key={tab.id}
@@ -449,30 +432,6 @@ const SettingsPage = () => {
         </div>
       )}
 
-      {activeTab === 'demo' && (
-        <div className="glass-panel rounded-2xl p-6 border border-rose-500/30 bg-gradient-to-r from-rose-950/20 via-slate-900/60 to-slate-900/40 space-y-3">
-          <div className="flex items-center gap-2 text-sm font-bold text-rose-300">
-            <RotateCcw className="w-4 h-4" />
-            <span>Demo Data Management</span>
-          </div>
-          <p className="text-xs text-slate-300 leading-relaxed">
-            Need to re-demonstrate the Golden Demo workflow (ABC Ltd overdue invoice, pending approvals, and AI summaries)?
-            Click below to reset the entire database to the initial clean demonstration baseline.
-          </p>
-          <div className="pt-2">
-            <Button
-              onClick={handleReset}
-              variant="danger"
-              size="sm"
-              loading={resetting}
-              icon={RotateCcw}
-              className="text-xs"
-            >
-              Reset Demo Data to Initial Baseline
-            </Button>
-          </div>
-        </div>
-      )}
 
       {/* Add Policy Modal */}
       <Modal isOpen={policyModalOpen} onClose={() => setPolicyModalOpen(false)} title="Configure Business Policy">
