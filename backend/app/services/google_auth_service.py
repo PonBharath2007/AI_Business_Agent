@@ -1,35 +1,37 @@
 import os
 import urllib.parse
+import secrets
+from datetime import datetime, timedelta
 from typing import Dict, Any, Optional, Tuple
 import requests
+import jwt
 from sqlalchemy.orm import Session
 from dotenv import load_dotenv
 from backend.app.models.models import User, Business
+from backend.app.auth.jwt import JWT_SECRET, JWT_ALGORITHM
 from backend.app.utils.logger import logger
 from backend.app.services.activity_service import log_activity
 
 load_dotenv()
-
-GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "").strip()
-GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "").strip()
-GOOGLE_REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI", "http://localhost:8000/api/auth/google/callback").strip()
-FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173").strip().rstrip("/")
 
 GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
 GOOGLE_USERINFO_URL = "https://www.googleapis.com/oauth2/v3/userinfo"
 GOOGLE_TOKENINFO_URL = "https://oauth2.googleapis.com/tokeninfo"
 
+def get_google_client_id() -> str:
+    return os.getenv("GOOGLE_CLIENT_ID", "").strip()
+
+def get_google_client_secret() -> str:
+    return os.getenv("GOOGLE_CLIENT_SECRET", "").strip()
+
 def is_google_auth_configured() -> bool:
     """
     Checks if Google OAuth credentials are provided in environment variables.
     """
-    client_id = os.getenv("GOOGLE_CLIENT_ID", "").strip()
-    client_secret = os.getenv("GOOGLE_CLIENT_SECRET", "").strip()
+    client_id = get_google_client_id()
+    client_secret = get_google_client_secret()
     return bool(client_id and client_secret and len(client_id) > 10)
-
-def get_google_client_id() -> str:
-    return os.getenv("GOOGLE_CLIENT_ID", "").strip()
 
 def get_redirect_uri(custom_uri: Optional[str] = None) -> str:
     if custom_uri and custom_uri.strip():
@@ -39,12 +41,38 @@ def get_redirect_uri(custom_uri: Optional[str] = None) -> str:
 def get_frontend_url() -> str:
     return os.getenv("FRONTEND_URL", "http://localhost:5173").strip().rstrip("/")
 
-def build_google_auth_url(state: str = "state_ai_agent", redirect_uri: Optional[str] = None) -> str:
+def generate_oauth_state() -> str:
     """
-    Generates the Google OAuth 2.0 consent screen redirect URL.
+    Generates a cryptographically signed state token with a 15-minute expiration
+    to prevent CSRF attacks during the OAuth 2.0 flow.
+    """
+    payload = {
+        "nonce": secrets.token_urlsafe(16),
+        "type": "oauth_state",
+        "exp": datetime.utcnow() + timedelta(minutes=15)
+    }
+    return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
+
+def verify_oauth_state(state: Optional[str]) -> bool:
+    """
+    Validates the CSRF state token returned by Google during callback.
+    """
+    if not state or not state.strip():
+        return False
+    try:
+        payload = jwt.decode(state.strip(), JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        return payload.get("type") == "oauth_state"
+    except Exception as exc:
+        logger.warning(f"Google OAuth state validation failed: {exc}")
+        return False
+
+def build_google_auth_url(state: Optional[str] = None, redirect_uri: Optional[str] = None) -> str:
+    """
+    Generates the Google OAuth 2.0 consent screen redirect URL with proper OpenID Connect scopes.
     """
     client_id = get_google_client_id()
     target_redirect = get_redirect_uri(redirect_uri)
+    oauth_state = state or generate_oauth_state()
 
     params = {
         "client_id": client_id,
@@ -52,7 +80,7 @@ def build_google_auth_url(state: str = "state_ai_agent", redirect_uri: Optional[
         "response_type": "code",
         "scope": "openid email profile",
         "access_type": "offline",
-        "state": state,
+        "state": oauth_state,
         "prompt": "select_account"
     }
 
@@ -62,9 +90,10 @@ def build_google_auth_url(state: str = "state_ai_agent", redirect_uri: Optional[
 def exchange_code_for_tokens(code: str, redirect_uri: Optional[str] = None) -> Dict[str, Any]:
     """
     Exchanges authorization code for Google access token and ID token.
+    Google Client Secret is used exclusively here on the backend.
     """
     client_id = get_google_client_id()
-    client_secret = os.getenv("GOOGLE_CLIENT_SECRET", "").strip()
+    client_secret = get_google_client_secret()
     target_redirect = get_redirect_uri(redirect_uri)
 
     payload = {
@@ -79,7 +108,7 @@ def exchange_code_for_tokens(code: str, redirect_uri: Optional[str] = None) -> D
         response = requests.post(GOOGLE_TOKEN_URL, data=payload, timeout=10)
         if response.status_code != 200:
             logger.error(f"Google token exchange failed ({response.status_code}): {response.text}")
-            return {"error": f"Token exchange failed: {response.text}"}
+            return {"error": f"Token exchange failed with status {response.status_code}"}
         return response.json()
     except Exception as e:
         logger.error(f"Error during Google token exchange: {e}")
@@ -87,7 +116,7 @@ def exchange_code_for_tokens(code: str, redirect_uri: Optional[str] = None) -> D
 
 def fetch_google_user_info(access_token: str) -> Optional[Dict[str, Any]]:
     """
-    Fetches user profile information from Google UserInfo endpoint.
+    Fetches verified user profile information from Google UserInfo endpoint using Bearer token.
     """
     try:
         headers = {"Authorization": f"Bearer {access_token}"}
@@ -110,16 +139,7 @@ def verify_google_id_token(id_token: str) -> Optional[Dict[str, Any]]:
         if response.status_code != 200:
             logger.warning(f"Google ID token verification failed ({response.status_code}): {response.text}")
             return None
-        
-        token_info = response.json()
-        client_id = get_google_client_id()
-        # Verify audience if client_id is configured
-        if client_id and token_info.get("aud") != client_id:
-            logger.warning(f"Token audience mismatch: {token_info.get('aud')} != {client_id}")
-            # Accept if aud is valid google client
-            pass
-
-        return token_info
+        return response.json()
     except Exception as e:
         logger.error(f"Error verifying Google ID token: {e}")
         return None
@@ -128,10 +148,10 @@ def get_or_create_google_user(db: Session, google_info: Dict[str, Any]) -> Tuple
     """
     Finds or creates a User from verified Google account profile.
     Handles:
-    1. Existing Google User (login)
-    2. Existing Local User with same email (safe account linking)
-    3. New User (provision user + business)
-    
+    1. Existing Google User (login) -> Preserves user, business, permissions.
+    2. Existing Local User with same email (safe account linking) -> Links google_id, preserves data.
+    3. New User (provision user + business) -> Creates isolated business and user with standard defaults.
+
     Returns: (User, is_new: bool, action_taken: str)
     """
     google_id = str(google_info.get("sub") or google_info.get("id") or "").strip()
@@ -148,7 +168,7 @@ def get_or_create_google_user(db: Session, google_info: Dict[str, Any]) -> Tuple
     if google_id:
         user_by_gid = db.query(User).filter(User.google_id == google_id).first()
         if user_by_gid:
-            # Update latest profile picture and verified status
+            # Update latest profile picture and verified status if appropriate
             if picture and not user_by_gid.profile_picture:
                 user_by_gid.profile_picture = picture
             user_by_gid.email_verified = True
@@ -164,7 +184,6 @@ def get_or_create_google_user(db: Session, google_info: Dict[str, Any]) -> Tuple
             user_by_email.google_id = google_id
         if picture and not user_by_email.profile_picture:
             user_by_email.profile_picture = picture
-        user_by_email.auth_provider = "google" if user_by_email.auth_provider == "local" else user_by_email.auth_provider
         user_by_email.email_verified = True
         db.commit()
         db.refresh(user_by_email)
@@ -197,7 +216,7 @@ def get_or_create_google_user(db: Session, google_info: Dict[str, Any]) -> Tuple
     new_user = User(
         name=name,
         email=email,
-        password_hash=None,  # Google OAuth users don't require local password
+        password_hash=f"!oauth_google_{secrets.token_hex(16)}",  # Secure placeholder satisfying SQLite/Postgres schemas
         role="owner",
         business_id=biz.id,
         auth_provider="google",
@@ -218,3 +237,4 @@ def get_or_create_google_user(db: Session, google_info: Dict[str, Any]) -> Tuple
     )
 
     return new_user, True, "created"
+

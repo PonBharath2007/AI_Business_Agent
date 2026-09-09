@@ -550,3 +550,61 @@ class CommunicationLogOut(BaseModel):
     class Config:
         from_attributes = True
 
+
+# ----------------- SMS QUEUE & GATEWAY SCHEMAS -----------------
+class SMSSendRequest(BaseModel):
+    customer_id: Optional[int] = None
+    phone_number: str
+    message: str
+    language: Optional[str] = "en"
+    purpose: Optional[str] = "payment_reminder"
+    ai_generated: Optional[bool] = True
+
+class SMSSendResponse(BaseModel):
+    success: bool
+    sms_id: int
+    status: str
+    message: str
+
+class SMSPendingItem(BaseModel):
+    id: int
+    phone_number: str
+    message: str
+    language: str = "en"
+    purpose: str = "payment_reminder"
+    status: str = "PENDING"
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class SMSMessageOut(BaseModel):
+    id: int
+    business_id: int
+    customer_id: Optional[int] = None
+    customer_name: Optional[str] = None
+    user_id: Optional[int] = None
+    phone_number: str
+    message: str
+    language: str = "en"
+    purpose: str = "payment_reminder"
+    status: str
+    ai_generated: bool = True
+    provider_message_id: Optional[str] = None
+    error_message: Optional[str] = None
+    created_at: datetime
+    sent_at: Optional[datetime] = None
+    delivered_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+class SMSSentReport(BaseModel):
+    provider_message_id: Optional[str] = None
+
+class SMSFailedReport(BaseModel):
+    error_message: str
+
+class SMSDeliveredReport(BaseModel):
+    provider_message_id: Optional[str] = None
+

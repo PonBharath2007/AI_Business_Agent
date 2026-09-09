@@ -37,6 +37,7 @@ class Business(Base):
     workflow_rules = relationship("WorkflowRule", back_populates="business", cascade="all, delete-orphan")
     workflow_executions = relationship("WorkflowExecution", back_populates="business", cascade="all, delete-orphan")
     communications = relationship("CommunicationLog", back_populates="business", cascade="all, delete-orphan")
+    sms_messages = relationship("SMSMessage", back_populates="business", cascade="all, delete-orphan")
 
 
 class User(Base):
@@ -55,6 +56,7 @@ class User(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     business = relationship("Business", back_populates="users")
+    sms_messages = relationship("SMSMessage", back_populates="user")
 
 
 class Customer(Base):
@@ -74,6 +76,7 @@ class Customer(Base):
     invoices = relationship("Invoice", back_populates="customer")
     emails = relationship("Email", back_populates="customer")
     communications = relationship("CommunicationLog", back_populates="customer", cascade="all, delete-orphan")
+    sms_messages = relationship("SMSMessage", back_populates="customer")
 
 
 class Document(Base):
@@ -289,4 +292,28 @@ class CommunicationLog(Base):
 
     business = relationship("Business", back_populates="communications")
     customer = relationship("Customer", back_populates="communications")
+
+
+class SMSMessage(Base):
+    __tablename__ = "sms_messages"
+
+    id = Column(Integer, primary_key=True, index=True)
+    business_id = Column(Integer, ForeignKey("businesses.id", ondelete="CASCADE"), nullable=False, index=True)
+    customer_id = Column(Integer, ForeignKey("customers.id", ondelete="SET NULL"), nullable=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    phone_number = Column(String(50), nullable=False, index=True)
+    message = Column(Text, nullable=False)
+    language = Column(String(20), default="en", index=True)  # en, ta, en_ta
+    purpose = Column(String(100), default="payment_reminder")
+    status = Column(String(50), default="PENDING", index=True)  # PENDING, PROCESSING, SENT, DELIVERED, FAILED, CANCELLED
+    ai_generated = Column(Boolean, default=True)
+    provider_message_id = Column(String(255), nullable=True)
+    error_message = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    sent_at = Column(DateTime, nullable=True)
+    delivered_at = Column(DateTime, nullable=True)
+
+    business = relationship("Business", back_populates="sms_messages")
+    customer = relationship("Customer", back_populates="sms_messages")
+    user = relationship("User", back_populates="sms_messages")
 

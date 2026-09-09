@@ -75,7 +75,7 @@ def init_db():
     from backend.app.models.models import (
         Business, User, Customer, Document, Invoice,
         Task, Approval, Activity, Email, Notification,
-        CommunicationLog
+        CommunicationLog, SMSMessage
     )
     Base.metadata.create_all(bind=engine)
 

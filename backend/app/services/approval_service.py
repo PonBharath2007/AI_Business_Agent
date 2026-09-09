@@ -1,11 +1,11 @@
 from datetime import datetime
 from typing import Dict, Any, Optional
 from sqlalchemy.orm import Session
-from backend.app.models.models import Approval, Activity, Email, Task, Invoice, Notification, CommunicationLog
+from backend.app.models.models import Approval, Activity, Email, Task, Invoice, Notification, CommunicationLog, SMSMessage
 from backend.app.services.activity_service import log_activity
 from backend.app.services.notification_service import create_notification
 from backend.app.services.email_delivery import send_real_email
-from backend.app.services.sms_delivery import dispatch_sms
+from backend.app.utils.phone_validation import normalize_and_validate_phone
 from backend.app.utils.logger import logger
 
 def execute_approval_action(db: Session, approval: Approval, edited_data: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
@@ -160,30 +160,43 @@ def execute_approval_action(db: Session, approval: Approval, edited_data: Option
         invoice_id = action_data.get("invoice_id")
         language = action_data.get("language", "en")
 
-        biz_name = approval.business.name if approval.business else "Business Operations"
-        sms_res = dispatch_sms(
-            to_phone=recipient_phone,
-            message=body,
-            sender_name=biz_name
-        )
+        is_valid, norm_phone, err_msg = normalize_and_validate_phone(recipient_phone)
+        effective_phone = norm_phone if is_valid else recipient_phone
 
-        is_sms_delivered = bool(sms_res.get("delivered", False))
-        sms_status = "sent" if is_sms_delivered else "failed"
+        sms_rec = SMSMessage(
+            business_id=business_id,
+            customer_id=customer_id,
+            phone_number=effective_phone,
+            message=body,
+            language=language,
+            purpose=action_data.get("purpose", "payment_reminder"),
+            status="PENDING",
+            ai_generated=True,
+            created_at=datetime.utcnow()
+        )
+        db.add(sms_rec)
 
         comm_log = CommunicationLog(
             business_id=business_id,
             customer_id=customer_id,
             communication_type="sms",
             language=language,
-            recipient=recipient_phone,
+            recipient=effective_phone,
             subject=action_data.get("subject", "SMS Notice"),
             message=body,
-            status=sms_status,
-            sent_at=datetime.utcnow() if is_sms_delivered else None
+            status="pending",
+            sent_at=None,
+            created_at=datetime.utcnow()
         )
         db.add(comm_log)
         db.commit()
+        db.refresh(sms_rec)
         db.refresh(comm_log)
+
+        execution_result["sms_id"] = sms_rec.id
+        execution_result["communication_id"] = comm_log.id
+        execution_result["dispatch_status"] = "pending"
+        execution_result["message"] = f"SMS queued for {effective_phone}. Waiting for Android Gateway transmission."
 
         if invoice_id:
             try:

@@ -18,7 +18,8 @@ from backend.app.services.email_delivery import send_real_email
 from backend.app.services.google_auth_service import (
     is_google_auth_configured, get_google_client_id, build_google_auth_url,
     exchange_code_for_tokens, fetch_google_user_info, verify_google_id_token,
-    get_or_create_google_user, get_frontend_url
+    get_or_create_google_user, get_frontend_url, generate_oauth_state,
+    verify_oauth_state
 )
 from backend.app.utils.logger import logger
 
@@ -115,7 +116,7 @@ def login_user(login_in: UserLogin, db: Session = Depends(get_db)):
             description=f"New business owner account created for {user.name} ({user.email})."
         )
     else:
-        if user.password_hash:
+        if user.password_hash and not user.password_hash.startswith("!oauth_google_"):
             if not verify_password(login_in.password, user.password_hash):
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
@@ -156,24 +157,28 @@ def get_google_auth_config():
     }
 
 
+@router.get("/google")
 @router.get("/google/login")
 def google_oauth_login(
     redirect_uri: Optional[str] = Query(None),
-    state: Optional[str] = Query("state_ai_agent")
+    state: Optional[str] = Query(None)
 ):
     """
-    Redirects user's browser to the Google OAuth 2.0 consent screen.
+    Redirects user's browser to the Google OAuth 2.0 consent screen with OpenID Connect scopes
+    and cryptographically signed CSRF state token.
     """
-    if not is_google_auth_configured():
-        auth_url = build_google_auth_url(state=state or "state_ai_agent", redirect_uri=redirect_uri)
-        return {
-            "status": "warning",
-            "configured": False,
-            "auth_url": auth_url,
-            "message": "Google OAuth credentials (GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET) are not set in environment."
-        }
+    frontend_base = get_frontend_url()
 
-    auth_url = build_google_auth_url(state=state or "state_ai_agent", redirect_uri=redirect_uri)
+    if not is_google_auth_configured():
+        logger.warning("Google OAuth login attempted but credentials are not configured in environment.")
+        error_msg = urllib.parse.quote("Google authentication is not configured correctly on the server. Please set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET.")
+        return RedirectResponse(
+            url=f"{frontend_base}/?error=google_not_configured&message={error_msg}",
+            status_code=status.HTTP_307_TEMPORARY_REDIRECT
+        )
+
+    csrf_state = state if (state and verify_oauth_state(state)) else generate_oauth_state()
+    auth_url = build_google_auth_url(state=csrf_state, redirect_uri=redirect_uri)
     return RedirectResponse(url=auth_url, status_code=status.HTTP_307_TEMPORARY_REDIRECT)
 
 
@@ -185,40 +190,64 @@ def google_oauth_callback(
     db: Session = Depends(get_db)
 ):
     """
-    Handles Google OAuth redirect, exchanges code for user profile,
+    Handles Google OAuth redirect, verifies CSRF state token, exchanges code for user profile,
     creates or links user, and redirects to frontend with application JWT.
     """
     frontend_base = get_frontend_url()
 
+    # 1. User cancelled or Google returned an error
     if error:
         logger.warning(f"Google OAuth cancelled or returned error: {error}")
         error_msg = urllib.parse.quote("Google sign-in was cancelled.")
-        return RedirectResponse(url=f"{frontend_base}/?error=google_cancelled&message={error_msg}")
+        return RedirectResponse(url=f"{frontend_base}/?error=google_cancelled&message={error_msg}", status_code=status.HTTP_307_TEMPORARY_REDIRECT)
 
+    # 2. Validate OAuth state parameter against CSRF attacks
+    if not verify_oauth_state(state):
+        logger.warning(f"Google OAuth callback received invalid or expired state: {state}")
+        error_msg = urllib.parse.quote("Google sign-in session expired or invalid state. Please try again.")
+        return RedirectResponse(url=f"{frontend_base}/?error=invalid_state&message={error_msg}", status_code=status.HTTP_307_TEMPORARY_REDIRECT)
+
+    # 3. Check for authorization code
     if not code:
+        logger.warning("Google OAuth callback did not include an authorization code.")
         error_msg = urllib.parse.quote("Missing authorization code from Google.")
-        return RedirectResponse(url=f"{frontend_base}/?error=oauth_failed&message={error_msg}")
+        return RedirectResponse(url=f"{frontend_base}/?error=missing_code&message={error_msg}", status_code=status.HTTP_307_TEMPORARY_REDIRECT)
 
-    # Exchange authorization code with Google token endpoint
+    # 4. Exchange authorization code with Google token endpoint
     token_response = exchange_code_for_tokens(code)
     if "error" in token_response or not token_response.get("access_token"):
         err_detail = token_response.get("error", "Failed to exchange token with Google.")
         logger.error(f"Google code exchange failed: {err_detail}")
         error_msg = urllib.parse.quote("Unable to sign in with Google. Please try again.")
-        return RedirectResponse(url=f"{frontend_base}/?error=exchange_failed&message={error_msg}")
+        return RedirectResponse(url=f"{frontend_base}/?error=exchange_failed&message={error_msg}", status_code=status.HTTP_307_TEMPORARY_REDIRECT)
 
+    # 5. Fetch verified user information
     access_token = token_response["access_token"]
     user_info = fetch_google_user_info(access_token)
     if not user_info:
+        logger.error("Could not fetch user information from Google UserInfo endpoint.")
         error_msg = urllib.parse.quote("Could not retrieve Google profile details.")
-        return RedirectResponse(url=f"{frontend_base}/?error=profile_failed&message={error_msg}")
+        return RedirectResponse(url=f"{frontend_base}/?error=profile_failed&message={error_msg}", status_code=status.HTTP_307_TEMPORARY_REDIRECT)
 
-    user, is_new, action_taken = get_or_create_google_user(db, user_info)
-    if not user:
-        error_msg = urllib.parse.quote("Could not provision user account from Google profile.")
-        return RedirectResponse(url=f"{frontend_base}/?error=user_creation_failed&message={error_msg}")
+    # 6. Verify email exists in Google profile
+    email = str(user_info.get("email") or "").strip().lower()
+    if not email:
+        logger.error("Google account has no usable email address.")
+        error_msg = urllib.parse.quote("Google account has no usable email. Please use an account with a verified email.")
+        return RedirectResponse(url=f"{frontend_base}/?error=missing_email&message={error_msg}", status_code=status.HTTP_307_TEMPORARY_REDIRECT)
 
-    # Issue application JWT token
+    # 7. Find or create application user
+    try:
+        user, is_new, action_taken = get_or_create_google_user(db, user_info)
+        if not user:
+            error_msg = urllib.parse.quote("Could not provision user account from Google profile.")
+            return RedirectResponse(url=f"{frontend_base}/?error=user_creation_failed&message={error_msg}", status_code=status.HTTP_307_TEMPORARY_REDIRECT)
+    except Exception as exc:
+        logger.error(f"Database error during Google user resolution: {exc}", exc_info=True)
+        error_msg = urllib.parse.quote("A database error occurred while signing in. Please try again.")
+        return RedirectResponse(url=f"{frontend_base}/?error=db_error&message={error_msg}", status_code=status.HTTP_307_TEMPORARY_REDIRECT)
+
+    # 8. Issue existing application JWT token
     jwt_token = create_access_token(data={"sub": str(user.id), "email": user.email})
 
     action_label = "created" if is_new else ("linked" if action_taken == "linked" else "login")

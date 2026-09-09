@@ -3,7 +3,7 @@ from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, status, Query, Body
 from sqlalchemy.orm import Session
 from backend.app.database.session import get_db
-from backend.app.models.models import Business, Customer, Invoice, Email, CommunicationLog, Approval, Task
+from backend.app.models.models import Business, Customer, Invoice, Email, CommunicationLog, Approval, Task, SMSMessage
 from backend.app.schemas.schemas import (
     CommunicationGenerateRequest, CommunicationGenerateResponse,
     CommunicationSendRequest, CommunicationLogOut, CallInitiateRequest
@@ -11,7 +11,8 @@ from backend.app.schemas.schemas import (
 from backend.app.auth.deps import get_current_business
 from backend.app.ai.email_generator import generate_customer_communication
 from backend.app.services.email_delivery import send_real_email
-from backend.app.services.sms_delivery import dispatch_sms, build_tel_device_uri
+from backend.app.services.sms_delivery import build_tel_device_uri
+from backend.app.utils.phone_validation import normalize_and_validate_phone
 from backend.app.services.activity_service import log_activity
 from backend.app.services.notification_service import create_notification
 from backend.app.utils.logger import logger
@@ -313,61 +314,73 @@ def send_sms_communication(
     business: Business = Depends(get_current_business)
 ):
     """
-    Dispatches SMS or generates pre-filled device SMS link, recording in communication_logs.
+    Enqueues SMS into the Android SMS Gateway queue.
+    Eliminates browser SMS composer fallback.
     """
     if not req.recipient or not req.recipient.strip():
         raise HTTPException(status_code=400, detail="Customer phone number is not available.")
     if not req.message or not req.message.strip():
         raise HTTPException(status_code=400, detail="SMS message content cannot be empty.")
 
-    sms_res = dispatch_sms(
-        to_phone=req.recipient,
-        message=req.message,
-        sender_name=business.name
+    is_valid, normalized_phone, err_msg = normalize_and_validate_phone(req.recipient)
+    if not is_valid:
+        raise HTTPException(status_code=400, detail=err_msg)
+
+    # 1. Create dedicated SMSMessage queue record
+    sms_rec = SMSMessage(
+        business_id=business.id,
+        customer_id=req.customer_id,
+        phone_number=normalized_phone,
+        message=req.message.strip(),
+        language=req.language or "en",
+        purpose="payment_reminder",
+        status="PENDING",
+        ai_generated=True,
+        created_at=datetime.utcnow()
     )
+    db.add(sms_rec)
 
-    is_delivered = sms_res.get("delivered", False)
-    status_str = "sent" if is_delivered else "failed"
-    sent_time = datetime.utcnow() if is_delivered else None
-
+    # 2. Create synchronized CommunicationLog record
     comm_log = CommunicationLog(
         business_id=business.id,
         customer_id=req.customer_id,
         communication_type="sms",
         language=req.language or "en",
-        recipient=req.recipient,
+        recipient=normalized_phone,
         subject=req.subject or "SMS Notice",
-        message=req.message,
-        status=status_str,
-        sent_at=sent_time
+        message=req.message.strip(),
+        status="pending",
+        sent_at=None,
+        created_at=datetime.utcnow()
     )
     db.add(comm_log)
     db.commit()
+    db.refresh(sms_rec)
     db.refresh(comm_log)
 
     log_activity(
         db,
         business_id=business.id,
         actor_type="Business Owner",
-        action="SMS Initiated",
-        description=f"Initiated SMS ({sms_res.get('mode')}, Lang: {(req.language or 'en').upper()}) to {req.recipient}.",
-        metadata={"communication_id": comm_log.id, "delivery": sms_res}
+        action="SMS Queued",
+        description=f"SMS queued for {normalized_phone} (Lang: {(req.language or 'en').upper()}). Awaiting Android Gateway SIM transmission.",
+        metadata={"sms_id": sms_rec.id, "communication_id": comm_log.id, "phone": normalized_phone}
     )
 
     create_notification(
         db,
         business_id=business.id,
-        title="SMS Prepared",
-        message=f"SMS communication for {req.recipient} processed.",
+        title="SMS Queued",
+        message=f"SMS for {normalized_phone} added to dispatch queue.",
         priority="Low"
     )
 
     return {
-        "message": sms_res.get("message", f"SMS processed for {req.recipient}."),
+        "success": True,
+        "message": "SMS added to sending queue. Waiting for Android gateway.",
+        "sms_id": sms_rec.id,
         "communication_id": comm_log.id,
-        "device_uri": sms_res.get("device_uri", ""),
-        "delivery": sms_res,
-        "status": status_str
+        "status": "PENDING"
     }
 
 
