@@ -9,7 +9,8 @@ def log_activity(
     action: str,
     description: str,
     status: str = "success",
-    metadata: Optional[Dict[str, Any]] = None
+    metadata: Optional[Dict[str, Any]] = None,
+    refresh: bool = False
 ) -> Activity:
     activity = Activity(
         business_id=business_id,
@@ -21,5 +22,6 @@ def log_activity(
     )
     db.add(activity)
     db.commit()
-    db.refresh(activity)
+    if refresh:
+        db.refresh(activity)
     return activity

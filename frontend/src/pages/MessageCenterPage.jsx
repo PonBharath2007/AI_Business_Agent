@@ -56,6 +56,7 @@ const MessageCenterPage = ({ onNavigate, preSelectedCustomerId = null }) => {
   const [sending, setSending] = useState(false);
   const [previewMode, setPreviewMode] = useState('editor'); // 'editor' or 'preview'
   const [generatedEngine, setGeneratedEngine] = useState('');
+  const [generationTimeMs, setGenerationTimeMs] = useState(null);
   const [copied, setCopied] = useState(false);
   const [queuedInfo, setQueuedInfo] = useState(null);
 
@@ -146,10 +147,11 @@ const MessageCenterPage = ({ onNavigate, preSelectedCustomerId = null }) => {
     }
   };
 
-  // AI Message Generation
+  // AI Message Generation with double-click guard and performance tracking
   const handleGenerateMessage = async () => {
+    if (loading) return; // Prevent duplicate concurrent calls
     setLoading(true);
-    setDeviceUri('');
+    setGenerationTimeMs(null);
 
     try {
       const res = await api.post('/communications/generate', {
@@ -166,12 +168,16 @@ const MessageCenterPage = ({ onNavigate, preSelectedCustomerId = null }) => {
 
       setMessageBody(res.data.body || '');
       setGeneratedEngine(res.data.engine || 'Google Gemini AI');
+      if (res.data.generation_time_ms) {
+        setGenerationTimeMs(res.data.generation_time_ms);
+      }
       if (res.data.recipient_phone) {
         setRecipientPhone(res.data.recipient_phone);
       }
 
       const langLabel = language === 'en' ? 'English' : (language === 'ta' ? 'Tamil' : 'English + Tamil');
-      addToast('success', 'SMS Draft Ready', `AI generated ${langLabel} SMS message draft.`);
+      const timeInfo = res.data.generation_time_ms ? ` in ${(res.data.generation_time_ms / 1000).toFixed(2)}s` : '';
+      addToast('success', 'SMS Draft Ready', `AI generated ${langLabel} SMS draft${timeInfo}.`);
     } catch (err) {
       console.error('Message generation failed:', err);
       addToast('error', 'Generation Error', 'Unable to generate the message. Please try again.');
@@ -571,12 +577,15 @@ const MessageCenterPage = ({ onNavigate, preSelectedCustomerId = null }) => {
                 <Button
                   onClick={handleGenerateMessage}
                   loading={loading}
+                  disabled={loading}
                   variant="primary"
                   size="md"
                   icon={Sparkles}
                   className="font-bold text-xs"
                 >
-                  AI Generate ({language === 'en' ? 'English' : (language === 'ta' ? 'Tamil' : 'English + Tamil')})
+                  {loading
+                    ? 'Generating message...'
+                    : `AI Generate (${language === 'en' ? 'English' : (language === 'ta' ? 'Tamil' : 'English + Tamil')})`}
                 </Button>
               </div>
             </div>
@@ -653,9 +662,20 @@ const MessageCenterPage = ({ onNavigate, preSelectedCustomerId = null }) => {
               {/* Message Editor Textarea / Preview Box */}
               {previewMode === 'editor' ? (
                 <div className="space-y-1.5">
-                  <label className="block text-[10px] uppercase font-bold text-slate-400">
-                    Message Body ({language === 'en' ? 'English' : (language === 'ta' ? 'Tamil' : 'English + Tamil')})
-                  </label>
+                  <div className="flex items-center justify-between">
+                    <label className="block text-[10px] uppercase font-bold text-slate-400">
+                      Message Body ({language === 'en' ? 'English' : (language === 'ta' ? 'Tamil' : 'English + Tamil')})
+                    </label>
+                    {generatedEngine && (
+                      <div className="flex items-center gap-1.5 text-[10px] text-indigo-400 font-mono">
+                        <Sparkles className="w-2.5 h-2.5" />
+                        <span>{generatedEngine}</span>
+                        {generationTimeMs != null && (
+                          <span className="text-emerald-400 font-semibold">• {(generationTimeMs / 1000).toFixed(2)}s</span>
+                        )}
+                      </div>
+                    )}
+                  </div>
                   <textarea
                     value={messageBody}
                     onChange={(e) => setMessageBody(e.target.value)}

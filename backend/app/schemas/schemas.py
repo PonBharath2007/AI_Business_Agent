@@ -519,6 +519,7 @@ class CommunicationGenerateResponse(BaseModel):
     channel: str = "email"
     engine: str = "AI Assistant"
     generation_steps: Optional[List[str]] = []
+    generation_time_ms: Optional[float] = None
 
 class CommunicationSendRequest(BaseModel):
     customer_id: Optional[int] = None

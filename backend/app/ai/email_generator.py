@@ -1,7 +1,15 @@
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Tuple
 from datetime import datetime
+import time
+import threading
 from backend.app.ai.gemini_client import gemini_client
 from backend.app.utils.helpers import format_currency
+from backend.app.utils.logger import logger
+
+# In-memory LRU cache for high-speed response on repeated generation queries
+_comm_cache: Dict[str, Tuple[float, Dict[str, Any]]] = {}
+_comm_cache_lock = threading.Lock()
+CACHE_TTL_SECONDS = 60
 
 def generate_customer_communication(
     customer_name: str,
@@ -11,7 +19,7 @@ def generate_customer_communication(
     amount: Optional[float] = None,
     currency: str = "USD",
     due_date: Optional[str] = None,
-    business_name: str = "Summit Digital Agency",
+    business_name: str = "My Business",
     business_signature: Optional[str] = None,
     template_type: str = "payment_reminder",
     tone: str = "professional",
@@ -22,7 +30,9 @@ def generate_customer_communication(
     """
     Generates professional customer communication in English, Tamil, or Bilingual (English + Tamil)
     for Email or SMS channels.
+    Includes caching for repeated calls and token-bounded fast generation.
     """
+    t_start = time.perf_counter()
     formatted_amount = format_currency(amount or 0.0, currency)
     sig_en = business_signature or f"Regards,\nFinance & Operations Team\n{business_name}"
     sig_ta = f"நன்றி,\nநிதி மற்றும் செயல்பாட்டுக் குழு\n{business_name}"
@@ -34,48 +44,66 @@ def generate_customer_communication(
         "en_ta": "Bilingual (BOTH English and Tamil in the SAME message - English first, followed by Tamil translation below)"
     }.get(language, "English only")
 
-    channel_guideline = (
-        "This is an SMS text message. Keep it concise, punchy, and under 300 characters while including all critical details (amount, due date, invoice #)."
-        if channel == "sms"
-        else "This is a formal business email. Include an appropriate subject line and well-formatted body with greeting and sign-off."
-    )
+    # 1. Check in-memory cache for exact repeat requests
+    cache_key = f"{channel}:{language}:{template_type}:{tone}:{customer_name}:{customer_phone or ''}:{invoice_number or ''}:{formatted_amount}:{due_date or ''}:{business_name}:{(custom_instructions or '').strip()}"
+    with _comm_cache_lock:
+        cached_entry = _comm_cache.get(cache_key)
+        if cached_entry:
+            cached_time, cached_data = cached_entry
+            if time.time() - cached_time < CACHE_TTL_SECONDS:
+                result = dict(cached_data)
+                result["cached"] = True
+                elapsed_ms = round((time.perf_counter() - t_start) * 1000, 2)
+                result["generation_time_ms"] = elapsed_ms
+                logger.info(f"[Cache Hit] Returned message generation draft in {elapsed_ms}ms")
+                return result
 
-    prompt = f"""
-You are an AI Business Executive Assistant writing customer communication.
+    # 2. Optimized concise prompt based on channel
+    max_tokens = 250 if channel == "sms" else 550
 
-Channel: {channel.upper()}
-Language Requirement: {lang_desc}
-Context:
-- Customer Name: {customer_name}
-- Customer Email: {customer_email or 'N/A'}
-- Customer Phone: {customer_phone or 'N/A'}
-- Invoice Number: {invoice_number or 'N/A'}
-- Amount: {formatted_amount}
-- Due Date: {due_date or 'Past Due'}
-- Business Name: {business_name}
-- Template Goal: {template_type} (e.g. payment reminder, follow up, appointment confirmation, general inquiry)
-- Tone: {tone} (professional, friendly, urgent, formal)
-- Custom Instructions: {custom_instructions or 'None'}
+    if channel == "sms":
+        prompt = f"""
+Write a personalized, concise business SMS message.
 
-Formatting Rules:
-1. {channel_guideline}
-2. Language rules:
-   - If language is 'English' ('en'): Produce only English text.
-   - If language is 'Tamil' ('ta'): Produce only grammatically correct, formal Tamil (தமிழ்) text with proper Tamil Unicode characters.
-   - If language is 'English + Tamil' ('en_ta'): Produce BOTH the English text and the Tamil text within the SAME message. Place the English message first, then a divider or blank line, then the complete Tamil translation.
-3. Do NOT include meta-talk, notes, or explanations outside the JSON.
+Recipient: {customer_name} ({customer_phone or 'Customer'})
+Business: {business_name}
+Goal: {template_type} (Invoice: {invoice_number or 'N/A'}, Amount: {formatted_amount}, Due: {due_date or 'Recent'})
+Tone: {tone}
+{f"Special Note: {custom_instructions}" if custom_instructions else ""}
 
-Return strictly a JSON object with:
-{{
-  "subject": "Subject line (in requested language)",
-  "body": "Complete message body (in requested language / bilingual)"
-}}
+Language requirement: {lang_desc}.
+Strict rules:
+1. Max length: under 250 characters. Punchy, clear, polite.
+2. If Tamil ('ta'): strictly valid Tamil (தமிழ்) Unicode.
+3. If Bilingual ('en_ta'): English part first, then newline, then Tamil part.
+4. Output strictly valid JSON: {{"body": "SMS message text here"}}
 """
+    else:
+        prompt = f"""
+Write a professional business email.
+
+Channel: EMAIL
+Language: {lang_desc}
+Customer: {customer_name} ({customer_email or 'Client'})
+Business: {business_name}
+Goal: {template_type} (Invoice: {invoice_number or 'N/A'}, Amount: {formatted_amount}, Due: {due_date or 'Recent'})
+Tone: {tone}
+{f"Instructions: {custom_instructions}" if custom_instructions else ""}
+
+Output strictly valid JSON with:
+{{"subject": "Appropriate subject line", "body": "Complete email body with greeting and sign-off"}}
+"""
+
+    t_prep = time.perf_counter() - t_start
+    t_api_start = time.perf_counter()
 
     ai_json = gemini_client.generate_json(
         prompt,
-        system_instruction="You generate courteous, highly professional enterprise customer communications in English, Tamil, or Bilingual. Output strictly JSON."
+        system_instruction="You generate courteous, highly professional enterprise customer communications in English, Tamil, or Bilingual. Output strictly JSON.",
+        max_output_tokens=max_tokens
     )
+
+    t_api = time.perf_counter() - t_api_start
 
     steps = [
         f"Retrieved profile for '{customer_name}'",
@@ -89,21 +117,34 @@ Return strictly a JSON object with:
         subj = ai_json.get("subject", "")
         if channel == "sms" and not subj:
             subj = f"SMS: {invoice_number or 'Notice'}"
-        return {
+        total_time_ms = round((time.perf_counter() - t_start) * 1000, 2)
+        logger.info(f"[AI Timing] prep={t_prep:.3f}s | gemini_api={t_api:.3f}s | total={total_time_ms}ms")
+
+        result = {
             "subject": subj,
             "body": ai_json["body"].strip(),
             "recipient_email": customer_email or "",
             "recipient_phone": customer_phone or "",
             "language": language,
             "channel": channel,
-            "engine": "Google Gemini AI",
-            "generation_steps": steps
+            "engine": "Google Gemini 2.0 Flash",
+            "generation_steps": steps,
+            "generation_time_ms": total_time_ms
         }
+
+        # Cache result
+        with _comm_cache_lock:
+            if len(_comm_cache) > 150:
+                oldest_k = min(_comm_cache.keys(), key=lambda k: _comm_cache[k][0])
+                _comm_cache.pop(oldest_k, None)
+            _comm_cache[cache_key] = (time.time(), result)
+
+        return result
 
     # =========================================================================
     # HIGH-QUALITY LOCAL MULTILINGUAL TEMPLATES (TAMIL, ENGLISH, BILINGUAL)
     # =========================================================================
-    inv_str = invoice_number or "INV-1001"
+    inv_str = invoice_number or "Invoice"
     due_str = due_date or "recent date"
     instruction_snippet = f"\n\nNote: {custom_instructions.strip()}" if custom_instructions and custom_instructions.strip() else ""
 
@@ -265,7 +306,8 @@ Return strictly a JSON object with:
                 subj = f"Notice from {business_name}"
                 body = f"Dear {customer_name}, an important message regarding your business relationship with {business_name}. Thank you."
 
-        return {
+        sms_time_ms = round((time.perf_counter() - t_start) * 1000, 2)
+        sms_result = {
             "subject": subj,
             "body": body,
             "recipient_email": customer_email or "",
@@ -273,8 +315,16 @@ Return strictly a JSON object with:
             "language": language,
             "channel": "sms",
             "engine": "Intelligent Operations Agent (Local)",
-            "generation_steps": steps
+            "generation_steps": steps,
+            "generation_time_ms": sms_time_ms
         }
+        with _comm_cache_lock:
+            if len(_comm_cache) > 150:
+                oldest_k = min(_comm_cache.keys(), key=lambda k: _comm_cache[k][0])
+                _comm_cache.pop(oldest_k, None)
+            _comm_cache[cache_key] = (time.time(), sms_result)
+
+        return sms_result
 
     # 2. EMAIL CHANNEL TEMPLATES
     if "overdue" in t_type or t_type == "overdue_invoice":
@@ -522,6 +572,7 @@ Return strictly a JSON object with:
                 f"{sig_en}"
             )
 
+    fallback_time_ms = round((time.perf_counter() - t_start) * 1000, 2)
     return {
         "subject": subj,
         "body": body,
@@ -530,7 +581,8 @@ Return strictly a JSON object with:
         "language": language,
         "channel": channel,
         "engine": "Intelligent Operations Agent (Local)",
-        "generation_steps": steps
+        "generation_steps": steps,
+        "generation_time_ms": fallback_time_ms
     }
 
 
@@ -541,7 +593,7 @@ def generate_business_email(
     amount: Optional[float] = None,
     currency: str = "USD",
     due_date: Optional[str] = None,
-    business_name: str = "Summit Digital Agency",
+    business_name: str = "My Business",
     business_signature: Optional[str] = None,
     template_type: str = "payment_reminder",
     tone: str = "professional",

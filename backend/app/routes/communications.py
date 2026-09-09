@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import List, Optional, Dict, Any
-from fastapi import APIRouter, Depends, HTTPException, status, Query, Body
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Body, BackgroundTasks
 from sqlalchemy.orm import Session
 from backend.app.database.session import get_db
 from backend.app.models.models import Business, Customer, Invoice, Email, CommunicationLog, Approval, Task, SMSMessage
@@ -38,12 +38,16 @@ def _format_comm_log(c: CommunicationLog) -> dict:
 @router.post("/generate", response_model=CommunicationGenerateResponse)
 def generate_communication_endpoint(
     req: CommunicationGenerateRequest,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     business: Business = Depends(get_current_business)
 ):
     """
     Generates AI-crafted communication for Email or SMS in English, Tamil, or Bilingual (English + Tamil).
     """
+    import time
+    t_req_start = time.perf_counter()
+
     customer_name = "Customer"
     customer_email = ""
     customer_phone = ""
@@ -51,13 +55,6 @@ def generate_communication_endpoint(
     amount = None
     due_date_str = None
     currency = business.currency or "USD"
-
-    if req.customer_id:
-        cust = db.query(Customer).filter(Customer.id == req.customer_id, Customer.business_id == business.id).first()
-        if cust:
-            customer_name = cust.name
-            customer_email = cust.email or ""
-            customer_phone = cust.phone or ""
 
     if req.invoice_id:
         inv = db.query(Invoice).filter(Invoice.id == req.invoice_id, Invoice.business_id == business.id).first()
@@ -68,16 +65,36 @@ def generate_communication_endpoint(
             due_date_str = inv.due_date.strftime("%B %d, %Y") if inv.due_date else None
             if inv.customer:
                 customer_name = inv.customer.name
-                customer_email = inv.customer.email or customer_email
-                customer_phone = inv.customer.phone or customer_phone
+                customer_email = inv.customer.email or ""
+                customer_phone = inv.customer.phone or ""
+    elif req.customer_id:
+        cust = db.query(Customer).filter(Customer.id == req.customer_id, Customer.business_id == business.id).first()
+        if cust:
+            customer_name = cust.name
+            customer_email = cust.email or ""
+            customer_phone = cust.phone or ""
+        # Intelligently attach most relevant open or pending invoice for this customer
+        open_inv = db.query(Invoice).filter(
+            Invoice.customer_id == req.customer_id,
+            Invoice.business_id == business.id,
+            Invoice.status.in_(["overdue", "pending"])
+        ).order_by(Invoice.due_date.asc()).first()
+        if open_inv:
+            invoice_number = open_inv.invoice_number
+            amount = float(open_inv.amount) if open_inv.amount is not None else 0.0
+            currency = open_inv.currency or business.currency or "USD"
+            due_date_str = open_inv.due_date.strftime("%B %d, %Y") if open_inv.due_date else None
 
     if req.phone_number and req.phone_number.strip():
         customer_phone = req.phone_number.strip()
+
+    t_db = time.perf_counter() - t_req_start
 
     lang = req.language if req.language in ["en", "ta", "en_ta"] else "en"
     chan = req.communication_type if req.communication_type in ["email", "sms"] else "email"
     effective_template = req.purpose or req.template_type or "payment_reminder"
 
+    t_ai_start = time.perf_counter()
     draft = generate_customer_communication(
         customer_name=customer_name,
         customer_email=customer_email,
@@ -94,21 +111,63 @@ def generate_communication_endpoint(
         channel=chan,
         custom_instructions=req.custom_instructions
     )
+    t_ai = time.perf_counter() - t_ai_start
 
     lang_tag = {"en": "English", "ta": "Tamil", "en_ta": "English + Tamil"}.get(lang, "English")
-    log_activity(
-        db,
-        business_id=business.id,
-        actor_type="AI Agent",
-        action=f"{chan.upper()} Draft Generated",
-        description=f"Generated {lang_tag} {chan.upper()} draft for {customer_name}.",
-        metadata={
-            "customer_id": req.customer_id,
-            "invoice_id": req.invoice_id,
-            "language": lang,
-            "channel": chan,
-            "engine": draft.get("engine", "AI Assistant")
-        }
+
+    def _background_log():
+        from backend.app.database.session import SessionLocal
+        bg_db = SessionLocal()
+        try:
+            log_activity(
+                bg_db,
+                business_id=business.id,
+                actor_type="AI Agent",
+                action=f"{chan.upper()} Draft Generated",
+                description=f"Generated {lang_tag} {chan.upper()} draft for {customer_name}.",
+                metadata={
+                    "customer_id": req.customer_id,
+                    "invoice_id": req.invoice_id,
+                    "language": lang,
+                    "channel": chan,
+                    "engine": draft.get("engine", "AI Assistant"),
+                    "cached": draft.get("cached", False)
+                },
+                refresh=False
+            )
+        except Exception as exc:
+            logger.warning(f"Background activity log failed: {exc}")
+        finally:
+            bg_db.close()
+
+    if background_tasks:
+        background_tasks.add_task(_background_log)
+    else:
+        try:
+            log_activity(
+                db,
+                business_id=business.id,
+                actor_type="AI Agent",
+                action=f"{chan.upper()} Draft Generated",
+                description=f"Generated {lang_tag} {chan.upper()} draft for {customer_name}.",
+                metadata={
+                    "customer_id": req.customer_id,
+                    "invoice_id": req.invoice_id,
+                    "language": lang,
+                    "channel": chan,
+                    "engine": draft.get("engine", "AI Assistant"),
+                    "cached": draft.get("cached", False)
+                },
+                refresh=False
+            )
+        except Exception as exc:
+            logger.warning(f"Activity log error: {exc}")
+
+    total_time_ms = round((time.perf_counter() - t_req_start) * 1000, 2)
+    draft["generation_time_ms"] = total_time_ms
+    logger.info(
+        f"[Message Endpoint Timing] db_lookup={t_db:.3f}s | "
+        f"ai_gen={t_ai:.3f}s | total={total_time_ms}ms"
     )
 
     return draft
@@ -118,6 +177,7 @@ def generate_communication_endpoint(
 @router.post("/messages/generate", response_model=CommunicationGenerateResponse)
 def generate_message_alias(
     req: CommunicationGenerateRequest,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     business: Business = Depends(get_current_business)
 ):
@@ -125,7 +185,7 @@ def generate_message_alias(
     Alias for normal message / SMS AI generation endpoint.
     """
     req.communication_type = "sms"
-    return generate_communication_endpoint(req, db, business)
+    return generate_communication_endpoint(req, background_tasks, db, business)
 
 
 from backend.app.services.email_delivery import send_real_email, test_smtp_connection, get_smtp_config

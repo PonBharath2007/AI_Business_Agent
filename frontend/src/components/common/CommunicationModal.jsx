@@ -91,6 +91,7 @@ const CommunicationModal = ({
   if (!customer) return null;
 
   const handleGenerate = async () => {
+    if (generating) return;
     setGenerating(true);
     try {
       const res = await api.post('/communications/generate', {
