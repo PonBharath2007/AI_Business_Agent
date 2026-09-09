@@ -41,6 +41,7 @@ const RegisterPage = ({ onSwitchToLogin }) => {
   const [googleLoading, setGoogleLoading] = useState(false);
 
   const handleGoogleClick = () => {
+    if (googleLoading) return;
     setGoogleLoading(true);
     try {
       initiateGoogleLogin();
@@ -93,30 +94,6 @@ const RegisterPage = ({ onSwitchToLogin }) => {
           </div>
           <h1 className="text-2xl font-bold text-white tracking-tight">Create Business Account</h1>
           <p className="text-xs text-slate-400">Deploy your intelligent digital employee in seconds</p>
-        </div>
-
-        {/* Continue with Google Button */}
-        <div>
-          <button
-            type="button"
-            onClick={handleGoogleClick}
-            disabled={googleLoading}
-            className="w-full flex items-center justify-center py-2.5 px-4 rounded-xl border border-slate-700/80 bg-slate-900/90 hover:bg-slate-800/90 text-white text-xs font-semibold shadow-md transition-all cursor-pointer hover:border-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
-          >
-            {googleLoading ? (
-              <div className="w-4 h-4 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin mr-2" />
-            ) : (
-              <GoogleIcon />
-            )}
-            <span>Continue with Google</span>
-          </button>
-        </div>
-
-        <div className="relative flex items-center justify-center">
-          <div className="border-t border-slate-800 w-full" />
-          <span className="bg-[#0f172a] px-3 text-[11px] uppercase tracking-wider text-slate-500 absolute font-semibold">
-            Or register with email
-          </span>
         </div>
 
         {/* Registration Form */}
@@ -219,6 +196,33 @@ const RegisterPage = ({ onSwitchToLogin }) => {
             Create Account & Launch
           </Button>
         </form>
+
+        {/* OR Divider */}
+        <div className="relative flex items-center justify-center my-1">
+          <div className="border-t border-slate-800 w-full" />
+          <span className="bg-[#0f172a] px-3 text-[11px] uppercase tracking-wider text-slate-500 absolute font-semibold">
+            Or continue with
+          </span>
+        </div>
+
+        {/* Continue with Google Button */}
+        <div>
+          <button
+            type="button"
+            onClick={handleGoogleClick}
+            disabled={googleLoading || loading}
+            className={`w-full flex items-center justify-center py-2.5 px-4 rounded-xl border border-slate-700/80 bg-slate-900/90 hover:bg-slate-800/90 text-white text-xs font-semibold shadow-md transition-all ${
+              googleLoading ? 'opacity-80 cursor-wait' : 'cursor-pointer hover:border-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/50'
+            }`}
+          >
+            {googleLoading ? (
+              <div className="w-4 h-4 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin mr-2" />
+            ) : (
+              <GoogleIcon />
+            )}
+            <span>{googleLoading ? 'Connecting to Google...' : 'Continue with Google'}</span>
+          </button>
+        </div>
 
         <div className="text-center text-xs text-slate-400 pt-2 border-t border-slate-800">
           Already have an account?{' '}

@@ -73,6 +73,7 @@ const LoginPage = ({ onSwitchToRegister }) => {
   };
 
   const handleGoogleClick = () => {
+    if (googleLoading) return;
     setGoogleLoading(true);
     try {
       initiateGoogleLogin();
@@ -173,30 +174,6 @@ const LoginPage = ({ onSwitchToRegister }) => {
           <p className="text-xs text-slate-400">An Intelligent Digital Employee for Small Businesses</p>
         </div>
 
-        {/* Continue with Google Button */}
-        <div>
-          <button
-            type="button"
-            onClick={handleGoogleClick}
-            disabled={googleLoading}
-            className="w-full flex items-center justify-center py-2.5 px-4 rounded-xl border border-slate-700/80 bg-slate-900/90 hover:bg-slate-800/90 text-white text-xs font-semibold shadow-md transition-all cursor-pointer hover:border-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
-          >
-            {googleLoading ? (
-              <div className="w-4 h-4 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin mr-2" />
-            ) : (
-              <GoogleIcon />
-            )}
-            <span>Continue with Google</span>
-          </button>
-        </div>
-
-        <div className="relative flex items-center justify-center">
-          <div className="border-t border-slate-800 w-full" />
-          <span className="bg-[#0f172a] px-3 text-[11px] uppercase tracking-wider text-slate-500 absolute font-semibold">
-            Or sign in with email
-          </span>
-        </div>
-
         {/* Email & Password Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -249,6 +226,33 @@ const LoginPage = ({ onSwitchToRegister }) => {
             Sign In to Dashboard
           </Button>
         </form>
+
+        {/* OR Divider */}
+        <div className="relative flex items-center justify-center my-1">
+          <div className="border-t border-slate-800 w-full" />
+          <span className="bg-[#0f172a] px-3 text-[11px] uppercase tracking-wider text-slate-500 absolute font-semibold">
+            Or continue with
+          </span>
+        </div>
+
+        {/* Continue with Google Button */}
+        <div>
+          <button
+            type="button"
+            onClick={handleGoogleClick}
+            disabled={googleLoading || loading || demoLoading}
+            className={`w-full flex items-center justify-center py-2.5 px-4 rounded-xl border border-slate-700/80 bg-slate-900/90 hover:bg-slate-800/90 text-white text-xs font-semibold shadow-md transition-all ${
+              googleLoading ? 'opacity-80 cursor-wait' : 'cursor-pointer hover:border-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/50'
+            }`}
+          >
+            {googleLoading ? (
+              <div className="w-4 h-4 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin mr-2" />
+            ) : (
+              <GoogleIcon />
+            )}
+            <span>{googleLoading ? 'Connecting to Google...' : 'Continue with Google'}</span>
+          </button>
+        </div>
 
         {/* 1-Click Quick Demo Login Pill */}
         <div className="pt-2 border-t border-slate-800/80">

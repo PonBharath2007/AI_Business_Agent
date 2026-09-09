@@ -36,3 +36,10 @@ api.interceptors.response.use(
 );
 
 export default api;
+
+// SMS Queue & Android Gateway API Helpers
+export const sendSms = (data) => api.post('/sms/send', data);
+export const getPendingSms = () => api.get('/sms/pending');
+export const getSmsLogs = (params) => api.get('/sms', { params });
+export const getSmsDetails = (smsId) => api.get(`/sms/${smsId}`);
+export const claimSms = (smsId) => api.post(`/sms/${smsId}/claim`);

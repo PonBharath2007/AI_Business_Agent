@@ -141,8 +141,8 @@ export const AuthProvider = ({ children }) => {
   };
 
   const initiateGoogleLogin = () => {
-    const apiBase = api.defaults.baseURL || '/api';
-    window.location.href = `${apiBase}/auth/google/login`;
+    const apiBase = (api.defaults.baseURL || '/api').replace(/\/+$/, '');
+    window.location.href = `${apiBase}/auth/google`;
   };
 
   const logout = () => {

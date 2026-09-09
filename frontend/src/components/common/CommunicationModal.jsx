@@ -193,27 +193,25 @@ const CommunicationModal = ({
 
       setSending(true);
       try {
-        const res = await api.post('/communications/sms', {
+        const res = await api.post('/sms/send', {
           customer_id: customer.id,
-          communication_type: 'sms',
+          phone_number: recipient.trim(),
+          message: message.trim(),
           language: language,
-          recipient: recipient,
-          subject: subject || 'Message Notice',
-          message: message
+          purpose: templateType
         });
 
-        setDeviceUri(res.data.device_uri || '');
-        addToast('success', 'Message Processed', res.data.message || 'Message link prepared and recorded.');
-
-        // Open native SMS app
-        if (res.data.device_uri) {
-          window.location.href = res.data.device_uri;
-        }
+        addToast(
+          'success',
+          'SMS Queued Successfully',
+          'SMS added to queue. Waiting for Android gateway.'
+        );
 
         if (onSuccess) onSuccess();
+        onClose();
       } catch (err) {
-        console.error('SMS send error:', err);
-        const errMsg = err.response?.data?.detail || 'Unable to open the messaging application.';
+        console.error('SMS queue error:', err);
+        const errMsg = err.response?.data?.detail || 'Unable to queue the SMS message. Please try again.';
         addToast('error', 'Message Error', errMsg);
       } finally {
         setSending(false);
@@ -667,21 +665,6 @@ const CommunicationModal = ({
               </div>
             )}
 
-            {/* Device SMS Application Link Notice if Generated */}
-            {commType === 'sms' && deviceUri && (
-              <div className="p-3 rounded-xl bg-indigo-950/40 border border-indigo-500/30 flex items-center justify-between gap-3 text-indigo-300">
-                <div className="flex items-center gap-2">
-                  <ExternalLink className="w-4 h-4 shrink-0 text-indigo-400" />
-                  <span>Device SMS link ready. You can open your phone's messaging application directly.</span>
-                </div>
-                <a
-                  href={deviceUri}
-                  className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shrink-0 transition-colors"
-                >
-                  Open Messaging App
-                </a>
-              </div>
-            )}
           </div>
         )}
 

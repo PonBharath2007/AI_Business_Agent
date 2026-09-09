@@ -57,7 +57,7 @@ const MessageCenterPage = ({ onNavigate, preSelectedCustomerId = null }) => {
   const [previewMode, setPreviewMode] = useState('editor'); // 'editor' or 'preview'
   const [generatedEngine, setGeneratedEngine] = useState('');
   const [copied, setCopied] = useState(false);
-  const [deviceUri, setDeviceUri] = useState('');
+  const [queuedInfo, setQueuedInfo] = useState(null);
 
   // History state
   const [messageHistory, setMessageHistory] = useState([]);
@@ -94,13 +94,13 @@ const MessageCenterPage = ({ onNavigate, preSelectedCustomerId = null }) => {
   const fetchHistory = useCallback(async () => {
     setHistoryLoading(true);
     try {
-      const res = await api.get('/communications/messages');
+      const res = await api.get('/sms');
       setMessageHistory(res.data || []);
     } catch (err) {
       console.error('Error fetching message history:', err);
       // Fallback: fetch general communications and filter
       try {
-        const fallbackRes = await api.get('/communications?type=sms');
+        const fallbackRes = await api.get('/communications/messages');
         setMessageHistory(fallbackRes.data || []);
       } catch (fallbackErr) {
         console.error('Fallback fetch error:', fallbackErr);
@@ -182,7 +182,7 @@ const MessageCenterPage = ({ onNavigate, preSelectedCustomerId = null }) => {
 
   const handleClear = () => {
     setMessageBody('');
-    setDeviceUri('');
+    setQueuedInfo(null);
     addToast('info', 'Cleared', 'Message composer cleared.');
   };
 
@@ -198,7 +198,7 @@ const MessageCenterPage = ({ onNavigate, preSelectedCustomerId = null }) => {
     }
   }, [preSelectedCustomerId, customers]);
 
-  // Send SMS Message
+  // Send SMS Message via Android Phone + SIM Gateway Queue
   const handleSendMessage = async () => {
     const cleanPhone = recipientPhone?.trim();
     if (!cleanPhone) {
@@ -212,35 +212,29 @@ const MessageCenterPage = ({ onNavigate, preSelectedCustomerId = null }) => {
 
     setSending(true);
     try {
-      const res = await api.post('/communications/sms', {
+      const res = await api.post('/sms/send', {
         customer_id: selectedCustomerId ? parseInt(selectedCustomerId) : undefined,
-        communication_type: 'sms',
+        phone_number: cleanPhone,
+        message: messageBody,
         language: language,
-        recipient: cleanPhone,
-        subject: 'SMS Notice',
-        message: messageBody
+        purpose: templateType
       });
 
-      setDeviceUri(res.data.device_uri || '');
+      setQueuedInfo({
+        smsId: res.data.sms_id,
+        phone: cleanPhone,
+        status: res.data.status || 'PENDING',
+        time: new Date().toLocaleTimeString()
+      });
 
-      const isLiveProvider = res.data.delivery?.mode === 'live';
-      if (isLiveProvider) {
-        addToast('success', 'Message Sent', 'Message sent successfully.');
-      } else {
-        addToast('success', 'SMS Composer Ready', 'SMS composer opened with the message and recipient.');
-      }
-
-      // Automatically trigger device native SMS messaging application
-      if (res.data.device_uri) {
-        window.location.href = res.data.device_uri;
-      }
+      addToast('success', 'SMS Queued Successfully', 'SMS added to queue. Waiting for Android gateway.');
 
       // Refresh history in background
       fetchHistory();
     } catch (err) {
       console.error('Send error:', err);
-      const errMsg = err.response?.data?.detail || 'Unable to send the message. Please try again.';
-      addToast('error', 'SMS Failure', errMsg);
+      const errMsg = err.response?.data?.detail || 'Unable to queue the message. Please try again.';
+      addToast('error', 'SMS Queue Failure', errMsg);
     } finally {
       setSending(false);
     }
@@ -697,19 +691,31 @@ const MessageCenterPage = ({ onNavigate, preSelectedCustomerId = null }) => {
                 </div>
               )}
 
-              {/* Ready Device URI Link */}
-              {deviceUri && (
-                <div className="p-3 rounded-xl bg-indigo-950/40 border border-indigo-500/30 flex items-center justify-between gap-3 text-indigo-300">
-                  <div className="flex items-center gap-2 text-xs">
-                    <ExternalLink className="w-4 h-4 shrink-0 text-indigo-400" />
-                    <span>SMS link prepared. You can launch your native messaging app directly.</span>
+              {/* Queue Status Notification Banner */}
+              {queuedInfo && (
+                <div className="p-3.5 rounded-xl bg-indigo-950/40 border border-indigo-500/30 flex items-center justify-between gap-3 text-indigo-200">
+                  <div className="flex items-center gap-2.5 text-xs">
+                    <Clock className="w-4 h-4 shrink-0 text-amber-400 animate-pulse" />
+                    <div>
+                      <div className="font-bold text-white flex items-center gap-2">
+                        <span>SMS Queued (ID: #{queuedInfo.smsId})</span>
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 uppercase">
+                          Waiting for Android Gateway
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-400 mt-0.5">
+                        Queued for <strong className="text-slate-200">{queuedInfo.phone}</strong> at {queuedInfo.time}. Ready for Android phone SIM dispatch.
+                      </p>
+                    </div>
                   </div>
-                  <a
-                    href={deviceUri}
-                    className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shrink-0 transition-colors"
+                  <Button
+                    onClick={() => setActiveTab('history')}
+                    variant="secondary"
+                    size="sm"
+                    className="text-xs shrink-0"
                   >
-                    Open SMS App
-                  </a>
+                    View Queue
+                  </Button>
                 </div>
               )}
 
@@ -727,7 +733,7 @@ const MessageCenterPage = ({ onNavigate, preSelectedCustomerId = null }) => {
                   icon={Send}
                   className="font-bold text-xs"
                 >
-                  Send Message
+                  {sending ? 'Adding to SMS queue...' : 'Send Message'}
                 </Button>
               </div>
             </div>
@@ -778,53 +784,80 @@ const MessageCenterPage = ({ onNavigate, preSelectedCustomerId = null }) => {
               <table className="w-full text-left text-xs">
                 <thead className="bg-slate-900/80 text-slate-400 uppercase font-semibold text-[10px] border-b border-slate-800">
                   <tr>
+                    <th className="py-3 px-4">Channel</th>
                     <th className="py-3 px-4">Customer</th>
                     <th className="py-3 px-4">Recipient Phone</th>
+                    <th className="py-3 px-4">Purpose</th>
                     <th className="py-3 px-4">Language</th>
                     <th className="py-3 px-4">Message Preview</th>
                     <th className="py-3 px-4">Status</th>
+                    <th className="py-3 px-4">Created At</th>
                     <th className="py-3 px-4">Sent At</th>
                     <th className="py-3 px-4 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/60 text-slate-300">
-                  {messageHistory.map((msg) => (
-                    <tr key={msg.id} className="hover:bg-slate-800/40 transition-colors">
-                      <td className="py-3 px-4 font-bold text-white">
-                        {msg.customer_name || 'Direct Recipient'}
-                      </td>
-                      <td className="py-3 px-4 font-mono text-slate-300">
-                        {msg.recipient}
-                      </td>
-                      <td className="py-3 px-4">
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-indigo-950 text-indigo-300 border border-indigo-800">
-                          {msg.language === 'en_ta' ? 'English+Tamil' : (msg.language === 'ta' ? 'Tamil' : 'English')}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 max-w-xs truncate text-slate-300">
-                        {msg.message}
-                      </td>
-                      <td className="py-3 px-4">
-                        <Badge variant={msg.status === 'sent' ? 'success' : (msg.status === 'failed' ? 'urgent' : 'warning')}>
-                          {msg.status === 'sent' ? 'Sent' : (msg.status === 'failed' ? 'Failed' : (msg.status === 'pending' ? 'Pending' : (msg.status ? msg.status.charAt(0).toUpperCase() + msg.status.slice(1) : 'Unknown')))}
-                        </Badge>
-                      </td>
-                      <td className="py-3 px-4 text-slate-400 whitespace-nowrap">
-                        {new Date(msg.created_at).toLocaleString()}
-                      </td>
-                      <td className="py-3 px-4 text-right">
-                        <Button
-                          onClick={() => setViewingMessage(msg)}
-                          variant="ghost"
-                          size="sm"
-                          icon={Eye}
-                          className="text-xs"
-                        >
-                          View
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
+                  {messageHistory.map((msg) => {
+                    const statusLower = (msg.status || '').toLowerCase();
+                    const isPending = statusLower === 'pending';
+                    const isProcessing = statusLower === 'processing';
+                    const isSent = statusLower === 'sent';
+                    const isDelivered = statusLower === 'delivered';
+                    const isFailed = statusLower === 'failed';
+
+                    return (
+                      <tr key={msg.id} className="hover:bg-slate-800/40 transition-colors">
+                        <td className="py-3 px-4">
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-emerald-950 text-emerald-300 border border-emerald-800">
+                            SMS
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 font-bold text-white">
+                          {msg.customer_name || 'Direct Recipient'}
+                        </td>
+                        <td className="py-3 px-4 font-mono text-slate-300">
+                          {msg.phone_number || msg.recipient}
+                        </td>
+                        <td className="py-3 px-4 capitalize text-slate-400">
+                          {(msg.purpose || 'Reminder').replace('_', ' ')}
+                        </td>
+                        <td className="py-3 px-4">
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-indigo-950 text-indigo-300 border border-indigo-800">
+                            {msg.language === 'en_ta' ? 'English+Tamil' : (msg.language === 'ta' ? 'Tamil' : 'English')}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 max-w-xs truncate text-slate-300">
+                          {msg.message}
+                        </td>
+                        <td className="py-3 px-4">
+                          <Badge
+                            variant={
+                              isDelivered ? 'ai' : (isSent ? 'success' : (isProcessing ? 'primary' : (isFailed ? 'urgent' : 'warning')))
+                            }
+                          >
+                            {isPending ? 'PENDING' : (isProcessing ? 'PROCESSING' : (isSent ? 'SENT' : (isDelivered ? 'DELIVERED' : (isFailed ? 'FAILED' : (msg.status ? msg.status.toUpperCase() : 'UNKNOWN')))))}
+                          </Badge>
+                        </td>
+                        <td className="py-3 px-4 text-slate-400 whitespace-nowrap">
+                          {new Date(msg.created_at).toLocaleString()}
+                        </td>
+                        <td className="py-3 px-4 text-slate-400 whitespace-nowrap">
+                          {msg.sent_at ? new Date(msg.sent_at).toLocaleString() : '—'}
+                        </td>
+                        <td className="py-3 px-4 text-right">
+                          <Button
+                            onClick={() => setViewingMessage(msg)}
+                            variant="ghost"
+                            size="sm"
+                            icon={Eye}
+                            className="text-xs"
+                          >
+                            View
+                          </Button>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             )}
@@ -842,23 +875,49 @@ const MessageCenterPage = ({ onNavigate, preSelectedCustomerId = null }) => {
           <div className="space-y-4 text-xs">
             <div className="grid grid-cols-2 gap-2 text-slate-300 p-3 rounded-xl bg-slate-900 border border-slate-800">
               <div>
+                <span className="text-[10px] text-slate-500 uppercase block font-semibold">Channel</span>
+                <span className="font-bold text-emerald-400 uppercase">SMS (Android SIM)</span>
+              </div>
+              <div>
                 <span className="text-[10px] text-slate-500 uppercase block font-semibold">Recipient Phone</span>
-                <span className="font-mono text-white font-bold">{viewingMessage.recipient}</span>
+                <span className="font-mono text-white font-bold">{viewingMessage.phone_number || viewingMessage.recipient}</span>
               </div>
               <div>
                 <span className="text-[10px] text-slate-500 uppercase block font-semibold">Language</span>
                 <span className="text-indigo-400 font-bold uppercase">{viewingMessage.language}</span>
               </div>
               <div>
-                <span className="text-[10px] text-slate-500 uppercase block font-semibold">Status</span>
-                <Badge variant={viewingMessage.status === 'sent' ? 'success' : (viewingMessage.status === 'failed' ? 'urgent' : 'warning')}>
-                  {viewingMessage.status === 'sent' ? 'Sent' : (viewingMessage.status === 'failed' ? 'Failed' : (viewingMessage.status === 'pending' ? 'Pending' : (viewingMessage.status ? viewingMessage.status.charAt(0).toUpperCase() + viewingMessage.status.slice(1) : 'Unknown')))}
+                <span className="text-[10px] text-slate-500 uppercase block font-semibold">Purpose</span>
+                <span className="text-slate-200 capitalize">{(viewingMessage.purpose || 'Payment Reminder').replace('_', ' ')}</span>
+              </div>
+              <div>
+                <span className="text-[10px] text-slate-500 uppercase block font-semibold">Queue Status</span>
+                <Badge variant={viewingMessage.status === 'SENT' || viewingMessage.status === 'sent' ? 'success' : ((viewingMessage.status === 'FAILED' || viewingMessage.status === 'failed') ? 'urgent' : 'warning')}>
+                  {viewingMessage.status ? viewingMessage.status.toUpperCase() : 'UNKNOWN'}
                 </Badge>
               </div>
               <div>
-                <span className="text-[10px] text-slate-500 uppercase block font-semibold">Timestamp</span>
+                <span className="text-[10px] text-slate-500 uppercase block font-semibold">Created At</span>
                 <span className="text-slate-400">{new Date(viewingMessage.created_at).toLocaleString()}</span>
               </div>
+              {viewingMessage.sent_at && (
+                <div>
+                  <span className="text-[10px] text-slate-500 uppercase block font-semibold">Dispatched (SIM)</span>
+                  <span className="text-emerald-400">{new Date(viewingMessage.sent_at).toLocaleString()}</span>
+                </div>
+              )}
+              {viewingMessage.provider_message_id && (
+                <div>
+                  <span className="text-[10px] text-slate-500 uppercase block font-semibold">Provider / Device Ref</span>
+                  <span className="font-mono text-slate-300 text-[11px]">{viewingMessage.provider_message_id}</span>
+                </div>
+              )}
+              {viewingMessage.error_message && (
+                <div className="col-span-2 p-2 rounded-lg bg-rose-950/40 border border-rose-800/40 text-rose-300">
+                  <span className="text-[10px] text-rose-400 uppercase block font-bold">Delivery Error</span>
+                  <span className="text-xs">{viewingMessage.error_message}</span>
+                </div>
+              )}
             </div>
 
             <div>
