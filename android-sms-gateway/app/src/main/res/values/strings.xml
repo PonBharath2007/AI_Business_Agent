@@ -1,0 +1,21 @@
+<resources>
+    <string name="app_name">AI SMS Gateway</string>
+    <string name="gateway_title">Android SMS Gateway</string>
+    <string name="gateway_subtitle">Automated Cellular SIM Dispatch for AI Business Agent</string>
+    <string name="status_title">Gateway Status</string>
+    <string name="status_running">Active &amp; Listening</string>
+    <string name="status_stopped">Stopped</string>
+    <string name="btn_start_gateway">Start Gateway</string>
+    <string name="btn_stop_gateway">Stop Gateway</string>
+    <string name="btn_sync_now">Sync Now</string>
+    <string name="btn_settings">Configure Backend</string>
+    <string name="stat_pending">Pending</string>
+    <string name="stat_sent">Dispatched</string>
+    <string name="stat_failed">Failed</string>
+    <string name="sim_selection">SIM Card</string>
+    <string name="last_sync">Last Sync: Never</string>
+    <string name="permission_granted">SMS Permission: Granted</string>
+    <string name="permission_denied">SMS Permission: Denied</string>
+    <string name="backend_connected">Backend: Connected</string>
+    <string name="backend_disconnected">Backend: Disconnected</string>
+</resources>

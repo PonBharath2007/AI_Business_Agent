@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="bg_dark">#0B0F19</color>
+    <color name="card_dark">#131B2E</color>
+    <color name="card_border">#1E293B</color>
+    <color name="primary_indigo">#6366F1</color>
+    <color name="primary_indigo_dark">#4F46E5</color>
+    <color name="success_emerald">#10B981</color>
+    <color name="warning_amber">#F59E0B</color>
+    <color name="danger_rose">#F43F5E</color>
+    <color name="text_white">#FFFFFF</color>
+    <color name="text_slate_300">#CBD5E1</color>
+    <color name="text_slate_400">#94A3B8</color>
+    <color name="text_slate_500">#64748B</color>
+</resources>
