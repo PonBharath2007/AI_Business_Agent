@@ -146,24 +146,24 @@ const LoginPage = ({ onSwitchToRegister }) => {
   };
 
   return (
-    <div className="min-h-screen bg-[#0b0f19] flex items-center justify-center p-4">
+    <div className="min-h-screen bg-slate-50 dark:bg-[#0b0f19] flex items-center justify-center p-4 relative">
       {/* Background glow */}
-      <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-indigo-600/15 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-indigo-500/10 dark:bg-indigo-600/15 rounded-full blur-3xl pointer-events-none" />
 
-      <div className="w-full max-w-md glass-panel rounded-3xl p-8 border border-slate-800 shadow-2xl relative z-10 space-y-6">
+      <div className="w-full max-w-md bg-white dark:bg-[#0f172a]/95 rounded-3xl p-8 border border-slate-200 dark:border-slate-800 shadow-xl dark:shadow-2xl relative z-10 space-y-6">
         {/* Logo and title */}
         <div className="text-center space-y-2">
-          <div className="inline-flex p-3 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 text-white shadow-lg shadow-indigo-500/30 mb-1">
+          <div className="inline-flex p-3 rounded-2xl bg-gradient-to-br from-indigo-600 to-violet-600 text-white shadow-lg shadow-indigo-600/30 mb-1">
             <Sparkles className="w-6 h-6 animate-pulse" />
           </div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">AI Business Operations Agent</h1>
-          <p className="text-xs text-slate-400">An Intelligent Digital Employee for Small Businesses</p>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">AI Business Operations Agent</h1>
+          <p className="text-xs text-slate-500 dark:text-slate-400">An Intelligent Digital Employee for Small Businesses</p>
         </div>
 
         {/* Email & Password Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1">Email Address</label>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Email Address</label>
             <div className="relative">
               <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
               <input
@@ -172,18 +172,18 @@ const LoginPage = ({ onSwitchToRegister }) => {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@yourcompany.com"
                 required
-                className="w-full bg-slate-900 border border-slate-700/80 rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700/80 rounded-xl pl-10 pr-4 py-2.5 text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-900 transition-colors"
               />
             </div>
           </div>
 
           <div>
             <div className="flex items-center justify-between mb-1">
-              <label className="block text-xs font-semibold text-slate-300">Password</label>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">Password</label>
               <button
                 type="button"
                 onClick={openForgotPassword}
-                className="text-xs text-indigo-400 hover:text-indigo-300 font-medium cursor-pointer transition-colors"
+                className="text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 font-medium cursor-pointer transition-colors"
               >
                 Forgot password?
               </button>
@@ -196,7 +196,7 @@ const LoginPage = ({ onSwitchToRegister }) => {
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
                 required
-                className="w-full bg-slate-900 border border-slate-700/80 rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700/80 rounded-xl pl-10 pr-4 py-2.5 text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-900 transition-colors"
               />
             </div>
           </div>
@@ -215,8 +215,8 @@ const LoginPage = ({ onSwitchToRegister }) => {
 
         {/* OR Divider */}
         <div className="relative flex items-center justify-center my-1">
-          <div className="border-t border-slate-800 w-full" />
-          <span className="bg-[#0f172a] px-3 text-[11px] uppercase tracking-wider text-slate-500 absolute font-semibold">
+          <div className="border-t border-slate-200 dark:border-slate-800 w-full" />
+          <span className="bg-white dark:bg-[#0f172a] px-3 text-[11px] uppercase tracking-wider text-slate-400 dark:text-slate-500 absolute font-semibold">
             Or continue with
           </span>
         </div>
@@ -227,12 +227,12 @@ const LoginPage = ({ onSwitchToRegister }) => {
             type="button"
             onClick={handleGoogleClick}
             disabled={googleLoading || loading}
-            className={`w-full flex items-center justify-center py-2.5 px-4 rounded-xl border border-slate-700/80 bg-slate-900/90 hover:bg-slate-800/90 text-white text-xs font-semibold shadow-md transition-all ${
-              googleLoading ? 'opacity-80 cursor-wait' : 'cursor-pointer hover:border-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/50'
+            className={`w-full flex items-center justify-center py-2.5 px-4 rounded-xl border border-slate-300 dark:border-slate-700/80 bg-white dark:bg-slate-900/90 hover:bg-slate-50 dark:hover:bg-slate-800/90 text-slate-700 dark:text-white text-xs font-semibold shadow-xs transition-all ${
+              googleLoading ? 'opacity-80 cursor-wait' : 'cursor-pointer hover:border-slate-400 dark:hover:border-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/50'
             }`}
           >
             {googleLoading ? (
-              <div className="w-4 h-4 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin mr-2" />
+              <div className="w-4 h-4 border-2 border-indigo-600 dark:border-indigo-400 border-t-transparent rounded-full animate-spin mr-2" />
             ) : (
               <GoogleIcon />
             )}
@@ -241,12 +241,12 @@ const LoginPage = ({ onSwitchToRegister }) => {
         </div>
 
 
-        <div className="text-center text-xs text-slate-400 pt-2 border-t border-slate-800">
+        <div className="text-center text-xs text-slate-500 dark:text-slate-400 pt-2 border-t border-slate-200 dark:border-slate-800">
           Don't have an account?{' '}
           <button
             type="button"
             onClick={onSwitchToRegister}
-            className="text-indigo-400 hover:text-indigo-300 font-semibold cursor-pointer"
+            className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 font-semibold cursor-pointer"
           >
             Register Business
           </button>
@@ -262,24 +262,24 @@ const LoginPage = ({ onSwitchToRegister }) => {
       >
         {!resetSuccess ? (
           <form onSubmit={handleResetPassword} className="space-y-4 text-xs">
-            <div className="flex items-center gap-3 p-3 rounded-xl bg-indigo-950/30 border border-indigo-500/20">
-              <div className="p-2 rounded-lg bg-indigo-500/10 text-indigo-400">
+            <div className="flex items-center gap-3 p-3 rounded-xl bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-500/20">
+              <div className="p-2 rounded-lg bg-indigo-100 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400">
                 <KeyRound className="w-5 h-5" />
               </div>
-              <p className="text-xs text-slate-300">
+              <p className="text-xs text-slate-700 dark:text-slate-300">
                 Enter your registered business email and choose a new password to recover access.
               </p>
             </div>
 
             {resetError && (
-              <div className="flex items-start gap-2.5 p-3 rounded-xl bg-rose-950/30 border border-rose-500/30 text-rose-300 text-xs">
+              <div className="flex items-start gap-2.5 p-3 rounded-xl bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-500/30 text-rose-700 dark:text-rose-300 text-xs">
                 <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
                 <span>{resetError}</span>
               </div>
             )}
 
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">Email Address</label>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Email Address</label>
               <div className="relative">
                 <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
                 <input
@@ -288,13 +288,13 @@ const LoginPage = ({ onSwitchToRegister }) => {
                   onChange={(e) => setResetEmail(e.target.value)}
                   placeholder="you@yourcompany.com"
                   required
-                  className="w-full bg-slate-900 border border-slate-700/80 rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                  className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700/80 rounded-xl pl-10 pr-4 py-2.5 text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-indigo-500"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">New Password</label>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">New Password</label>
               <div className="relative">
                 <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
                 <input
@@ -303,13 +303,13 @@ const LoginPage = ({ onSwitchToRegister }) => {
                   onChange={(e) => setResetPassword(e.target.value)}
                   placeholder="Min. 4 characters"
                   required
-                  className="w-full bg-slate-900 border border-slate-700/80 rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                  className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700/80 rounded-xl pl-10 pr-4 py-2.5 text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-indigo-500"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">Confirm New Password</label>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Confirm New Password</label>
               <div className="relative">
                 <ShieldCheck className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
                 <input
@@ -318,7 +318,7 @@ const LoginPage = ({ onSwitchToRegister }) => {
                   onChange={(e) => setResetConfirmPassword(e.target.value)}
                   placeholder="Re-type new password"
                   required
-                  className="w-full bg-slate-900 border border-slate-700/80 rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                  className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700/80 rounded-xl pl-10 pr-4 py-2.5 text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-indigo-500"
                 />
               </div>
             </div>
@@ -347,13 +347,13 @@ const LoginPage = ({ onSwitchToRegister }) => {
           </form>
         ) : (
           <div className="space-y-4 text-center py-2 text-xs">
-            <div className="inline-flex p-3.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+            <div className="inline-flex p-3.5 rounded-full bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20">
               <CheckCircle2 className="w-8 h-8 animate-in zoom-in-75 duration-200" />
             </div>
             <div>
-              <h4 className="text-base font-bold text-white">Password Reset Successfully</h4>
-              <p className="text-xs text-slate-400 mt-1 max-w-xs mx-auto">
-                Your credentials have been updated for <span className="text-indigo-300 font-semibold">{resetEmail}</span>. Your login fields are pre-filled.
+              <h4 className="text-base font-bold text-slate-900 dark:text-white">Password Reset Successfully</h4>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-xs mx-auto">
+                Your credentials have been updated for <span className="text-indigo-600 dark:text-indigo-300 font-semibold">{resetEmail}</span>. Your login fields are pre-filled.
               </p>
             </div>
             <Button

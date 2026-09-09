@@ -83,23 +83,23 @@ const RegisterPage = ({ onSwitchToLogin }) => {
   };
 
   return (
-    <div className="min-h-screen bg-[#0b0f19] flex items-center justify-center p-4">
+    <div className="min-h-screen bg-slate-50 dark:bg-[#0b0f19] flex items-center justify-center p-4 relative">
       {/* Background glow */}
-      <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-indigo-600/15 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-indigo-500/10 dark:bg-indigo-600/15 rounded-full blur-3xl pointer-events-none" />
 
-      <div className="w-full max-w-md glass-panel rounded-3xl p-8 border border-slate-800 shadow-2xl relative z-10 space-y-5">
+      <div className="w-full max-w-md bg-white dark:bg-[#0f172a]/95 rounded-3xl p-8 border border-slate-200 dark:border-slate-800 shadow-xl dark:shadow-2xl relative z-10 space-y-5">
         <div className="text-center space-y-2">
-          <div className="inline-flex p-3 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 text-white shadow-lg shadow-indigo-500/30 mb-1">
+          <div className="inline-flex p-3 rounded-2xl bg-gradient-to-br from-indigo-600 to-violet-600 text-white shadow-lg shadow-indigo-600/30 mb-1">
             <Sparkles className="w-6 h-6 animate-pulse" />
           </div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">Create Business Account</h1>
-          <p className="text-xs text-slate-400">Deploy your intelligent digital employee in seconds</p>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Create Business Account</h1>
+          <p className="text-xs text-slate-500 dark:text-slate-400">Deploy your intelligent digital employee in seconds</p>
         </div>
 
         {/* Registration Form */}
         <form onSubmit={handleSubmit} className="space-y-3">
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1">Your Full Name</label>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Your Full Name</label>
             <div className="relative">
               <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-2.5" />
               <input
@@ -108,13 +108,13 @@ const RegisterPage = ({ onSwitchToLogin }) => {
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 placeholder="e.g. John Doe"
                 required
-                className="w-full bg-slate-900 border border-slate-700/80 rounded-xl pl-10 pr-4 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700/80 rounded-xl pl-10 pr-4 py-2 text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-900"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1">Business / Company Name</label>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Business / Company Name</label>
             <div className="relative">
               <Building className="w-4 h-4 text-slate-400 absolute left-3.5 top-2.5" />
               <input
@@ -123,29 +123,29 @@ const RegisterPage = ({ onSwitchToLogin }) => {
                 onChange={(e) => setFormData({ ...formData, business_name: e.target.value })}
                 placeholder="e.g. Acme Innovations"
                 required
-                className="w-full bg-slate-900 border border-slate-700/80 rounded-xl pl-10 pr-4 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700/80 rounded-xl pl-10 pr-4 py-2 text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-900"
               />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-2.5">
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">Business Email</label>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Business Email</label>
               <input
                 type="email"
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 placeholder="you@company.com"
                 required
-                className="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700/80 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-900"
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">Currency</label>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Currency</label>
               <select
                 value={formData.currency}
                 onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
-                className="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
+                className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700/80 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-900"
               >
                 <option value="USD">USD ($)</option>
                 <option value="INR">INR (₹)</option>
@@ -157,7 +157,7 @@ const RegisterPage = ({ onSwitchToLogin }) => {
 
           <div className="grid grid-cols-2 gap-2.5">
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">Password</label>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Password</label>
               <div className="relative">
                 <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
                 <input
@@ -166,12 +166,12 @@ const RegisterPage = ({ onSwitchToLogin }) => {
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                   placeholder="••••••••"
                   required
-                  className="w-full bg-slate-900 border border-slate-700/80 rounded-xl pl-9 pr-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                  className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700/80 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-900"
                 />
               </div>
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">Confirm Password</label>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Confirm Password</label>
               <div className="relative">
                 <ShieldCheck className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
                 <input
@@ -180,7 +180,7 @@ const RegisterPage = ({ onSwitchToLogin }) => {
                   onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
                   placeholder="••••••••"
                   required
-                  className="w-full bg-slate-900 border border-slate-700/80 rounded-xl pl-9 pr-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                  className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700/80 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-900"
                 />
               </div>
             </div>
@@ -191,7 +191,7 @@ const RegisterPage = ({ onSwitchToLogin }) => {
             variant="primary"
             size="md"
             loading={loading}
-            className="w-full text-xs font-bold mt-2 py-2.5 bg-gradient-to-r from-indigo-600 to-violet-600 shadow-lg shadow-indigo-600/30"
+            className="w-full text-xs font-bold mt-2 py-2.5 bg-gradient-to-r from-indigo-600 to-violet-600 shadow-lg shadow-indigo-600/30 cursor-pointer"
           >
             Create Account & Launch
           </Button>
@@ -199,8 +199,8 @@ const RegisterPage = ({ onSwitchToLogin }) => {
 
         {/* OR Divider */}
         <div className="relative flex items-center justify-center my-1">
-          <div className="border-t border-slate-800 w-full" />
-          <span className="bg-[#0f172a] px-3 text-[11px] uppercase tracking-wider text-slate-500 absolute font-semibold">
+          <div className="border-t border-slate-200 dark:border-slate-800 w-full" />
+          <span className="bg-white dark:bg-[#0f172a] px-3 text-[11px] uppercase tracking-wider text-slate-400 dark:text-slate-500 absolute font-semibold">
             Or continue with
           </span>
         </div>
@@ -211,12 +211,12 @@ const RegisterPage = ({ onSwitchToLogin }) => {
             type="button"
             onClick={handleGoogleClick}
             disabled={googleLoading || loading}
-            className={`w-full flex items-center justify-center py-2.5 px-4 rounded-xl border border-slate-700/80 bg-slate-900/90 hover:bg-slate-800/90 text-white text-xs font-semibold shadow-md transition-all ${
-              googleLoading ? 'opacity-80 cursor-wait' : 'cursor-pointer hover:border-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/50'
+            className={`w-full flex items-center justify-center py-2.5 px-4 rounded-xl border border-slate-300 dark:border-slate-700/80 bg-white dark:bg-slate-900/90 hover:bg-slate-50 dark:hover:bg-slate-800/90 text-slate-700 dark:text-white text-xs font-semibold shadow-xs transition-all ${
+              googleLoading ? 'opacity-80 cursor-wait' : 'cursor-pointer hover:border-slate-400 dark:hover:border-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/50'
             }`}
           >
             {googleLoading ? (
-              <div className="w-4 h-4 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin mr-2" />
+              <div className="w-4 h-4 border-2 border-indigo-600 dark:border-indigo-400 border-t-transparent rounded-full animate-spin mr-2" />
             ) : (
               <GoogleIcon />
             )}
@@ -224,11 +224,11 @@ const RegisterPage = ({ onSwitchToLogin }) => {
           </button>
         </div>
 
-        <div className="text-center text-xs text-slate-400 pt-2 border-t border-slate-800">
+        <div className="text-center text-xs text-slate-500 dark:text-slate-400 pt-2 border-t border-slate-200 dark:border-slate-800">
           Already have an account?{' '}
           <button
             onClick={onSwitchToLogin}
-            className="text-indigo-400 hover:text-indigo-300 font-semibold cursor-pointer"
+            className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 font-semibold cursor-pointer"
           >
             Sign In
           </button>

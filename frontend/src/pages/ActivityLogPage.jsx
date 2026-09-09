@@ -48,12 +48,12 @@ const ActivityLogPage = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-800">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200 dark:border-slate-800">
         <div>
-          <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight flex items-center gap-2">
+          <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
             Activity & System Audit Log
           </h2>
-          <p className="text-xs sm:text-sm text-slate-400 mt-1">
+          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
             Complete verifiable audit trail of all AI agent actions, user approvals, and operations.
           </p>
         </div>
@@ -70,9 +70,9 @@ const ActivityLogPage = () => {
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="glass-panel p-3 rounded-2xl border border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3">
+      <div className="p-3 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3">
         {/* Actor filter tabs */}
-        <div className="flex items-center gap-1 bg-slate-900/80 p-1 rounded-xl border border-slate-800 w-full sm:w-auto">
+        <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-900/80 p-1 rounded-xl border border-slate-200 dark:border-slate-800 w-full sm:w-auto">
           {[
             { id: 'all', label: 'All Actors' },
             { id: 'AI Agent', label: '🤖 AI Agent' },
@@ -82,10 +82,10 @@ const ActivityLogPage = () => {
             <button
               key={tab.id}
               onClick={() => setActorFilter(tab.id)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                 actorFilter === tab.id
-                  ? 'bg-indigo-600 text-white shadow-md'
-                  : 'text-slate-400 hover:text-white'
+                  ? 'bg-indigo-600 text-white shadow-sm'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
               {tab.label}
@@ -101,13 +101,13 @@ const ActivityLogPage = () => {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search audit descriptions..."
-            className="w-full bg-slate-900 border border-slate-700/80 rounded-xl pl-9 pr-4 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+            className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700/80 rounded-xl pl-9 pr-4 py-1.5 text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-indigo-500"
           />
         </div>
       </div>
 
       {/* Timeline List */}
-      <div className="glass-panel rounded-2xl border border-slate-800 p-4 sm:p-6 space-y-4">
+      <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 p-4 sm:p-6 space-y-4 shadow-sm">
         {!filtered.length ? (
           <EmptyState
             icon={History}
@@ -115,7 +115,7 @@ const ActivityLogPage = () => {
             description="No actions found matching the current search parameters."
           />
         ) : (
-          <div className="relative pl-6 space-y-6 before:absolute before:left-2.5 before:top-3 before:bottom-3 before:w-0.5 before:bg-slate-800">
+          <div className="relative pl-6 space-y-6 before:absolute before:left-2.5 before:top-3 before:bottom-3 before:w-0.5 before:bg-slate-200 dark:before:bg-slate-800">
             {filtered.map((act) => {
               const isAI = act.actor_type === 'AI Agent';
               const isWarning = act.status === 'warning';
@@ -124,32 +124,32 @@ const ActivityLogPage = () => {
                 <div key={act.id} className="relative group">
                   {/* Timeline Dot */}
                   <div
-                    className={`absolute -left-6 top-1 w-5 h-5 rounded-full border-2 border-slate-900 flex items-center justify-center text-[9px] font-bold ${
+                    className={`absolute -left-6 top-1 w-5 h-5 rounded-full border-2 border-white dark:border-slate-900 flex items-center justify-center text-[9px] font-bold ${
                       isAI
-                        ? 'bg-indigo-500 text-white shadow-md shadow-indigo-500/50'
+                        ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-500/50'
                         : isWarning
                         ? 'bg-amber-500 text-slate-900'
-                        : 'bg-emerald-500 text-white'
+                        : 'bg-emerald-600 text-white'
                     }`}
                   >
                     {isAI ? 'AI' : 'U'}
                   </div>
 
-                  <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800/80 hover:border-slate-700 transition-colors">
-                    <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-800/60">
+                  <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800/80 hover:border-slate-300 dark:hover:border-slate-700 transition-colors">
+                    <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-200 dark:border-slate-800/60">
                       <div className="flex items-center gap-2">
                         <Badge variant={isAI ? 'ai' : 'gray'}>
                           {act.actor_type}
                         </Badge>
-                        <span className="text-xs font-bold text-white">{act.action}</span>
+                        <span className="text-xs font-bold text-slate-900 dark:text-white">{act.action}</span>
                       </div>
-                      <span className="text-[11px] text-slate-400 flex items-center gap-1">
-                        <Clock className="w-3 h-3 text-slate-500" />
+                      <span className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                        <Clock className="w-3 h-3 text-slate-400 dark:text-slate-500" />
                         {new Date(act.created_at).toLocaleString()}
                       </span>
                     </div>
 
-                    <p className="text-xs text-slate-200 mt-2 leading-relaxed">
+                    <p className="text-xs text-slate-700 dark:text-slate-200 mt-2 leading-relaxed">
                       {act.description}
                     </p>
                   </div>

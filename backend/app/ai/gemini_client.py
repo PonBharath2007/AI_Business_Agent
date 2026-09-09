@@ -190,4 +190,76 @@ class GeminiClient:
                     pass
             return None
 
+    def generate_json_multimodal(
+        self,
+        file_bytes: bytes,
+        mime_type: str,
+        prompt: str,
+        system_instruction: Optional[str] = None
+    ) -> Optional[Dict[str, Any]]:
+        current_key = os.getenv("GEMINI_API_KEY", "").strip()
+        if current_key and current_key != self.api_key:
+            self._init_client()
+
+        if not self.is_configured or not file_bytes:
+            return None
+
+        t0 = time.perf_counter()
+
+        if self.genai_client:
+            from google.genai import types
+            try:
+                part = types.Part.from_bytes(data=file_bytes, mime_type=mime_type)
+            except Exception as part_err:
+                logger.warning(f"Could not build multimodal Part: {part_err}")
+                return None
+
+            for model_name in [PRIMARY_MODEL, FALLBACK_MODEL]:
+                try:
+                    t_api_start = time.perf_counter()
+                    config = types.GenerateContentConfig(
+                        response_mime_type="application/json",
+                        temperature=0.1,
+                        system_instruction=system_instruction
+                    )
+                    response = self.genai_client.models.generate_content(
+                        model=model_name,
+                        contents=[part, prompt],
+                        config=config
+                    )
+                    t_api_end = time.perf_counter()
+                    if response and hasattr(response, "text") and response.text:
+                        raw = response.text.strip()
+                        parsed = json.loads(raw)
+                        logger.info(f"[AI Performance] Multimodal JSON | model={model_name} | time={time.perf_counter() - t0:.2f}s")
+                        return parsed
+                except Exception as ex:
+                    logger.warning(f"Google GenAI multimodal error on {model_name}: {ex}")
+                    continue
+
+        if self.legacy_model:
+            try:
+                full_prompt = f"System Instruction: {system_instruction}\n\nUser Prompt: {prompt}" if system_instruction else prompt
+                part = {"mime_type": mime_type, "data": file_bytes}
+                response = self.legacy_model.generate_content(
+                    [part, full_prompt],
+                    generation_config={"temperature": 0.1}
+                )
+                if response and response.text:
+                    cleaned = response.text.strip()
+                    if cleaned.startswith("```"):
+                        cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned)
+                        cleaned = re.sub(r"\s*```$", "", cleaned)
+                        cleaned = cleaned.strip()
+                    try:
+                        return json.loads(cleaned)
+                    except Exception:
+                        match = re.search(r"(\{.*\})", cleaned, re.DOTALL)
+                        if match:
+                            return json.loads(match.group(1))
+            except Exception as e:
+                logger.warning(f"Legacy Gemini multimodal generation error: {e}")
+
+        return None
+
 gemini_client = GeminiClient()

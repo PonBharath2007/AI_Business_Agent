@@ -32,6 +32,7 @@ import {
 import api from '../services/api';
 import { useBusiness } from '../context/BusinessContext';
 import { useNotifications } from '../context/NotificationContext';
+import { useTheme } from '../context/ThemeContext';
 import StatCard from '../components/common/StatCard';
 import Badge from '../components/common/Badge';
 import Button from '../components/common/Button';
@@ -48,6 +49,7 @@ const COLORS = {
 const AnalyticsPage = () => {
   const { business, formatMoney } = useBusiness();
   const { addToast } = useNotifications();
+  const { isDark } = useTheme();
 
   const [data, setData] = useState(null);
   const [cashFlow, setCashFlow] = useState(null);
@@ -151,16 +153,27 @@ const AnalyticsPage = () => {
     { bucket: '90+ Days', amount: cashFlow.aging_buckets.days_90_plus || 0, fill: '#881337' }
   ] : [];
 
+  const gridStroke = isDark ? '#1e293b' : '#e2e8f0';
+  const textStroke = isDark ? '#64748b' : '#94a3b8';
+  const tooltipStyle = {
+    backgroundColor: isDark ? '#0f172a' : '#ffffff',
+    borderColor: isDark ? '#334155' : '#cbd5e1',
+    borderRadius: '0.75rem',
+    fontSize: '12px',
+    color: isDark ? '#f8fafc' : '#0f172a',
+    boxShadow: isDark ? '0 10px 15px -3px rgba(0,0,0,0.5)' : '0 4px 6px -1px rgba(0,0,0,0.1)'
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-800">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200 dark:border-slate-800">
         <div>
-          <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight flex items-center gap-2">
+          <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
             Operations Analytics & AI Intelligence
             <Badge variant="ai">Predictive Modeling</Badge>
           </h2>
-          <p className="text-xs sm:text-sm text-slate-400 mt-1">
+          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
             Aging analysis, cash flow projections, root cause diagnostics, and interactive What-If scenario simulations.
           </p>
         </div>
@@ -168,47 +181,47 @@ const AnalyticsPage = () => {
 
       {/* Cash Flow Forecast Highlights */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
-        <div className="p-4 rounded-2xl bg-gradient-to-br from-indigo-500/20 to-indigo-950/40 border border-indigo-500/30 glass-panel">
-          <span className="text-[10px] uppercase font-bold text-indigo-300">Projected 30d Inflow</span>
-          <p className="text-2xl font-bold text-white mt-1">
+        <div className="p-4 rounded-2xl bg-indigo-50/60 dark:bg-gradient-to-br dark:from-indigo-500/20 dark:to-indigo-950/40 border border-indigo-100 dark:border-indigo-500/30 shadow-xs">
+          <span className="text-[10px] uppercase font-bold text-indigo-600 dark:text-indigo-300">Projected 30d Inflow</span>
+          <p className="text-2xl font-bold text-slate-900 dark:text-white mt-1">
             {formatMoney(cashFlow?.expected_inflow_30d || 0)}
           </p>
-          <span className="text-[10px] text-indigo-300/80 mt-0.5 block">{cashFlow?.confidence_level || '91% confidence'}</span>
+          <span className="text-[10px] text-indigo-600/80 dark:text-indigo-300/80 mt-0.5 block">{cashFlow?.confidence_level || '91% confidence'}</span>
         </div>
 
-        <div className="p-4 rounded-2xl bg-gradient-to-br from-amber-500/20 to-amber-950/40 border border-amber-500/30 glass-panel">
-          <span className="text-[10px] uppercase font-bold text-amber-300">Total Receivables</span>
-          <p className="text-2xl font-bold text-white mt-1">
+        <div className="p-4 rounded-2xl bg-amber-50/60 dark:bg-gradient-to-br dark:from-amber-500/20 dark:to-amber-950/40 border border-amber-100 dark:border-amber-500/30 shadow-xs">
+          <span className="text-[10px] uppercase font-bold text-amber-600 dark:text-amber-300">Total Receivables</span>
+          <p className="text-2xl font-bold text-slate-900 dark:text-white mt-1">
             {formatMoney(cashFlow?.outstanding_receivables || 0)}
           </p>
-          <span className="text-[10px] text-amber-300/80 mt-0.5 block">Pending + Overdue</span>
+          <span className="text-[10px] text-amber-600/80 dark:text-amber-300/80 mt-0.5 block">Pending + Overdue</span>
         </div>
 
-        <div className="p-4 rounded-2xl bg-gradient-to-br from-rose-500/20 to-rose-950/40 border border-rose-500/30 glass-panel">
-          <span className="text-[10px] uppercase font-bold text-rose-300">Overdue Exposure</span>
-          <p className="text-2xl font-bold text-rose-400 mt-1">
+        <div className="p-4 rounded-2xl bg-rose-50/60 dark:bg-gradient-to-br dark:from-rose-500/20 dark:to-rose-950/40 border border-rose-100 dark:border-rose-500/30 shadow-xs">
+          <span className="text-[10px] uppercase font-bold text-rose-600 dark:text-rose-300">Overdue Exposure</span>
+          <p className="text-2xl font-bold text-rose-600 dark:text-rose-400 mt-1">
             {formatMoney(cashFlow?.overdue_receivables || 0)}
           </p>
-          <span className="text-[10px] text-rose-300/80 mt-0.5 block">Requires active follow-up</span>
+          <span className="text-[10px] text-rose-600/80 dark:text-rose-300/80 mt-0.5 block">Requires active follow-up</span>
         </div>
 
-        <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-emerald-950/40 border border-emerald-500/30 glass-panel">
-          <span className="text-[10px] uppercase font-bold text-emerald-300">AI Automation Time Saved</span>
-          <p className="text-2xl font-bold text-emerald-400 mt-1">
+        <div className="p-4 rounded-2xl bg-emerald-50/60 dark:bg-gradient-to-br dark:from-emerald-500/20 dark:to-emerald-950/40 border border-emerald-100 dark:border-emerald-500/30 shadow-xs">
+          <span className="text-[10px] uppercase font-bold text-emerald-600 dark:text-emerald-300">AI Automation Time Saved</span>
+          <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-1">
             {automation_metrics.time_saved_hours || '14.5'} hrs
           </p>
-          <span className="text-[10px] text-emerald-300/80 mt-0.5 block">Estimated this month</span>
+          <span className="text-[10px] text-emerald-600/80 dark:text-emerald-300/80 mt-0.5 block">Estimated this month</span>
         </div>
       </div>
 
       {/* Row 1: Payment Aging Buckets & Distribution */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Payment Aging Chart */}
-        <div className="lg:col-span-8 glass-panel rounded-2xl p-5 border border-slate-800">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+        <div className="lg:col-span-8 rounded-2xl p-5 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 shadow-sm">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
             <div>
-              <h3 className="text-sm font-bold text-white">Payment Aging Distribution</h3>
-              <p className="text-xs text-slate-400">Aging schedule of outstanding customer invoices</p>
+              <h3 className="text-sm font-bold text-slate-900 dark:text-white">Payment Aging Distribution</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Aging schedule of outstanding customer invoices</p>
             </div>
             <Badge variant="ai">Aging Buckets</Badge>
           </div>
@@ -216,12 +229,12 @@ const AnalyticsPage = () => {
           <div className="h-64 mt-4">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={agingData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-                <XAxis dataKey="bucket" stroke="#64748b" fontSize={11} />
-                <YAxis stroke="#64748b" fontSize={11} />
+                <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
+                <XAxis dataKey="bucket" stroke={textStroke} fontSize={11} />
+                <YAxis stroke={textStroke} fontSize={11} />
                 <Tooltip
                   formatter={(val) => [formatMoney(val), 'Amount']}
-                  contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '0.75rem', fontSize: '12px' }}
+                  contentStyle={tooltipStyle}
                 />
                 <Bar dataKey="amount" name="Receivable Amount" radius={[6, 6, 0, 0]}>
                   {agingData.map((entry, index) => (
@@ -234,9 +247,9 @@ const AnalyticsPage = () => {
         </div>
 
         {/* Invoice Status Distribution Pie */}
-        <div className="lg:col-span-4 glass-panel rounded-2xl p-5 border border-slate-800 flex flex-col justify-between">
+        <div className="lg:col-span-4 rounded-2xl p-5 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 shadow-sm flex flex-col justify-between">
           <div>
-            <h3 className="text-sm font-bold text-white pb-3 border-b border-slate-800">
+            <h3 className="text-sm font-bold text-slate-900 dark:text-white pb-3 border-b border-slate-200 dark:border-slate-800">
               Invoice Portfolio Share
             </h3>
             <div className="h-48 mt-2">
@@ -256,39 +269,39 @@ const AnalyticsPage = () => {
                     ))}
                   </Pie>
                   <Tooltip
-                    contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '0.75rem', fontSize: '12px' }}
+                    contentStyle={tooltipStyle}
                   />
                 </PieChart>
               </ResponsiveContainer>
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-2 pt-3 border-t border-slate-800 text-center text-xs">
+          <div className="grid grid-cols-3 gap-2 pt-3 border-t border-slate-200 dark:border-slate-800 text-center text-xs">
             <div>
-              <span className="text-[10px] text-emerald-400 uppercase font-semibold">Paid</span>
-              <p className="font-bold text-white mt-0.5">{invoice_status_distribution.paid || 0}</p>
+              <span className="text-[10px] text-emerald-600 dark:text-emerald-400 uppercase font-semibold">Paid</span>
+              <p className="font-bold text-slate-900 dark:text-white mt-0.5">{invoice_status_distribution.paid || 0}</p>
             </div>
             <div>
-              <span className="text-[10px] text-amber-400 uppercase font-semibold">Pending</span>
-              <p className="font-bold text-white mt-0.5">{invoice_status_distribution.pending || 0}</p>
+              <span className="text-[10px] text-amber-600 dark:text-amber-400 uppercase font-semibold">Pending</span>
+              <p className="font-bold text-slate-900 dark:text-white mt-0.5">{invoice_status_distribution.pending || 0}</p>
             </div>
             <div>
-              <span className="text-[10px] text-rose-400 uppercase font-semibold">Overdue</span>
-              <p className="font-bold text-white mt-0.5">{invoice_status_distribution.overdue || 0}</p>
+              <span className="text-[10px] text-rose-600 dark:text-rose-400 uppercase font-semibold">Overdue</span>
+              <p className="font-bold text-slate-900 dark:text-white mt-0.5">{invoice_status_distribution.overdue || 0}</p>
             </div>
           </div>
         </div>
       </div>
 
       {/* Row 2: AI Root Cause Analysis Section */}
-      <div className="glass-panel rounded-2xl p-5 sm:p-6 border border-indigo-500/30 bg-gradient-to-r from-indigo-950/30 via-slate-900/60 to-slate-900/40">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-indigo-500/20">
+      <div className="rounded-2xl p-5 sm:p-6 border border-indigo-200 dark:border-indigo-500/30 bg-gradient-to-r from-indigo-50/50 via-slate-50 to-white dark:from-indigo-950/30 dark:via-slate-900/60 dark:to-slate-900/40 shadow-sm">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-indigo-100 dark:border-indigo-500/20">
           <div>
-            <h3 className="text-sm sm:text-base font-bold text-white flex items-center gap-2">
-              <HelpCircle className="w-5 h-5 text-indigo-400" />
+            <h3 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <HelpCircle className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
               AI Root Cause Analysis: "Why are payments getting delayed?"
             </h3>
-            <p className="text-xs text-slate-400 mt-0.5">
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
               Data-backed causality diagnostics synthesized from invoice histories, reminders, and client AP timelines.
             </p>
           </div>
@@ -307,8 +320,8 @@ const AnalyticsPage = () => {
 
         {rcaData ? (
           <div className="mt-4 space-y-4">
-            <div className="p-3.5 rounded-xl bg-slate-900/80 border border-indigo-500/20 flex items-center justify-between">
-              <span className="text-xs font-semibold text-slate-300">
+            <div className="p-3.5 rounded-xl bg-white dark:bg-slate-900/80 border border-indigo-100 dark:border-indigo-500/20 flex items-center justify-between shadow-2xs">
+              <span className="text-xs font-semibold text-slate-800 dark:text-slate-300">
                 🔍 {rcaData.primary_finding}
               </span>
               <Badge variant="urgent">Delay Rate: {rcaData.delay_rate}</Badge>
@@ -316,25 +329,25 @@ const AnalyticsPage = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               {rcaData.key_factors.map((factor, idx) => (
-                <div key={idx} className="p-4 rounded-xl bg-slate-900 border border-slate-800 space-y-2">
+                <div key={idx} className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-2 shadow-2xs">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-white">{factor.factor}</span>
+                    <span className="text-xs font-bold text-slate-900 dark:text-white">{factor.factor}</span>
                     <Badge variant={factor.severity === 'High' ? 'urgent' : 'warning'}>
                       {factor.severity}
                     </Badge>
                   </div>
-                  <p className="text-[11px] text-slate-400 leading-relaxed">
+                  <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
                     <strong>Evidence:</strong> {factor.data_evidence}
                   </p>
-                  <p className="text-[11px] text-indigo-300 pt-1 border-t border-slate-800">
+                  <p className="text-[11px] text-indigo-600 dark:text-indigo-300 pt-1 border-t border-slate-100 dark:border-slate-800">
                     <strong>Remedy:</strong> {factor.suggested_fix}
                   </p>
                 </div>
               ))}
             </div>
 
-            <div className="p-3 rounded-xl bg-slate-900/60 border border-slate-800 text-xs text-slate-300">
-              <h5 className="font-bold text-white mb-1.5">Action Plan:</h5>
+            <div className="p-3 rounded-xl bg-white/80 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 text-xs text-slate-700 dark:text-slate-300 shadow-2xs">
+              <h5 className="font-bold text-slate-900 dark:text-white mb-1.5">Action Plan:</h5>
               <div className="space-y-1 text-[11px]">
                 {rcaData.ai_action_plan.map((item, i) => (
                   <p key={i}>{item}</p>
@@ -343,21 +356,21 @@ const AnalyticsPage = () => {
             </div>
           </div>
         ) : (
-          <div className="py-6 text-center text-xs text-slate-400">
+          <div className="py-6 text-center text-xs text-slate-500 dark:text-slate-400">
             Click <strong>"Run Root Cause Diagnostic"</strong> to analyze settlement bottlenecks in your business database.
           </div>
         )}
       </div>
 
       {/* Row 3: Interactive What-If Business Operations Simulator */}
-      <div className="glass-panel rounded-2xl p-5 sm:p-6 border border-slate-800 space-y-5">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800">
+      <div className="rounded-2xl p-5 sm:p-6 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 shadow-sm space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200 dark:border-slate-800">
           <div>
-            <h3 className="text-sm sm:text-base font-bold text-white flex items-center gap-2">
-              <Sliders className="w-5 h-5 text-indigo-400" />
+            <h3 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <Sliders className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
               What-If Business Simulator & Scenario Forecasting
             </h3>
-            <p className="text-xs text-slate-400 mt-0.5">
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
               Simulate the financial impact of customer payment delays, early-payment discount policies, and reminder blitzes.
             </p>
           </div>
@@ -366,12 +379,12 @@ const AnalyticsPage = () => {
 
         {/* Simulator Controls */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="space-y-2 p-3.5 rounded-xl bg-slate-900 border border-slate-800">
-            <label className="block text-xs font-semibold text-slate-300">Select Simulation Scenario</label>
+          <div className="space-y-2 p-3.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">Select Simulation Scenario</label>
             <select
               value={simScenario}
               onChange={(e) => setSimScenario(e.target.value)}
-              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
+              className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
             >
               <option value="early_discount">Offer 5% Early Settlement Discount</option>
               <option value="reminder_blitz">Run AI Payment Reminder Blitz (+25% Inflow)</option>
@@ -380,10 +393,10 @@ const AnalyticsPage = () => {
           </div>
 
           {simScenario === 'payment_delay' && (
-            <div className="space-y-2 p-3.5 rounded-xl bg-slate-900 border border-slate-800">
-              <div className="flex justify-between text-xs font-semibold text-slate-300">
+            <div className="space-y-2 p-3.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+              <div className="flex justify-between text-xs font-semibold text-slate-700 dark:text-slate-300">
                 <span>Payment Delay Duration</span>
-                <span className="text-rose-400">{simDaysDelay} Days</span>
+                <span className="text-rose-600 dark:text-rose-400">{simDaysDelay} Days</span>
               </div>
               <input
                 type="range"
@@ -398,10 +411,10 @@ const AnalyticsPage = () => {
           )}
 
           {simScenario === 'early_discount' && (
-            <div className="space-y-2 p-3.5 rounded-xl bg-slate-900 border border-slate-800">
-              <div className="flex justify-between text-xs font-semibold text-slate-300">
+            <div className="space-y-2 p-3.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+              <div className="flex justify-between text-xs font-semibold text-slate-700 dark:text-slate-300">
                 <span>Discount Incentive Percentage</span>
-                <span className="text-emerald-400">{simDiscountPct}%</span>
+                <span className="text-emerald-600 dark:text-emerald-400">{simDiscountPct}%</span>
               </div>
               <input
                 type="range"
@@ -416,10 +429,10 @@ const AnalyticsPage = () => {
           )}
 
           {simScenario === 'reminder_blitz' && (
-            <div className="space-y-2 p-3.5 rounded-xl bg-slate-900 border border-slate-800">
-              <div className="flex justify-between text-xs font-semibold text-slate-300">
+            <div className="space-y-2 p-3.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+              <div className="flex justify-between text-xs font-semibold text-slate-700 dark:text-slate-300">
                 <span>Collection Response Boost</span>
-                <span className="text-indigo-400">+{simBoostPct}%</span>
+                <span className="text-indigo-600 dark:text-indigo-400">+{simBoostPct}%</span>
               </div>
               <input
                 type="range"
@@ -449,9 +462,9 @@ const AnalyticsPage = () => {
 
         {/* Simulation Output Card */}
         {simResult && (
-          <div className="p-4 rounded-xl bg-slate-900/80 border border-indigo-500/30 space-y-3">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-slate-800">
-              <h4 className="text-sm font-bold text-white">{simResult.scenario_title}</h4>
+          <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-900/80 border border-indigo-200 dark:border-indigo-500/30 space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-slate-200 dark:border-slate-800">
+              <h4 className="text-sm font-bold text-slate-900 dark:text-white">{simResult.scenario_title}</h4>
               <div className="flex items-center gap-2">
                 <Badge variant={simResult.net_variance >= 0 ? 'success' : 'urgent'}>
                   Impact: {simResult.impact_percentage}
@@ -461,23 +474,23 @@ const AnalyticsPage = () => {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-              <div className="p-3 rounded-lg bg-slate-900 border border-slate-800">
-                <span className="text-[10px] text-slate-400 uppercase">Baseline Cash Inflow</span>
-                <p className="text-sm font-bold text-slate-200 mt-0.5">{formatMoney(simResult.baseline_cash_inflow)}</p>
+              <div className="p-3 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs">
+                <span className="text-[10px] text-slate-500 dark:text-slate-400 uppercase">Baseline Cash Inflow</span>
+                <p className="text-sm font-bold text-slate-900 dark:text-slate-200 mt-0.5">{formatMoney(simResult.baseline_cash_inflow)}</p>
               </div>
-              <div className="p-3 rounded-lg bg-slate-900 border border-slate-800">
-                <span className="text-[10px] text-slate-400 uppercase">Simulated Cash Inflow</span>
-                <p className="text-sm font-bold text-indigo-300 mt-0.5">{formatMoney(simResult.simulated_cash_inflow)}</p>
+              <div className="p-3 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs">
+                <span className="text-[10px] text-slate-500 dark:text-slate-400 uppercase">Simulated Cash Inflow</span>
+                <p className="text-sm font-bold text-indigo-600 dark:text-indigo-300 mt-0.5">{formatMoney(simResult.simulated_cash_inflow)}</p>
               </div>
-              <div className="p-3 rounded-lg bg-slate-900 border border-slate-800">
-                <span className="text-[10px] text-slate-400 uppercase">Net Variance</span>
-                <p className={`text-sm font-bold mt-0.5 ${simResult.net_variance >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+              <div className="p-3 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs">
+                <span className="text-[10px] text-slate-500 dark:text-slate-400 uppercase">Net Variance</span>
+                <p className={`text-sm font-bold mt-0.5 ${simResult.net_variance >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
                   {simResult.net_variance >= 0 ? '+' : ''}{formatMoney(simResult.net_variance)}
                 </p>
               </div>
             </div>
 
-            <div className="prose prose-invert max-w-none text-xs text-slate-300 pt-2 border-t border-slate-800 whitespace-pre-line leading-relaxed">
+            <div className="max-w-none text-xs text-slate-700 dark:text-slate-300 pt-2 border-t border-slate-200 dark:border-slate-800 whitespace-pre-line leading-relaxed">
               {simResult.detailed_projection_markdown}
             </div>
           </div>

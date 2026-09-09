@@ -3,15 +3,12 @@ import {
   Receipt,
   Plus,
   Search,
-  Filter,
   AlertCircle,
-  CheckCircle2,
   Clock,
-  Send,
-  Trash2,
-  Eye,
   Sparkles,
-  ArrowUpDown
+  Eye,
+  Trash2,
+  RefreshCw
 } from 'lucide-react';
 import api from '../services/api';
 import { useBusiness } from '../context/BusinessContext';
@@ -30,6 +27,9 @@ const InvoicesPage = ({ onNavigate }) => {
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
+
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [viewInvoice, setViewInvoice] = useState(null);
   const [actionLoadingId, setActionLoadingId] = useState(null);
@@ -53,14 +53,10 @@ const InvoicesPage = ({ onNavigate }) => {
     notes: ''
   });
 
-  const fetchData = useCallback(async () => {
+  const fetchInvoices = useCallback(async () => {
     try {
-      const [invRes, custRes] = await Promise.all([
-        api.get(`/invoices${statusFilter !== 'all' ? `?status=${statusFilter}` : ''}`),
-        api.get('/customers')
-      ]);
-      setInvoices(invRes.data || []);
-      setCustomers(custRes.data || []);
+      const res = await api.get(`/invoices${statusFilter !== 'all' ? `?status=${statusFilter}` : ''}`);
+      setInvoices(res.data || []);
     } catch (err) {
       console.error('Error fetching invoices:', err);
     } finally {
@@ -68,9 +64,26 @@ const InvoicesPage = ({ onNavigate }) => {
     }
   }, [statusFilter]);
 
+  const fetchCustomers = useCallback(async () => {
+    try {
+      const res = await api.get('/customers');
+      setCustomers(res.data || []);
+    } catch (err) {
+      console.error('Error fetching customers:', err);
+    }
+  }, []);
+
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    fetchInvoices();
+  }, [fetchInvoices]);
+
+  useEffect(() => {
+    fetchCustomers();
+  }, [fetchCustomers]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [statusFilter, searchQuery]);
 
   const handleQuickAddCustomer = async (e) => {
     e.preventDefault();
@@ -120,17 +133,16 @@ const InvoicesPage = ({ onNavigate }) => {
       await api.post('/invoices', payload);
       addToast('success', 'Invoice Created', `Invoice ${newInvoice.invoice_number} generated.`);
       setCreateModalOpen(false);
-      fetchData();
+      fetchInvoices();
     } catch (err) {
       addToast('error', 'Creation Error', 'Failed to create invoice.');
     }
   };
 
-
   const handleGenerateReminder = async (inv) => {
     setActionLoadingId(inv.id);
     try {
-      const res = await api.post(`/invoices/${inv.id}/reminder`);
+      await api.post(`/invoices/${inv.id}/reminder`);
       addToast('success', 'AI Reminder Drafted', `Reminder prepared for ${inv.customer_name} (${inv.invoice_number}). Routed to Approval Center.`);
       onNavigate('approvals');
     } catch (err) {
@@ -145,7 +157,7 @@ const InvoicesPage = ({ onNavigate }) => {
     try {
       await api.delete(`/invoices/${id}`);
       addToast('info', 'Invoice Deleted', 'Invoice was removed.');
-      fetchData();
+      fetchInvoices();
     } catch (err) {
       addToast('error', 'Error', 'Failed to delete invoice.');
     }
@@ -160,15 +172,18 @@ const InvoicesPage = ({ onNavigate }) => {
     );
   });
 
+  const totalPages = Math.max(1, Math.ceil(filteredInvoices.length / pageSize));
+  const paginatedInvoices = filteredInvoices.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-800">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200 dark:border-slate-800">
         <div>
-          <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight flex items-center gap-2">
-            Invoice Management & Overdue Tracking
+          <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
+            Invoices & Billing
           </h2>
-          <p className="text-xs sm:text-sm text-slate-400 mt-1">
+          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
             Track receivables, monitor payment due dates, and generate automated AI payment reminders.
           </p>
         </div>
@@ -185,17 +200,17 @@ const InvoicesPage = ({ onNavigate }) => {
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 glass-panel p-3 rounded-2xl border border-slate-800">
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white dark:bg-slate-900 p-3 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs">
         {/* Status Filter Tabs */}
         <div className="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto">
           {['all', 'overdue', 'pending', 'paid'].map((status) => (
             <button
               key={status}
               onClick={() => setStatusFilter(status)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-semibold uppercase tracking-wider transition-all ${
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold uppercase tracking-wider transition-colors cursor-pointer ${
                 statusFilter === status
-                  ? 'bg-indigo-600 text-white shadow-md'
-                  : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                  ? 'bg-indigo-600 text-white shadow-xs'
+                  : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
               }`}
             >
               {status}
@@ -210,71 +225,85 @@ const InvoicesPage = ({ onNavigate }) => {
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search invoice # or customer..."
-            className="w-full bg-slate-900 border border-slate-700/80 rounded-xl pl-9 pr-4 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+            placeholder="Search invoice #, customer..."
+            className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl pl-9 pr-4 py-1.5 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-indigo-500"
           />
         </div>
       </div>
 
-      {/* Invoices Table */}
-      <div className="glass-panel rounded-2xl border border-slate-800 overflow-hidden shadow-xl">
+      {/* Invoice Table Card */}
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-xs">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-slate-900/90 text-slate-400 uppercase tracking-wider font-semibold border-b border-slate-800">
-              <tr>
-                <th className="p-4">Invoice #</th>
-                <th className="p-4">Customer</th>
-                <th className="p-4">Amount</th>
-                <th className="p-4">Issue Date</th>
-                <th className="p-4">Due Date</th>
-                <th className="p-4">Status</th>
-                <th className="p-4 text-right">Actions</th>
+          <table className="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr className="bg-slate-50 dark:bg-slate-850 text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800">
+                <th className="p-3.5 font-bold uppercase tracking-wider">Invoice #</th>
+                <th className="p-3.5 font-bold uppercase tracking-wider">Customer</th>
+                <th className="p-3.5 font-bold uppercase tracking-wider">Amount</th>
+                <th className="p-3.5 font-bold uppercase tracking-wider">Issue Date</th>
+                <th className="p-3.5 font-bold uppercase tracking-wider">Due Date</th>
+                <th className="p-3.5 font-bold uppercase tracking-wider">Status</th>
+                <th className="p-3.5 font-bold uppercase tracking-wider text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/60 bg-slate-900/40">
-              {!filteredInvoices.length ? (
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+              {loading ? (
                 <tr>
-                  <td colSpan="7" className="p-8 text-center text-slate-400">
-                    No invoices found for the selected criteria.
+                  <td colSpan={7} className="text-center py-12 text-slate-400">
+                    <div className="flex flex-col items-center gap-2">
+                      <div className="w-6 h-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+                      <span>Loading invoices...</span>
+                    </div>
+                  </td>
+                </tr>
+              ) : !filteredInvoices.length ? (
+                <tr>
+                  <td colSpan={7} className="p-8">
+                    <EmptyState
+                      icon={Receipt}
+                      title="No invoices found"
+                      description={statusFilter !== 'all' ? `No ${statusFilter} invoices found.` : "Upload a PDF document or click 'Create Invoice' above."}
+                      actionText="Create Invoice"
+                      onAction={() => setCreateModalOpen(true)}
+                    />
                   </td>
                 </tr>
               ) : (
-                filteredInvoices.map((inv) => {
+                paginatedInvoices.map((inv) => {
                   const isOverdue = inv.status === 'overdue';
-
                   return (
                     <tr
                       key={inv.id}
-                      className={`hover:bg-slate-800/40 transition-colors ${
-                        isOverdue ? 'bg-rose-950/10' : ''
+                      onClick={() => setViewInvoice(inv)}
+                      className={`hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors cursor-pointer ${
+                        isOverdue ? 'bg-rose-50/20 dark:bg-rose-950/10' : ''
                       }`}
                     >
-                      <td className="p-4 font-bold text-white flex items-center gap-2">
+                      <td className="p-3.5 font-bold text-slate-900 dark:text-white flex items-center gap-2">
                         {inv.invoice_number}
                         {isOverdue && (
-                          <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />
+                          <span className="w-2 h-2 rounded-full bg-rose-500" />
                         )}
                       </td>
-                      <td className="p-4">
-                        <div className="font-semibold text-slate-200">{inv.customer_name}</div>
+                      <td className="p-3.5">
+                        <div className="font-semibold text-slate-800 dark:text-slate-200">{inv.customer_name}</div>
                         <div className="text-[10px] text-slate-400">{inv.customer_email}</div>
                       </td>
-                      <td className="p-4 font-bold text-slate-100 text-sm">
+                      <td className="p-3.5 font-bold text-slate-900 dark:text-slate-100">
                         {formatMoney(inv.amount)}
                       </td>
-                      <td className="p-4 text-slate-400">{inv.issue_date}</td>
-                      <td className="p-4">
-                        <span className={isOverdue ? 'text-rose-400 font-semibold' : 'text-slate-300'}>
+                      <td className="p-3.5 text-slate-500 dark:text-slate-400">{inv.issue_date}</td>
+                      <td className="p-3.5">
+                        <span className={isOverdue ? 'text-rose-600 dark:text-rose-400 font-semibold' : 'text-slate-600 dark:text-slate-300'}>
                           {inv.due_date}
                         </span>
                       </td>
-                      <td className="p-4">
+                      <td className="p-3.5">
                         <Badge variant={inv.status}>
                           {inv.status}
                         </Badge>
                       </td>
-                      <td className="p-4 text-right space-x-1.5" onClick={(e) => e.stopPropagation()}>
-                        {/* 1-Click Reminder Trigger for Overdue / Pending */}
+                      <td className="p-3.5 text-right space-x-1" onClick={(e) => e.stopPropagation()}>
                         {inv.status !== 'paid' && (
                           <Button
                             onClick={() => handleGenerateReminder(inv)}
@@ -289,14 +318,14 @@ const InvoicesPage = ({ onNavigate }) => {
                         )}
                         <button
                           onClick={() => setViewInvoice(inv)}
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
                           title="View Details"
                         >
                           <Eye className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => handleDelete(inv.id)}
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-slate-800 transition-colors"
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors cursor-pointer"
                           title="Delete"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -309,6 +338,36 @@ const InvoicesPage = ({ onNavigate }) => {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination Footer */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between p-3.5 border-t border-slate-200 dark:border-slate-800 text-xs">
+            <span className="text-slate-500 dark:text-slate-400">
+              Showing {(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, filteredInvoices.length)} of {filteredInvoices.length} invoices
+            </span>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              >
+                Previous
+              </Button>
+              <span className="font-semibold text-slate-700 dark:text-slate-300 px-2">
+                Page {currentPage} of {totalPages}
+              </span>
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              >
+                Next
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Create Invoice Modal */}
@@ -320,11 +379,11 @@ const InvoicesPage = ({ onNavigate }) => {
         <form onSubmit={handleCreateInvoice} className="space-y-4">
           <div>
             <div className="flex items-center justify-between mb-1">
-              <label className="block text-xs font-semibold text-slate-300">Select Customer</label>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">Select Customer</label>
               <button
                 type="button"
                 onClick={() => setQuickCustomerModalOpen(true)}
-                className="text-[11px] text-indigo-400 hover:text-indigo-300 font-semibold flex items-center gap-1 cursor-pointer"
+                className="text-[11px] text-indigo-600 dark:text-indigo-400 hover:underline font-semibold flex items-center gap-1 cursor-pointer"
               >
                 <Plus className="w-3 h-3" /> New Customer
               </button>
@@ -333,7 +392,7 @@ const InvoicesPage = ({ onNavigate }) => {
               value={newInvoice.customer_id}
               onChange={(e) => setNewInvoice({ ...newInvoice, customer_id: e.target.value })}
               required
-              className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
+              className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
             >
               <option value="">-- Choose Customer --</option>
               {customers.map((c) => (
@@ -344,20 +403,19 @@ const InvoicesPage = ({ onNavigate }) => {
             </select>
           </div>
 
-
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">Invoice Number</label>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Invoice Number</label>
               <input
                 type="text"
                 value={newInvoice.invoice_number}
                 onChange={(e) => setNewInvoice({ ...newInvoice, invoice_number: e.target.value })}
                 required
-                className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
+                className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">Amount ({business.currency})</label>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Amount ({business.currency})</label>
               <input
                 type="number"
                 step="0.01"
@@ -365,40 +423,40 @@ const InvoicesPage = ({ onNavigate }) => {
                 onChange={(e) => setNewInvoice({ ...newInvoice, amount: e.target.value })}
                 placeholder="5000.00"
                 required
-                className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
+                className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
               />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">Issue Date</label>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Issue Date</label>
               <input
                 type="date"
                 value={newInvoice.issue_date}
                 onChange={(e) => setNewInvoice({ ...newInvoice, issue_date: e.target.value })}
                 required
-                className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
+                className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">Due Date</label>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Due Date</label>
               <input
                 type="date"
                 value={newInvoice.due_date}
                 onChange={(e) => setNewInvoice({ ...newInvoice, due_date: e.target.value })}
                 required
-                className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
+                className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1">Status</label>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Status</label>
             <select
               value={newInvoice.status}
               onChange={(e) => setNewInvoice({ ...newInvoice, status: e.target.value })}
-              className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
+              className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
             >
               <option value="pending">Pending</option>
               <option value="overdue">Overdue</option>
@@ -407,18 +465,18 @@ const InvoicesPage = ({ onNavigate }) => {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1">Notes / Description</label>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Notes / Description</label>
             <textarea
               value={newInvoice.notes}
               onChange={(e) => setNewInvoice({ ...newInvoice, notes: e.target.value })}
               placeholder="Enterprise consulting retainer..."
               rows={3}
-              className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
+              className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
             />
           </div>
 
-          <div className="flex justify-end gap-2 pt-2 border-t border-slate-800">
-            <Button onClick={() => setCreateModalOpen(false)} variant="ghost" size="sm">
+          <div className="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+            <Button onClick={() => setCreateModalOpen(false)} variant="secondary" size="sm">
               Cancel
             </Button>
             <Button type="submit" variant="primary" size="sm">
@@ -436,35 +494,35 @@ const InvoicesPage = ({ onNavigate }) => {
           title={`Invoice Details – ${viewInvoice.invoice_number}`}
         >
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4 p-4 rounded-xl bg-slate-900/60 border border-slate-800 text-xs">
+            <div className="grid grid-cols-2 gap-4 p-4 rounded-xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-800 text-xs">
               <div>
-                <span className="text-slate-400 font-semibold block">Customer:</span>
-                <span className="text-white font-bold text-sm">{viewInvoice.customer_name}</span>
-                <span className="text-slate-400 block">{viewInvoice.customer_email}</span>
+                <span className="text-slate-500 font-semibold block">Customer:</span>
+                <span className="text-slate-900 dark:text-white font-bold text-sm">{viewInvoice.customer_name}</span>
+                <span className="text-slate-500 block">{viewInvoice.customer_email}</span>
               </div>
               <div>
-                <span className="text-slate-400 font-semibold block">Total Amount:</span>
-                <span className="text-emerald-400 font-bold text-base">{formatMoney(viewInvoice.amount)}</span>
+                <span className="text-slate-500 font-semibold block">Total Amount:</span>
+                <span className="text-emerald-600 dark:text-emerald-400 font-bold text-base">{formatMoney(viewInvoice.amount)}</span>
                 <Badge variant={viewInvoice.status} className="mt-1">{viewInvoice.status}</Badge>
               </div>
               <div>
-                <span className="text-slate-400 font-semibold block">Issue Date:</span>
-                <span className="text-slate-200">{viewInvoice.issue_date}</span>
+                <span className="text-slate-500 font-semibold block">Issue Date:</span>
+                <span className="text-slate-700 dark:text-slate-300">{viewInvoice.issue_date}</span>
               </div>
               <div>
-                <span className="text-slate-400 font-semibold block">Payment Due:</span>
-                <span className="text-rose-400 font-semibold">{viewInvoice.due_date}</span>
+                <span className="text-slate-500 font-semibold block">Payment Due:</span>
+                <span className="text-rose-600 dark:text-rose-400 font-semibold">{viewInvoice.due_date}</span>
               </div>
             </div>
 
             {viewInvoice.notes && (
-              <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-300">
-                <span className="font-semibold text-slate-400 block mb-1">Notes:</span>
+              <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-700 dark:text-slate-300">
+                <span className="font-semibold text-slate-500 block mb-1">Notes:</span>
                 {viewInvoice.notes}
               </div>
             )}
 
-            <div className="flex justify-end gap-2 pt-2 border-t border-slate-800">
+            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
               {viewInvoice.status !== 'paid' && (
                 <Button
                   onClick={() => {
@@ -475,7 +533,7 @@ const InvoicesPage = ({ onNavigate }) => {
                   size="sm"
                   icon={Sparkles}
                 >
-                  Generate Payment Reminder
+                  Generate Reminder
                 </Button>
               )}
               <Button onClick={() => setViewInvoice(null)} variant="secondary" size="sm">
@@ -494,8 +552,8 @@ const InvoicesPage = ({ onNavigate }) => {
       >
         <form onSubmit={handleQuickAddCustomer} className="space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1">
-              Customer Name <span className="text-rose-400">*</span>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Customer Name <span className="text-rose-500">*</span>
             </label>
             <input
               type="text"
@@ -503,13 +561,13 @@ const InvoicesPage = ({ onNavigate }) => {
               onChange={(e) => setQuickCustomer({ ...quickCustomer, name: e.target.value })}
               placeholder="e.g. Acme Corp"
               required
-              className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
+              className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
             />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">
-                Email <span className="text-rose-400">*</span>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                Email <span className="text-rose-500">*</span>
               </label>
               <input
                 type="email"
@@ -517,34 +575,34 @@ const InvoicesPage = ({ onNavigate }) => {
                 onChange={(e) => setQuickCustomer({ ...quickCustomer, email: e.target.value })}
                 placeholder="billing@acme.example"
                 required
-                className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
+                className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">Phone</label>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Phone</label>
               <input
                 type="text"
                 value={quickCustomer.phone}
                 onChange={(e) => setQuickCustomer({ ...quickCustomer, phone: e.target.value })}
                 placeholder="+1 555 000 0000"
-                className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
+                className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
               />
             </div>
           </div>
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1">Company</label>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Company</label>
             <input
               type="text"
               value={quickCustomer.company}
               onChange={(e) => setQuickCustomer({ ...quickCustomer, company: e.target.value })}
               placeholder="Acme Corporation"
-              className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
+              className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
             />
           </div>
-          <div className="flex justify-end gap-2 pt-3 border-t border-slate-800">
+          <div className="flex justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
             <Button
               onClick={() => setQuickCustomerModalOpen(false)}
-              variant="ghost"
+              variant="secondary"
               size="sm"
               disabled={quickCustomerSubmitting}
             >
@@ -567,4 +625,3 @@ const InvoicesPage = ({ onNavigate }) => {
 };
 
 export default InvoicesPage;
-

@@ -101,11 +101,68 @@ def ocr_pil_image(img: Image.Image) -> str:
         return ""
 
 
+def validate_invoice_file(file_path: str) -> Dict[str, Any]:
+    """
+    Validates file format, file size, non-emptiness, and verifies file integrity.
+    Rejects corrupted or empty files.
+    """
+    if not os.path.exists(file_path):
+        raise ValueError("Uploaded file does not exist on disk.")
+
+    file_size = os.path.getsize(file_path)
+    if file_size == 0:
+        raise ValueError("Uploaded file is empty (0 bytes).")
+    if file_size > 25 * 1024 * 1024:
+        raise ValueError(f"File size ({file_size / (1024*1024):.1f}MB) exceeds the maximum allowed 25MB.")
+
+    ext = os.path.splitext(file_path)[1].lower()
+    allowed = [".pdf", ".png", ".jpg", ".jpeg", ".webp", ".docx", ".doc", ".txt"]
+    if ext not in allowed:
+        raise ValueError(f"Unsupported file format '{ext}'. Supported formats: PDF, PNG, JPG, JPEG, WebP, DOCX.")
+
+    if ext == ".pdf":
+        try:
+            import fitz
+            doc = fitz.open(file_path)
+            page_count = len(doc)
+            doc.close()
+            if page_count == 0:
+                raise ValueError("PDF document contains no pages.")
+        except Exception as e:
+            raise ValueError(f"Corrupted or unreadable PDF document: {str(e)}")
+    elif ext in [".png", ".jpg", ".jpeg", ".webp"]:
+        try:
+            with Image.open(file_path) as im:
+                im.verify()
+        except Exception as e:
+            raise ValueError(f"Corrupted or invalid image file: {str(e)}")
+
+    return {"is_valid": True, "file_size": file_size, "file_type": ext.lstrip(".")}
+
+
+def get_file_bytes_and_mimetype(file_path: str) -> tuple[bytes, str]:
+    ext = os.path.splitext(file_path)[1].lower()
+    mime_map = {
+        ".pdf": "application/pdf",
+        ".png": "image/png",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".webp": "image/webp",
+        ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        ".doc": "application/msword",
+        ".txt": "text/plain"
+    }
+    mime_type = mime_map.get(ext, "application/octet-stream")
+    with open(file_path, "rb") as f:
+        data = f.read()
+    return data, mime_type
+
+
 def extract_text_from_pdf(file_path: str) -> Dict[str, Any]:
     """
     Production-grade multi-page PDF extraction pipeline:
-    1. Extracts digital text preserving layout and paragraph breaks.
-    2. Extracts structured tables (using pdfplumber) and formats them into Markdown.
+    1. Extracts digital text preserving layout and paragraph breaks from ALL pages.
+    2. Extracts structured tables (using pdfplumber and PyMuPDF) and formats into Markdown.
     3. Detects scanned pages (< 40 characters) and renders 300 DPI rasters for OCR.
     4. Aggregates all pages into a unified, complete document text without arbitrary truncation.
     """
@@ -114,37 +171,37 @@ def extract_text_from_pdf(file_path: str) -> Dict[str, Any]:
     page_count = 0
     scanned_pages_count = 0
 
-    plumber_pages = []
-    try:
-        import pdfplumber
-        with pdfplumber.open(file_path) as pdf:
-            page_count = len(pdf.pages)
-            for i, page in enumerate(pdf.pages):
-                tables = page.extract_tables() or []
-                text = page.extract_text(layout=False) or ""
-                plumber_pages.append({
-                    "page_num": i + 1,
-                    "text": text.strip(),
-                    "tables": tables
-                })
-    except Exception as exc:
-        logger.warning(f"pdfplumber extraction failed on {file_path}: {exc}")
-
     fitz_doc = None
     try:
         import fitz
         fitz_doc = fitz.open(file_path)
-        if page_count == 0:
-            page_count = len(fitz_doc)
+        page_count = len(fitz_doc)
     except Exception as exc:
         logger.warning(f"PyMuPDF open failed on {file_path}: {exc}")
+
+    plumber_pages = {}
+    try:
+        import pdfplumber
+        with pdfplumber.open(file_path) as pdf:
+            if page_count == 0:
+                page_count = len(pdf.pages)
+            for i, page in enumerate(pdf.pages):
+                tables = page.extract_tables() or []
+                text = page.extract_text(layout=False) or ""
+                plumber_pages[i] = {
+                    "text": text.strip(),
+                    "tables": tables
+                }
+    except Exception as exc:
+        logger.warning(f"pdfplumber extraction failed on {file_path}: {exc}")
 
     for idx in range(page_count):
         page_num = idx + 1
         page_tables_md = []
         page_text = ""
 
-        if idx < len(plumber_pages):
+        # 1. Structured text and tables from pdfplumber
+        if idx in plumber_pages:
             p_info = plumber_pages[idx]
             page_text = p_info["text"]
             for tbl in p_info["tables"]:
@@ -153,6 +210,27 @@ def extract_text_from_pdf(file_path: str) -> Dict[str, Any]:
                 if tbl_md:
                     page_tables_md.append(tbl_md)
 
+        # 2. Complement with PyMuPDF text and tables
+        if fitz_doc and idx < len(fitz_doc):
+            try:
+                fitz_page = fitz_doc[idx]
+                f_text = fitz_page.get_text("text").strip()
+                if len(f_text) > len(page_text):
+                    page_text = f_text
+
+                if not page_tables_md and hasattr(fitz_page, "find_tables"):
+                    tabs = fitz_page.find_tables()
+                    for t in tabs:
+                        extract = t.extract()
+                        if extract:
+                            all_tables.append(extract)
+                            t_md = table_to_markdown(extract)
+                            if t_md:
+                                page_tables_md.append(t_md)
+            except Exception as fe:
+                logger.warning(f"PyMuPDF text extraction failed on page {page_num}: {fe}")
+
+        # 3. Scanned page detection
         if len(page_text) < 40 and fitz_doc and idx < len(fitz_doc):
             scanned_pages_count += 1
             try:
@@ -165,7 +243,7 @@ def extract_text_from_pdf(file_path: str) -> Dict[str, Any]:
             except Exception as e:
                 logger.warning(f"Page {page_num} render/OCR failed: {e}")
 
-        page_parts = [f"=== PAGE {page_num} ==="]
+        page_parts = [f"=== PAGE {page_num} of {page_count} ==="]
         if page_tables_md:
             page_parts.append("\n[STRUCTURED TABLES]")
             page_parts.extend(page_tables_md)
@@ -183,7 +261,7 @@ def extract_text_from_pdf(file_path: str) -> Dict[str, Any]:
 
     full_text = "\n\n".join(page_sections).strip()
     if not full_text:
-        full_text = "No extractable text or content found in document."
+        full_text = "No extractable text found in document."
 
     return {
         "raw_text": full_text,
@@ -229,18 +307,16 @@ def extract_text_from_docx(file_path: str) -> str:
 def process_uploaded_document(file_path: str) -> Dict[str, Any]:
     """
     Main document processing entry point.
-    Returns complete extracted raw text, structured tables, metadata, and page count.
+    Validates file, processes all pages/images, and returns complete raw text, tables, metadata.
     """
+    # 1. Validate file
+    val_info = validate_invoice_file(file_path)
+
     ext = os.path.splitext(file_path)[1].lower()
     raw_text = ""
-    file_size = 0
+    file_size = val_info["file_size"]
     page_count = 1
     tables = []
-
-    try:
-        file_size = os.path.getsize(file_path)
-    except Exception:
-        pass
 
     if ext in [".pdf"]:
         pdf_res = extract_text_from_pdf(file_path)

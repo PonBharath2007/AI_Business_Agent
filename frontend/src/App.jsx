@@ -1,28 +1,37 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import { BusinessProvider, useBusiness } from './context/BusinessContext';
-import { NotificationProvider, useNotifications } from './context/NotificationContext';
+import { BusinessProvider } from './context/BusinessContext';
+import { NotificationProvider } from './context/NotificationContext';
+import { ThemeProvider } from './context/ThemeContext';
 import MainLayout from './components/layout/MainLayout';
+import api from './services/api';
 
-// Pages
+// Core pages (loaded directly for instant first paint)
 import DashboardPage from './pages/DashboardPage';
-import CommandCenterPage from './pages/CommandCenterPage';
-import ExceptionCenterPage from './pages/ExceptionCenterPage';
-import WorkflowBuilderPage from './pages/WorkflowBuilderPage';
-import DocumentsPage from './pages/DocumentsPage';
-import InvoicesPage from './pages/InvoicesPage';
-import CustomersPage from './pages/CustomersPage';
-import TasksPage from './pages/TasksPage';
-import ApprovalsPage from './pages/ApprovalsPage';
-import EmailAssistantPage from './pages/EmailAssistantPage';
-import MessageCenterPage from './pages/MessageCenterPage';
-import AnalyticsPage from './pages/AnalyticsPage';
-import ActivityLogPage from './pages/ActivityLogPage';
-import SettingsPage from './pages/SettingsPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 
-import api from './services/api';
+// Lazy-loaded heavy modules (code-split to optimize bundle size and speed)
+const CommandCenterPage = lazy(() => import('./pages/CommandCenterPage'));
+const ExceptionCenterPage = lazy(() => import('./pages/ExceptionCenterPage'));
+const WorkflowBuilderPage = lazy(() => import('./pages/WorkflowBuilderPage'));
+const DocumentsPage = lazy(() => import('./pages/DocumentsPage'));
+const InvoicesPage = lazy(() => import('./pages/InvoicesPage'));
+const CustomersPage = lazy(() => import('./pages/CustomersPage'));
+const TasksPage = lazy(() => import('./pages/TasksPage'));
+const ApprovalsPage = lazy(() => import('./pages/ApprovalsPage'));
+const EmailAssistantPage = lazy(() => import('./pages/EmailAssistantPage'));
+const MessageCenterPage = lazy(() => import('./pages/MessageCenterPage'));
+const AnalyticsPage = lazy(() => import('./pages/AnalyticsPage'));
+const ActivityLogPage = lazy(() => import('./pages/ActivityLogPage'));
+const SettingsPage = lazy(() => import('./pages/SettingsPage'));
+
+const PageFallback = () => (
+  <div className="flex flex-col items-center justify-center min-h-[40vh] space-y-3">
+    <div className="w-8 h-8 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+    <span className="text-xs text-slate-500">Loading module...</span>
+  </div>
+);
 
 const AppContent = () => {
   const { user, token, loading: authLoading } = useAuth();
@@ -31,26 +40,32 @@ const AppContent = () => {
   const [pendingApprovalsCount, setPendingApprovalsCount] = useState(0);
   const [navParams, setNavParams] = useState({});
 
-  // Periodic check for pending approvals badge (only when authenticated)
+  // Periodic check for pending approvals badge (only when authenticated, decoupled from activeTab)
   useEffect(() => {
     if (!token && !user) {
       setPendingApprovalsCount(0);
       return;
     }
 
+    let isMounted = true;
     const fetchPendingApprovals = async () => {
       try {
         const res = await api.get('/approvals?status=pending');
-        setPendingApprovalsCount(res.data?.length || 0);
+        if (isMounted) {
+          setPendingApprovalsCount(res.data?.length || 0);
+        }
       } catch (err) {
         // silent catch
       }
     };
 
     fetchPendingApprovals();
-    const interval = setInterval(fetchPendingApprovals, 10000);
-    return () => clearInterval(interval);
-  }, [activeTab, token, user]);
+    const interval = setInterval(fetchPendingApprovals, 30000); // 30s background check
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, [token, user]);
 
   const handleNavigate = (tab, params = {}) => {
     setNavParams(params || {});
@@ -59,10 +74,10 @@ const AppContent = () => {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-[#0b0f19] flex items-center justify-center">
+      <div className="min-h-screen bg-slate-50 dark:bg-[#0b0f19] flex items-center justify-center transition-colors">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin" />
-          <span className="text-xs text-slate-400">Initializing AI Business Platform...</span>
+          <div className="w-9 h-9 border-3 border-indigo-600/30 border-t-indigo-600 rounded-full animate-spin" />
+          <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">Initializing AI Business Platform...</span>
         </div>
       </div>
     );
@@ -122,20 +137,24 @@ const AppContent = () => {
       setActiveTab={(tab) => handleNavigate(tab, {})}
       pendingApprovalsCount={pendingApprovalsCount}
     >
-      {renderActivePage()}
+      <Suspense fallback={<PageFallback />}>
+        {renderActivePage()}
+      </Suspense>
     </MainLayout>
   );
 };
 
 function App() {
   return (
-    <AuthProvider>
-      <BusinessProvider>
-        <NotificationProvider>
-          <AppContent />
-        </NotificationProvider>
-      </BusinessProvider>
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <BusinessProvider>
+          <NotificationProvider>
+            <AppContent />
+          </NotificationProvider>
+        </BusinessProvider>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
 

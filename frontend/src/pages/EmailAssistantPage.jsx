@@ -35,6 +35,10 @@ const EmailAssistantPage = ({ onNavigate }) => {
   const [activeTab, setActiveTab] = useState('studio'); // 'studio' or 'history'
   const [customers, setCustomers] = useState([]);
   const [invoices, setInvoices] = useState([]);
+  const [customerInvoices, setCustomerInvoices] = useState([]);
+  const [selectedInvoice, setSelectedInvoice] = useState(null);
+  const [invoiceLoading, setInvoiceLoading] = useState(false);
+  const [invoiceMessage, setInvoiceMessage] = useState('');
   const [selectedCustomerId, setSelectedCustomerId] = useState('');
   const [selectedInvoiceId, setSelectedInvoiceId] = useState('');
   const [templateType, setTemplateType] = useState('payment_reminder');
@@ -58,23 +62,74 @@ const EmailAssistantPage = ({ onNavigate }) => {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [viewingEmail, setViewingEmail] = useState(null);
 
-  const fetchData = useCallback(async () => {
-    try {
-      const [custRes, invRes] = await Promise.all([
-        api.get('/customers'),
-        api.get('/invoices')
-      ]);
-      setCustomers(custRes.data || []);
-      setInvoices(invRes.data || []);
+  const fetchCustomerInvoices = useCallback(async (customerId) => {
+    if (!customerId) {
+      setCustomerInvoices([]);
+      setSelectedInvoice(null);
+      setSelectedInvoiceId('');
+      setInvoiceMessage('');
+      return;
+    }
 
-      if (custRes.data?.length > 0 && !selectedCustomerId) {
-        setSelectedCustomerId(String(custRes.data[0].id));
-        setRecipientEmail(custRes.data[0].email || '');
+    setInvoiceLoading(true);
+    setInvoiceMessage('');
+    setSelectedInvoice(null);
+    setSelectedInvoiceId('');
+    setCustomerInvoices([]);
+
+    try {
+      const res = await api.get(`/customers/${customerId}/invoices`);
+      const invList = res.data?.invoices || [];
+      const recId = res.data?.recommended_invoice_id;
+
+      setCustomerInvoices(invList);
+
+      if (invList.length > 0) {
+        const autoSelected = (recId && invList.find((i) => i.id === recId)) || invList[0];
+        setSelectedInvoice(autoSelected);
+        setSelectedInvoiceId(String(autoSelected.id));
+        if (autoSelected.customer_email) {
+          setRecipientEmail(autoSelected.customer_email);
+        } else if (res.data?.customer?.email) {
+          setRecipientEmail(res.data.customer.email);
+        }
+      } else {
+        setSelectedInvoice(null);
+        setSelectedInvoiceId('');
+        setInvoiceMessage('No active invoice found for this customer.');
+        if (res.data?.customer?.email) {
+          setRecipientEmail(res.data.customer.email);
+        }
       }
     } catch (err) {
-      console.error('Error fetching data:', err);
+      console.error('Error fetching customer invoices:', err);
+      setCustomerInvoices([]);
+      setSelectedInvoice(null);
+      setSelectedInvoiceId('');
+      setInvoiceMessage('No active invoice found for this customer.');
+    } finally {
+      setInvoiceLoading(false);
     }
   }, []);
+
+  const fetchData = useCallback(async () => {
+    try {
+      const custRes = await api.get('/customers');
+      const custData = custRes.data || [];
+      setCustomers(custData);
+
+      if (custData.length > 0 && !selectedCustomerId) {
+        const initialCid = String(custData[0].id);
+        setSelectedCustomerId(initialCid);
+        if (custData[0].email) {
+          setRecipientEmail(custData[0].email);
+        }
+        fetchCustomerInvoices(initialCid);
+      }
+    } catch (err) {
+      console.error('Error fetching customers:', err);
+    }
+  }, [fetchCustomerInvoices, selectedCustomerId]);
 
   const fetchHistory = useCallback(async () => {
     setHistoryLoading(true);
@@ -101,26 +156,35 @@ const EmailAssistantPage = ({ onNavigate }) => {
   const handleCustomerChange = (e) => {
     const cid = e.target.value;
     setSelectedCustomerId(cid);
+    setSelectedInvoice(null);
+    setSelectedInvoiceId('');
+    setCustomerInvoices([]);
+    setInvoiceMessage('');
+
     if (!cid) {
       setRecipientEmail('');
       return;
     }
+
     const found = customers.find((c) => c.id === parseInt(cid));
-    if (found) {
-      setRecipientEmail(found.email || '');
+    if (found?.email) {
+      setRecipientEmail(found.email);
     }
+    fetchCustomerInvoices(cid);
   };
 
   const handleInvoiceChange = (e) => {
     const invId = e.target.value;
     setSelectedInvoiceId(invId);
-    if (invId) {
-      const foundInv = invoices.find((i) => i.id === parseInt(invId));
-      if (foundInv && foundInv.customer_id) {
-        setSelectedCustomerId(String(foundInv.customer_id));
-        if (foundInv.customer_email) {
-          setRecipientEmail(foundInv.customer_email);
-        }
+    if (!invId) {
+      setSelectedInvoice(null);
+      return;
+    }
+    const foundInv = customerInvoices.find((i) => String(i.id) === String(invId));
+    if (foundInv) {
+      setSelectedInvoice(foundInv);
+      if (foundInv.customer_email) {
+        setRecipientEmail(foundInv.customer_email);
       }
     }
   };
@@ -186,7 +250,7 @@ const EmailAssistantPage = ({ onNavigate }) => {
     setSending(true);
     try {
       const cust = customers.find((c) => c.id === parseInt(selectedCustomerId));
-      const inv = invoices.find((i) => i.id === parseInt(selectedInvoiceId));
+      const inv = selectedInvoice || customerInvoices.find((i) => i.id === parseInt(selectedInvoiceId));
 
       if (createApprovalOnly) {
         const approvalPayload = {
@@ -358,27 +422,91 @@ const EmailAssistantPage = ({ onNavigate }) => {
                 <option value="">-- Custom / Direct Recipient --</option>
                 {customers.map((c) => (
                   <option key={c.id} value={c.id}>
-                    {c.name} ({c.email})
+                    {c.name} {c.email ? `(${c.email})` : ''}
                   </option>
                 ))}
               </select>
             </div>
 
-            <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">Related Invoice (Optional)</label>
-              <select
-                value={selectedInvoiceId}
-                onChange={handleInvoiceChange}
-                className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
-              >
-                <option value="">-- None / General Account --</option>
-                {invoices.map((inv) => (
-                  <option key={inv.id} value={inv.id}>
-                    {inv.invoice_number} – {inv.customer_name} ({formatMoney(inv.amount)}) [{inv.status.toUpperCase()}]
-                  </option>
-                ))}
-              </select>
-            </div>
+            {/* Customer Invoices / Auto Selection */}
+            {selectedCustomerId && (
+              <div className="space-y-2">
+                {invoiceLoading ? (
+                  <div className="p-3 rounded-xl bg-slate-900/60 border border-slate-800 flex items-center gap-2 text-xs text-indigo-400">
+                    <RefreshCw className="w-4 h-4 animate-spin text-indigo-400 shrink-0" />
+                    <span>Loading invoice...</span>
+                  </div>
+                ) : customerInvoices.length > 1 ? (
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1">
+                      Select Invoice ({customerInvoices.length} active invoices)
+                    </label>
+                    <select
+                      value={selectedInvoiceId}
+                      onChange={handleInvoiceChange}
+                      className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
+                    >
+                      {customerInvoices.map((inv) => (
+                        <option key={inv.id} value={inv.id}>
+                          {inv.invoice_number} – {formatMoney(inv.pending_amount ?? inv.total_amount ?? inv.amount)} [{inv.status?.toUpperCase()}]
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ) : null}
+
+                {/* Selected Invoice Details Card */}
+                {selectedInvoice ? (
+                  <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Receipt className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+                        <span className="font-bold text-xs text-white font-mono">{selectedInvoice.invoice_number}</span>
+                      </div>
+                      <Badge variant={
+                        selectedInvoice.status === 'paid' ? 'success' :
+                        selectedInvoice.status === 'overdue' ? 'danger' :
+                        selectedInvoice.status === 'partially_paid' ? 'warning' : 'pending'
+                      }>
+                        {selectedInvoice.status?.toUpperCase()}
+                      </Badge>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 text-xs pt-1 border-t border-slate-800/80">
+                      <div>
+                        <span className="text-[10px] text-slate-500 block uppercase font-semibold">Total Amount</span>
+                        <span className="font-bold text-slate-200">
+                          {formatMoney(selectedInvoice.total_amount ?? selectedInvoice.amount ?? 0)}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-500 block uppercase font-semibold">Pending Amount</span>
+                        <span className="font-bold text-amber-400">
+                          {formatMoney(selectedInvoice.pending_amount ?? selectedInvoice.amount ?? 0)}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-500 block uppercase font-semibold">Paid Amount</span>
+                        <span className="font-medium text-emerald-400">
+                          {formatMoney(selectedInvoice.paid_amount ?? 0)}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-500 block uppercase font-semibold">Due Date</span>
+                        <span className="font-medium text-slate-300">
+                          {selectedInvoice.due_date ? new Date(selectedInvoice.due_date).toLocaleDateString() : 'N/A'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ) : !invoiceLoading && invoiceMessage ? (
+                  <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs flex items-center gap-2">
+                    <Info className="w-4 h-4 shrink-0" />
+                    <span>{invoiceMessage}</span>
+                  </div>
+                ) : null}
+              </div>
+            )}
 
             <div>
               <label className="block text-xs font-semibold text-slate-300 mb-1">Template Objective</label>

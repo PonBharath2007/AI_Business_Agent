@@ -61,8 +61,18 @@ async def upload_document(
         logger.error(f"Error saving upload: {e}")
         raise HTTPException(status_code=500, detail="Failed to store uploaded file.")
 
-    # Process extraction
-    proc_result = process_uploaded_document(file_path)
+    try:
+        proc_result = process_uploaded_document(file_path)
+    except ValueError as ve:
+        if os.path.exists(file_path):
+            try:
+                os.remove(file_path)
+            except Exception:
+                pass
+        raise HTTPException(status_code=400, detail=str(ve))
+    except Exception as e:
+        logger.error(f"Error processing uploaded document: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to process document: {str(e)}")
 
     doc = Document(
         business_id=business.id,
@@ -71,7 +81,7 @@ async def upload_document(
         file_type=ext.lstrip("."),
         file_size=proc_result.get("file_size", 0),
         document_type="invoice",
-        processing_status="processing" if auto_analyze else "pending",
+        processing_status="processing" if auto_analyze else "uploaded",
         ocr_text=proc_result.get("raw_text", "")
     )
     db.add(doc)
@@ -110,6 +120,24 @@ def get_document(
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
     return doc
+
+
+@router.get("/{document_id}/ocr")
+def get_document_ocr(
+    document_id: int,
+    db: Session = Depends(get_db),
+    business: Business = Depends(get_current_business)
+):
+    doc = db.query(Document).filter(Document.id == document_id, Document.business_id == business.id).first()
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+    return {
+        "document_id": doc.id,
+        "file_name": doc.file_name,
+        "processing_status": doc.processing_status,
+        "ocr_text": doc.ocr_text or "No text extracted",
+        "extracted_data": doc.extracted_data or {}
+    }
 
 
 @router.post("/{document_id}/analyze")

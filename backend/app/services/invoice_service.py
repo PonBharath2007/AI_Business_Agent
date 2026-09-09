@@ -11,48 +11,77 @@ def check_and_update_overdue_statuses(db: Session, business_id: int):
     today = date.today()
     invoices = db.query(Invoice).filter(
         Invoice.business_id == business_id,
-        Invoice.status != "paid"
+        Invoice.status != "paid",
+        Invoice.due_date < today
     ).all()
 
-    for inv in invoices:
-        if inv.due_date < today and inv.status != "overdue":
-            inv.status = "overdue"
-            db.commit()
-            
-            # Check if task exists for this overdue invoice
-            existing_task = db.query(Task).filter(
-                Task.business_id == business_id,
-                Task.source_type == "AI Workflow",
-                Task.source_id == inv.id
-            ).first()
+    if not invoices:
+        return
 
-            if not existing_task:
-                c_name = inv.customer.name if inv.customer else "Customer"
-                task = Task(
-                    business_id=business_id,
-                    title=f"Follow up with {c_name} regarding overdue invoice {inv.invoice_number}",
-                    description=f"Invoice {inv.invoice_number} for {format_currency(float(inv.amount), inv.currency)} was due on {inv.due_date}.",
-                    priority="High",
-                    status="Pending",
-                    due_date=today,
-                    source_type="AI Workflow",
-                    source_id=inv.id,
-                    assigned_user="Digital Employee"
-                )
-                db.add(task)
-                db.commit()
+    updated_any = False
+    new_tasks = []
+
+    # Get all existing task source_ids for this business in 1 query
+    existing_source_ids = set(
+        r[0] for r in db.query(Task.source_id).filter(
+            Task.business_id == business_id,
+            Task.source_type == "AI Workflow",
+            Task.source_id.isnot(None)
+        ).all()
+    )
+
+    for inv in invoices:
+        if inv.status != "overdue":
+            inv.status = "overdue"
+            updated_any = True
+
+        if inv.id not in existing_source_ids:
+            c_name = inv.customer.name if inv.customer else "Customer"
+            task = Task(
+                business_id=business_id,
+                title=f"Follow up with {c_name} regarding overdue invoice {inv.invoice_number}",
+                description=f"Invoice {inv.invoice_number} for {format_currency(float(inv.amount), inv.currency)} was due on {inv.due_date}.",
+                priority="High",
+                status="Pending",
+                due_date=today,
+                source_type="AI Workflow",
+                source_id=inv.id,
+                assigned_user="Digital Employee"
+            )
+            new_tasks.append(task)
+            existing_source_ids.add(inv.id)
+
+    if new_tasks:
+        db.add_all(new_tasks)
+        updated_any = True
+
+    if updated_any:
+        try:
+            db.commit()
+        except Exception:
+            db.rollback()
 
 def create_invoice_record(db: Session, business_id: int, invoice_in: InvoiceCreate) -> Invoice:
+    total_amt = float(invoice_in.amount or 0.0)
+    paid_amt = float(invoice_in.paid_amount or 0.0)
+    pend_amt = float(invoice_in.pending_amount) if invoice_in.pending_amount is not None else max(0.0, total_amt - paid_amt)
+
     invoice = Invoice(
         business_id=business_id,
         customer_id=invoice_in.customer_id,
         invoice_number=invoice_in.invoice_number,
-        amount=invoice_in.amount,
+        amount=total_amt,
+        paid_amount=paid_amt,
+        pending_amount=pend_amt,
+        subtotal=float(invoice_in.subtotal or 0.0),
+        tax_amount=float(invoice_in.tax_amount or 0.0),
+        discount_amount=float(invoice_in.discount_amount or 0.0),
         currency=invoice_in.currency or "USD",
         issue_date=invoice_in.issue_date,
         due_date=invoice_in.due_date,
-        status=invoice_in.status or "pending",
+        status=invoice_in.status or ("paid" if pend_amt == 0 and total_amt > 0 else "pending"),
         document_id=invoice_in.document_id,
+        line_items=invoice_in.line_items or [],
         notes=invoice_in.notes
     )
     db.add(invoice)

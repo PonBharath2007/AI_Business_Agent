@@ -123,19 +123,19 @@ const ApprovalsPage = ({ onNavigate }) => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-800">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200 dark:border-slate-800">
         <div>
-          <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight flex items-center gap-2">
+          <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
             Approval Center (Human-in-the-Loop AI)
             <Badge variant="ai">Multilingual Communication</Badge>
           </h2>
-          <p className="text-xs sm:text-sm text-slate-400 mt-1">
+          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
             Review, edit, and approve AI-generated business actions. Sensitive operations are never executed without your sign-off.
           </p>
         </div>
 
         {/* Status Filter Tabs */}
-        <div className="flex items-center gap-1.5 bg-slate-900/80 p-1 rounded-xl border border-slate-800 self-start sm:self-auto">
+        <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-900/80 p-1 rounded-xl border border-slate-200 dark:border-slate-800 self-start sm:self-auto">
           {[
             { id: 'pending', label: 'Pending Approval' },
             { id: 'approved', label: 'Approved & Executed' },
@@ -147,8 +147,8 @@ const ApprovalsPage = ({ onNavigate }) => {
               onClick={() => setStatusFilter(tab.id)}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                 statusFilter === tab.id
-                  ? 'bg-indigo-600 text-white shadow-md'
-                  : 'text-slate-400 hover:text-white'
+                  ? 'bg-indigo-600 text-white shadow-sm'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
               {tab.label}
@@ -180,25 +180,25 @@ const ApprovalsPage = ({ onNavigate }) => {
             return (
               <div
                 key={app.id}
-                className={`glass-panel rounded-2xl border p-5 sm:p-6 transition-all ${
+                className={`rounded-2xl border p-5 sm:p-6 transition-all ${
                   isPending
-                    ? 'border-indigo-500/40 bg-gradient-to-br from-indigo-950/20 via-slate-900/70 to-slate-900/50 shadow-xl'
+                    ? 'border-indigo-200 dark:border-indigo-500/40 bg-white dark:bg-gradient-to-br dark:from-indigo-950/20 dark:via-slate-900/70 dark:to-slate-900/50 shadow-sm dark:shadow-xl'
                     : isApproved
-                    ? 'border-emerald-500/20 bg-slate-900/40 opacity-85'
-                    : 'border-slate-800 bg-slate-950/40 opacity-70'
+                    ? 'border-emerald-200 dark:border-emerald-500/20 bg-emerald-50/30 dark:bg-slate-900/40 opacity-90'
+                    : 'border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/40 opacity-75'
                 }`}
               >
-                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-slate-800/80">
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-slate-200 dark:border-slate-800/80">
                   <div className="flex items-start gap-3.5">
-                    <div className="w-10 h-10 rounded-2xl bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 flex items-center justify-center shrink-0">
+                    <div className="w-10 h-10 rounded-2xl bg-indigo-50 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-500/30 flex items-center justify-center shrink-0">
                       {isSms ? <MessageSquare className="w-5 h-5" /> : <Sparkles className="w-5 h-5" />}
                     </div>
                     <div>
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-xs font-bold uppercase tracking-wider text-indigo-400">
+                        <span className="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
                           {isSms ? 'SMS Communication' : (app.action_type === 'send_payment_reminder' ? 'Email Payment Reminder' : app.action_type)}
                         </span>
-                        <span className="px-2 py-0.5 rounded-md bg-indigo-950 text-indigo-300 text-[10px] font-bold uppercase border border-indigo-500/30">
+                        <span className="px-2 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 text-[10px] font-bold uppercase border border-indigo-200 dark:border-indigo-500/30">
                           {langTag}
                         </span>
                         <Badge
@@ -207,7 +207,7 @@ const ApprovalsPage = ({ onNavigate }) => {
                           {app.status.toUpperCase()}
                         </Badge>
                       </div>
-                      <h3 className="text-base font-bold text-white mt-1">
+                      <h3 className="text-base font-bold text-slate-900 dark:text-white mt-1">
                         Send {langTag} {isSms ? 'SMS' : 'Notice'} to {data.customer_name || 'Customer'}
                       </h3>
                     </div>
@@ -216,16 +216,16 @@ const ApprovalsPage = ({ onNavigate }) => {
                   {/* Summary Badges */}
                   <div className="flex flex-wrap items-center gap-2 text-xs">
                     {data.invoice_number && (
-                      <span className="px-2.5 py-1 rounded-xl bg-slate-800 border border-slate-700 text-slate-200 font-semibold">
+                      <span className="px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-semibold">
                         Invoice: {data.invoice_number}
                       </span>
                     )}
                     {data.amount && (
-                      <span className="px-2.5 py-1 rounded-xl bg-rose-500/20 border border-rose-500/30 text-rose-300 font-bold">
+                      <span className="px-2.5 py-1 rounded-xl bg-rose-50 dark:bg-rose-500/20 border border-rose-200 dark:border-rose-500/30 text-rose-700 dark:text-rose-300 font-bold">
                         Amount: {formatMoney(data.amount)}
                       </span>
                     )}
-                    <span className="text-[11px] text-slate-400">
+                    <span className="text-[11px] text-slate-500 dark:text-slate-400">
                       Requested: {new Date(app.requested_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </span>
                   </div>
@@ -233,10 +233,10 @@ const ApprovalsPage = ({ onNavigate }) => {
 
                 {/* AI Recommendation Message */}
                 {app.recommendation && (
-                  <div className="mt-4 p-3.5 rounded-xl bg-indigo-950/40 border border-indigo-500/20 flex items-start gap-2.5">
-                    <Sparkles className="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" />
-                    <div className="text-xs text-slate-200">
-                      <strong className="text-indigo-300">AI Recommendation: </strong>
+                  <div className="mt-4 p-3.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-500/20 flex items-start gap-2.5">
+                    <Sparkles className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5" />
+                    <div className="text-xs text-slate-700 dark:text-slate-200">
+                      <strong className="text-indigo-700 dark:text-indigo-300">AI Recommendation: </strong>
                       {app.recommendation}
                     </div>
                   </div>
@@ -244,12 +244,12 @@ const ApprovalsPage = ({ onNavigate }) => {
 
                 {/* Generated Content Preview */}
                 {(data.body || data.message) && (
-                  <div className="mt-4 p-4 rounded-xl bg-slate-950/80 border border-slate-800 space-y-2">
-                    <div className="flex flex-wrap items-center justify-between text-xs text-slate-400 pb-2 border-b border-slate-900 gap-2">
+                  <div className="mt-4 p-4 rounded-xl bg-slate-50 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800 space-y-2">
+                    <div className="flex flex-wrap items-center justify-between text-xs text-slate-500 dark:text-slate-400 pb-2 border-b border-slate-200 dark:border-slate-900 gap-2">
                       <span><strong>Recipient:</strong> {isSms ? (data.recipient_phone || data.phone || data.customer_phone) : (data.recipient_email || data.customer_email)}</span>
                       {!isSms && data.subject && <span><strong>Subject:</strong> {data.subject}</span>}
                     </div>
-                    <p className="text-xs text-slate-200 whitespace-pre-wrap font-sans leading-relaxed">
+                    <p className="text-xs text-slate-800 dark:text-slate-200 whitespace-pre-wrap font-sans leading-relaxed">
                       {data.body || data.message}
                     </p>
                   </div>
@@ -257,8 +257,8 @@ const ApprovalsPage = ({ onNavigate }) => {
 
                 {/* Bottom Decision Actions */}
                 {isPending && (
-                  <div className="mt-5 pt-4 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-3">
-                    <div className="text-xs text-slate-400">
+                  <div className="mt-5 pt-4 border-t border-slate-200 dark:border-slate-800/80 flex flex-wrap items-center justify-between gap-3">
+                    <div className="text-xs text-slate-500 dark:text-slate-400">
                       👉 <em>Review the draft above. You can approve immediately, edit contents, or reject.</em>
                     </div>
 
@@ -278,7 +278,7 @@ const ApprovalsPage = ({ onNavigate }) => {
                         size="sm"
                         disabled={actionLoadingId === app.id}
                         icon={XCircle}
-                        className="text-xs text-rose-400 hover:text-rose-300 hover:bg-rose-500/10"
+                        className="text-xs text-rose-600 dark:text-rose-400 hover:text-rose-700 dark:hover:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-500/10"
                       >
                         Reject
                       </Button>
@@ -298,7 +298,7 @@ const ApprovalsPage = ({ onNavigate }) => {
 
                 {/* Execution timestamp for already approved */}
                 {isApproved && (
-                  <div className="mt-4 pt-3 border-t border-slate-800 text-xs text-emerald-400 flex items-center gap-1.5">
+                  <div className="mt-4 pt-3 border-t border-slate-200 dark:border-slate-800 text-xs text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
                     <Check className="w-4 h-4" />
                     <span>Approved & Dispatched on {new Date(app.approved_at || app.requested_at).toLocaleString()}</span>
                   </div>
@@ -319,7 +319,7 @@ const ApprovalsPage = ({ onNavigate }) => {
         >
           <div className="space-y-4 text-xs">
             <div>
-              <label className="block font-semibold text-slate-300 mb-1">
+              <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
                 {editingApproval.action_type === 'send_sms' ? 'Recipient Phone Number' : 'Recipient Email'}
               </label>
               <input
@@ -327,25 +327,25 @@ const ApprovalsPage = ({ onNavigate }) => {
                 value={editRecipient}
                 onChange={(e) => setEditRecipient(e.target.value)}
                 required
-                className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-indigo-500 font-mono"
+                className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 font-mono"
               />
             </div>
 
             {editingApproval.action_type !== 'send_sms' && (
               <div>
-                <label className="block font-semibold text-slate-300 mb-1">Subject Line</label>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Subject Line</label>
                 <input
                   type="text"
                   value={editSubject}
                   onChange={(e) => setEditSubject(e.target.value)}
                   required
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-indigo-500"
+                  className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
                 />
               </div>
             )}
 
             <div>
-              <label className="block font-semibold text-slate-300 mb-1">
+              <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
                 Message Content (Supports English, தமிழ், and Bilingual UTF-8)
               </label>
               <textarea
@@ -353,11 +353,11 @@ const ApprovalsPage = ({ onNavigate }) => {
                 onChange={(e) => setEditBody(e.target.value)}
                 rows={7}
                 required
-                className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-slate-200 focus:outline-none focus:border-indigo-500 font-sans leading-relaxed text-xs"
+                className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl p-3 text-slate-900 dark:text-slate-200 focus:outline-none focus:border-indigo-500 font-sans leading-relaxed text-xs"
               />
             </div>
 
-            <div className="flex justify-end gap-2 pt-2 border-t border-slate-800">
+            <div className="flex justify-end gap-2 pt-2 border-t border-slate-200 dark:border-slate-800">
               <Button onClick={() => setEditingApproval(null)} variant="ghost" size="sm">
                 Cancel
               </Button>

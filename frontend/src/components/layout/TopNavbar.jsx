@@ -3,10 +3,10 @@ import {
   Menu,
   Bell,
   Sparkles,
-  RotateCcw,
   User,
   LogOut,
-  ExternalLink,
+  Sun,
+  Moon,
   CheckCircle2,
   AlertTriangle,
   Info
@@ -14,12 +14,14 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { useBusiness } from '../../context/BusinessContext';
 import { useNotifications } from '../../context/NotificationContext';
+import { useTheme } from '../../context/ThemeContext';
 import Button from '../common/Button';
 
 const TopNavbar = ({ onMenuClick, onNavigate }) => {
   const { user, logout } = useAuth();
-  const { business, resetDemoData, loading } = useBusiness();
+  const { business } = useBusiness();
   const { notifications, unreadCount, markAsRead, markAllRead } = useNotifications();
+  const { isDark, toggleTheme } = useTheme();
 
   const [showNotifications, setShowNotifications] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -40,64 +42,78 @@ const TopNavbar = ({ onMenuClick, onNavigate }) => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-
   return (
-    <header className="sticky top-0 z-30 h-16 glass-panel border-b border-slate-800 flex items-center justify-between px-4 sm:px-6 bg-slate-900/80 backdrop-blur-md">
+    <header className="sticky top-0 z-30 h-16 bg-white/95 dark:bg-[#0f172a]/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-4 sm:px-6 transition-colors duration-150">
       {/* Left section */}
       <div className="flex items-center gap-3">
         <button
           onClick={onMenuClick}
-          className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 lg:hidden"
+          className="p-2 rounded-xl text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-850 lg:hidden cursor-pointer"
         >
           <Menu className="w-5 h-5" />
         </button>
 
-        <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-800/80 border border-slate-700/60">
-          <div className="w-2 h-2 rounded-full bg-indigo-400 animate-pulse" />
-          <span className="text-xs font-medium text-slate-200 truncate max-w-[200px] md:max-w-none">
+        <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/60">
+          <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+          <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate max-w-[200px] md:max-w-none">
             {business?.name || 'My Business'}
           </span>
-          <span className="text-[10px] px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 font-semibold uppercase">
+          <span className="text-[10px] px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-300 font-bold uppercase">
             {business?.currency || 'USD'}
           </span>
         </div>
       </div>
 
       {/* Right actions */}
-      <div className="flex items-center gap-2.5">
+      <div className="flex items-center gap-2 sm:gap-2.5">
+        {/* Light / Dark Mode Global Toggle */}
+        <button
+          type="button"
+          onClick={toggleTheme}
+          className="p-2 rounded-xl text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer border border-transparent hover:border-slate-200 dark:hover:border-slate-700"
+          title={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+          aria-label="Toggle color theme"
+        >
+          {isDark ? (
+            <Sun className="w-4 h-4 text-amber-400" />
+          ) : (
+            <Moon className="w-4 h-4 text-slate-600" />
+          )}
+        </button>
 
         {/* AI Command Center Quick trigger */}
         <Button
           onClick={() => onNavigate('command_center')}
-          variant="primary"
+          variant="secondary"
           size="sm"
           icon={Sparkles}
-          className="text-xs"
+          className="text-xs font-semibold"
         >
-          AI Agent
+          Ask AI
         </Button>
 
         {/* Notifications Popover */}
         <div className="relative" ref={notifRef}>
           <button
             onClick={() => setShowNotifications(!showNotifications)}
-            className="relative p-2 rounded-xl text-slate-300 hover:text-white hover:bg-slate-800 transition-colors"
+            className="relative p-2 rounded-xl text-slate-500 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+            title="Notifications"
           >
-            <Bell className="w-5 h-5" />
+            <Bell className="w-4 h-4" />
             {unreadCount > 0 && (
-              <span className="absolute top-1 right-1 w-4 h-4 rounded-full bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center animate-pulse">
+              <span className="absolute top-1 right-1 w-4 h-4 rounded-full bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center">
                 {unreadCount}
               </span>
             )}
           </button>
 
           {showNotifications && (
-            <div className="absolute right-0 mt-2 w-80 sm:w-96 rounded-2xl glass-panel border border-slate-700/80 shadow-2xl p-4 animate-in fade-in zoom-in-95 z-50">
-              <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+            <div className="absolute right-0 mt-2 w-80 sm:w-96 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl p-4 animate-in fade-in zoom-in-95 z-50">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
                 <div className="flex items-center gap-2">
-                  <h4 className="text-sm font-semibold text-white">Notifications</h4>
+                  <h4 className="text-sm font-semibold text-slate-900 dark:text-white">Notifications</h4>
                   {unreadCount > 0 && (
-                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-rose-500/20 text-rose-300 font-bold">
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-rose-50 text-rose-600 dark:bg-rose-500/20 dark:text-rose-300 font-bold">
                       {unreadCount} new
                     </span>
                   )}
@@ -105,7 +121,7 @@ const TopNavbar = ({ onMenuClick, onNavigate }) => {
                 {unreadCount > 0 && (
                   <button
                     onClick={markAllRead}
-                    className="text-xs text-indigo-400 hover:text-indigo-300 font-medium"
+                    className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline font-medium cursor-pointer"
                   >
                     Mark all read
                   </button>
@@ -114,16 +130,14 @@ const TopNavbar = ({ onMenuClick, onNavigate }) => {
 
               <div className="mt-3 max-h-72 overflow-y-auto space-y-2">
                 {!notifications.length ? (
-                  <div className="text-center py-6 text-xs text-slate-400">
-                    No active notifications.
-                  </div>
+                  <p className="text-xs text-slate-500 text-center py-6">No notifications</p>
                 ) : (
                   notifications.map((n) => {
                     let Icon = Info;
-                    let color = 'text-sky-400 bg-sky-500/10';
+                    let iconColor = 'text-sky-500 bg-sky-50 dark:bg-sky-500/10';
                     if (n.priority === 'High') {
                       Icon = AlertTriangle;
-                      color = 'text-rose-400 bg-rose-500/10';
+                      iconColor = 'text-rose-500 bg-rose-50 dark:bg-rose-500/10';
                     }
 
                     return (
@@ -131,26 +145,21 @@ const TopNavbar = ({ onMenuClick, onNavigate }) => {
                         key={n.id}
                         onClick={() => {
                           markAsRead(n.id);
-                          if (n.action_url) {
-                            const tab = n.action_url.replace('/', '');
-                            onNavigate(tab || 'dashboard');
-                            setShowNotifications(false);
-                          }
+                          if (n.action_url) onNavigate(n.action_url);
+                          setShowNotifications(false);
                         }}
-                        className={`p-3 rounded-xl border text-left transition-colors cursor-pointer ${
-                          n.read
-                            ? 'bg-slate-900/40 border-slate-800/60 opacity-70'
-                            : 'bg-slate-800/80 border-slate-700 hover:border-indigo-500/40'
+                        className={`p-2.5 rounded-xl border transition-colors cursor-pointer flex gap-3 items-start ${
+                          !n.read
+                            ? 'bg-indigo-50/50 dark:bg-indigo-950/20 border-indigo-100 dark:border-indigo-800/40'
+                            : 'bg-slate-50 dark:bg-slate-800/40 border-slate-200 dark:border-slate-750 hover:bg-slate-100 dark:hover:bg-slate-800'
                         }`}
                       >
-                        <div className="flex items-start gap-2.5">
-                          <div className={`p-1.5 rounded-lg shrink-0 ${color}`}>
-                            <Icon className="w-4 h-4" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <h5 className="text-xs font-semibold text-slate-100 truncate">{n.title}</h5>
-                            <p className="text-[11px] text-slate-300 mt-0.5 line-clamp-2">{n.message}</p>
-                          </div>
+                        <div className={`p-1.5 rounded-lg shrink-0 mt-0.5 ${iconColor}`}>
+                          <Icon className="w-3.5 h-3.5" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h5 className="text-xs font-semibold text-slate-900 dark:text-slate-100 truncate">{n.title}</h5>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2 mt-0.5">{n.message}</p>
                         </div>
                       </div>
                     );
@@ -161,47 +170,58 @@ const TopNavbar = ({ onMenuClick, onNavigate }) => {
           )}
         </div>
 
-        {/* User Profile Menu */}
+        {/* User profile dropdown */}
         <div className="relative" ref={userRef}>
           <button
             onClick={() => setShowUserMenu(!showUserMenu)}
-            className="flex items-center gap-2 p-1.5 rounded-xl hover:bg-slate-800 transition-colors"
+            className="flex items-center gap-2 p-1.5 rounded-xl text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
           >
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-600 to-indigo-400 flex items-center justify-center text-white font-bold text-xs shadow-md">
-              {(user?.name || user?.email || 'U').charAt(0).toUpperCase()}
-            </div>
+            {user?.profile_picture ? (
+              <img
+                src={user.profile_picture}
+                alt={user.name || 'User'}
+                className="w-7 h-7 rounded-full object-cover border border-slate-200 dark:border-slate-700"
+              />
+            ) : (
+              <div className="w-7 h-7 rounded-full bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 flex items-center justify-center font-bold text-xs border border-indigo-200 dark:border-indigo-700/50">
+                {user?.name ? user.name[0].toUpperCase() : 'U'}
+              </div>
+            )}
+            <span className="hidden md:inline text-xs font-medium text-slate-700 dark:text-slate-200 max-w-[120px] truncate">
+              {user?.name || user?.email || 'Account'}
+            </span>
           </button>
 
           {showUserMenu && (
-            <div className="absolute right-0 mt-2 w-56 rounded-2xl glass-panel border border-slate-700/80 shadow-2xl p-2 animate-in fade-in zoom-in-95 z-50">
-              <div className="px-3 py-2 border-b border-slate-800">
-                <p className="text-xs font-bold text-white truncate">{user?.name || 'Authenticated User'}</p>
-                <p className="text-[11px] text-slate-400 truncate">{user?.email || ''}</p>
-                {user?.business_name && (
-                  <p className="text-[10px] text-indigo-400 font-medium truncate mt-0.5">{user.business_name}</p>
-                )}
+            <div className="absolute right-0 mt-2 w-52 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl p-2 animate-in fade-in zoom-in-95 z-50">
+              <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-800">
+                <p className="text-xs font-semibold text-slate-900 dark:text-white truncate">{user?.name || 'Business User'}</p>
+                <p className="text-[11px] text-slate-500 truncate">{user?.email}</p>
               </div>
 
-              <div className="mt-1 space-y-1">
+              <div className="py-1">
                 <button
                   onClick={() => {
                     onNavigate('settings');
                     setShowUserMenu(false);
                   }}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-slate-300 hover:text-white hover:bg-slate-800/80 rounded-xl"
+                  className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
                 >
-                  <User className="w-4 h-4 text-slate-400" />
-                  Business Profile
+                  <User className="w-3.5 h-3.5 text-slate-400" />
+                  <span>Business Profile</span>
                 </button>
+              </div>
+
+              <div className="pt-1 border-t border-slate-100 dark:border-slate-800">
                 <button
                   onClick={() => {
                     logout();
                     setShowUserMenu(false);
                   }}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 rounded-xl"
+                  className="w-full flex items-center gap-2 px-3 py-2 text-xs text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-lg transition-colors cursor-pointer"
                 >
-                  <LogOut className="w-4 h-4" />
-                  Sign Out
+                  <LogOut className="w-3.5 h-3.5" />
+                  <span>Sign Out</span>
                 </button>
               </div>
             </div>

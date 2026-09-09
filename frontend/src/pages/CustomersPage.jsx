@@ -40,6 +40,9 @@ const CustomersPage = ({ onNavigate }) => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 9;
+
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -88,6 +91,10 @@ const CustomersPage = ({ onNavigate }) => {
   useEffect(() => {
     fetchCustomers();
   }, [fetchCustomers]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
 
   const handleRefresh = () => {
     setRefreshing(true);
@@ -151,7 +158,6 @@ const CustomersPage = ({ onNavigate }) => {
       return;
     }
     const cleanPhone = customer.phone.trim();
-    // Fire and forget server-side call logging
     api.post('/communications/call', {
       customer_id: customer.id,
       phone_number: cleanPhone
@@ -254,16 +260,18 @@ const CustomersPage = ({ onNavigate }) => {
     );
   });
 
+  const totalPages = Math.max(1, Math.ceil(filteredCustomers.length / pageSize));
+  const paginatedCustomers = filteredCustomers.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-800">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200 dark:border-slate-800">
         <div>
-          <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight flex items-center gap-2">
-            Customers & Multilingual Communication
-            <Badge variant="ai">EN • தமிழ் • EN+TA</Badge>
+          <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
+            Customers
           </h2>
-          <p className="text-xs sm:text-sm text-slate-400 mt-1">
+          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
             Manage customer accounts with 1-click Email (SMTP), SMS, Call, and Customer 360° views.
           </p>
         </div>
@@ -292,7 +300,7 @@ const CustomersPage = ({ onNavigate }) => {
       </div>
 
       {/* Search Bar */}
-      <div className="glass-panel p-3 rounded-2xl border border-slate-800 flex items-center justify-between gap-3">
+      <div className="bg-white dark:bg-slate-900 p-3 rounded-2xl border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3 shadow-xs">
         <div className="relative w-full sm:w-80">
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
           <input
@@ -300,11 +308,11 @@ const CustomersPage = ({ onNavigate }) => {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search by name, company, email, phone..."
-            className="w-full bg-slate-900 border border-slate-700/80 rounded-xl pl-9 pr-4 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+            className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl pl-9 pr-4 py-1.5 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-indigo-500"
           />
         </div>
-        <span className="text-xs text-slate-400 hidden sm:inline">
-          Showing <strong>{filteredCustomers.length}</strong> of <strong>{customers.length}</strong> clients
+        <span className="text-xs text-slate-500 dark:text-slate-400 hidden sm:inline">
+          Showing <strong>{paginatedCustomers.length}</strong> of <strong>{filteredCustomers.length}</strong> accounts
         </span>
       </div>
 
@@ -312,7 +320,7 @@ const CustomersPage = ({ onNavigate }) => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {loading ? (
           <div className="col-span-full flex flex-col items-center justify-center py-16 text-slate-400 space-y-3">
-            <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+            <div className="w-8 h-8 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
             <p className="text-xs">Loading customer directory...</p>
           </div>
         ) : !filteredCustomers.length ? (
@@ -326,19 +334,19 @@ const CustomersPage = ({ onNavigate }) => {
             />
           </div>
         ) : (
-          filteredCustomers.map((cust) => {
+          paginatedCustomers.map((cust) => {
             const hasOverdue = (cust.overdue_amount || 0) > 0;
             return (
               <div
                 key={cust.id}
-                className="glass-panel rounded-2xl p-5 border border-slate-800 hover:border-indigo-500/40 transition-all flex flex-col justify-between space-y-4"
+                className="bg-white dark:bg-slate-900 rounded-2xl p-5 border border-slate-200 dark:border-slate-800 hover:border-indigo-400 dark:hover:border-indigo-500/40 transition-all flex flex-col justify-between space-y-4 shadow-xs"
               >
                 <div>
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
-                      <h3 className="text-sm font-bold text-white truncate">{cust.name}</h3>
-                      <p className="text-xs text-slate-400 truncate flex items-center gap-1 mt-0.5">
-                        <Building className="w-3 h-3 text-slate-500" />
+                      <h3 className="text-sm font-bold text-slate-900 dark:text-white truncate">{cust.name}</h3>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 truncate flex items-center gap-1 mt-0.5">
+                        <Building className="w-3 h-3 text-slate-400" />
                         {cust.company || 'Direct Client'}
                       </p>
                     </div>
@@ -347,28 +355,28 @@ const CustomersPage = ({ onNavigate }) => {
                     </Badge>
                   </div>
 
-                  <div className="mt-3.5 space-y-1.5 text-xs text-slate-300">
+                  <div className="mt-3.5 space-y-1.5 text-xs text-slate-600 dark:text-slate-300">
                     <div className="flex items-center gap-2 truncate">
-                      <Mail className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                      <span className="truncate text-slate-300">{cust.email || 'No email'}</span>
+                      <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                      <span className="truncate">{cust.email || 'No email'}</span>
                     </div>
                     {cust.phone && (
                       <div className="flex items-center gap-2">
-                        <Phone className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                        <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                         <span>{cust.phone}</span>
                       </div>
                     )}
                   </div>
 
                   {/* Financial Stats strip */}
-                  <div className="mt-3.5 pt-3 border-t border-slate-800/80 grid grid-cols-2 gap-2 text-xs">
+                  <div className="mt-3.5 pt-3 border-t border-slate-100 dark:border-slate-800 grid grid-cols-2 gap-2 text-xs">
                     <div>
-                      <span className="text-[10px] text-slate-500 block">Total Invoices</span>
-                      <span className="font-semibold text-slate-200">{cust.total_invoices || 0}</span>
+                      <span className="text-[10px] text-slate-400 block">Total Invoices</span>
+                      <span className="font-semibold text-slate-800 dark:text-slate-200">{cust.total_invoices || 0}</span>
                     </div>
                     <div>
-                      <span className="text-[10px] text-slate-500 block">Overdue Balance</span>
-                      <span className={`font-bold ${hasOverdue ? 'text-rose-400' : 'text-slate-400'}`}>
+                      <span className="text-[10px] text-slate-400 block">Overdue Balance</span>
+                      <span className={`font-bold ${hasOverdue ? 'text-rose-600 dark:text-rose-400' : 'text-slate-500 dark:text-slate-400'}`}>
                         {formatMoney(cust.overdue_amount || 0)}
                       </span>
                     </div>
@@ -376,26 +384,21 @@ const CustomersPage = ({ onNavigate }) => {
                 </div>
 
                 {/* Communication Action Buttons Strip */}
-                <div className="space-y-2 pt-2 border-t border-slate-800/80">
-                  <div className="flex items-center justify-between text-[11px] text-slate-400 font-bold uppercase tracking-wider">
-                    <span>Communication</span>
-                    <span className="text-[10px] text-indigo-400 normal-case font-normal">Multilingual AI</span>
-                  </div>
-
+                <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800">
                   <div className="grid grid-cols-3 gap-1.5">
                     {/* [ Email ] */}
                     <button
                       type="button"
                       disabled={!cust.email || !cust.email.includes('@')}
                       onClick={() => handleOpenCommunication(cust, 'email')}
-                      className={`flex items-center justify-center gap-1 py-1.5 px-2 rounded-xl text-xs font-semibold transition-all shadow-sm ${
+                      className={`flex items-center justify-center gap-1 py-1.5 px-2 rounded-xl text-xs font-semibold transition-all ${
                         cust.email && cust.email.includes('@')
-                          ? 'bg-slate-900 border border-slate-700/80 hover:border-indigo-500 text-slate-200 hover:text-white cursor-pointer'
-                          : 'bg-slate-950/60 border border-slate-800/70 text-slate-500 opacity-50 cursor-not-allowed'
+                          ? 'bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-indigo-500 text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-white cursor-pointer'
+                          : 'bg-slate-100/50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-400 opacity-50 cursor-not-allowed'
                       }`}
                       title={cust.email && cust.email.includes('@') ? `Email ${cust.email}` : 'Email not available'}
                     >
-                      <Mail className={`w-3.5 h-3.5 ${cust.email && cust.email.includes('@') ? 'text-indigo-400' : 'text-slate-500'}`} />
+                      <Mail className="w-3.5 h-3.5 text-indigo-500" />
                       <span>Email</span>
                     </button>
 
@@ -404,14 +407,14 @@ const CustomersPage = ({ onNavigate }) => {
                       type="button"
                       disabled={!cust.phone || !cust.phone.trim()}
                       onClick={() => handleInitiateCall(cust)}
-                      className={`flex items-center justify-center gap-1 py-1.5 px-2 rounded-xl text-xs font-semibold transition-all shadow-sm ${
+                      className={`flex items-center justify-center gap-1 py-1.5 px-2 rounded-xl text-xs font-semibold transition-all ${
                         cust.phone && cust.phone.trim()
-                          ? 'bg-slate-900 border border-slate-700/80 hover:border-amber-500 text-slate-200 hover:text-white cursor-pointer'
-                          : 'bg-slate-950/60 border border-slate-800/70 text-slate-500 opacity-50 cursor-not-allowed'
+                          ? 'bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-amber-500 text-slate-700 dark:text-slate-200 hover:text-amber-600 dark:hover:text-white cursor-pointer'
+                          : 'bg-slate-100/50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-400 opacity-50 cursor-not-allowed'
                       }`}
-                      title={cust.phone && cust.phone.trim() ? `Call ${cust.phone} (tel:)` : 'Phone number not available'}
+                      title={cust.phone && cust.phone.trim() ? `Call ${cust.phone}` : 'Phone number not available'}
                     >
-                      <Phone className={`w-3.5 h-3.5 ${cust.phone && cust.phone.trim() ? 'text-amber-400' : 'text-slate-500'}`} />
+                      <Phone className="w-3.5 h-3.5 text-amber-500" />
                       <span>Phone</span>
                     </button>
 
@@ -420,33 +423,27 @@ const CustomersPage = ({ onNavigate }) => {
                       type="button"
                       disabled={!cust.phone || !cust.phone.trim()}
                       onClick={() => handleOpenMessage(cust)}
-                      className={`flex items-center justify-center gap-1 py-1.5 px-2 rounded-xl text-xs font-semibold transition-all shadow-sm ${
+                      className={`flex items-center justify-center gap-1 py-1.5 px-2 rounded-xl text-xs font-semibold transition-all ${
                         cust.phone && cust.phone.trim()
-                          ? 'bg-slate-900 border border-slate-700/80 hover:border-emerald-500 text-slate-200 hover:text-white cursor-pointer'
-                          : 'bg-slate-950/60 border border-slate-800/70 text-slate-500 opacity-50 cursor-not-allowed'
+                          ? 'bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-emerald-500 text-slate-700 dark:text-slate-200 hover:text-emerald-600 dark:hover:text-white cursor-pointer'
+                          : 'bg-slate-100/50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-400 opacity-50 cursor-not-allowed'
                       }`}
                       title={cust.phone && cust.phone.trim() ? `Open Message Center for ${cust.name}` : 'Phone number not available'}
                     >
-                      <MessageSquare className={`w-3.5 h-3.5 ${cust.phone && cust.phone.trim() ? 'text-emerald-400' : 'text-slate-500'}`} />
-                      <span>Message</span>
+                      <MessageSquare className="w-3.5 h-3.5 text-emerald-500" />
+                      <span>SMS</span>
                     </button>
                   </div>
-
-                  {!cust.email && !cust.phone && (
-                    <p className="text-[10px] text-amber-400/90 text-center font-medium pt-0.5">
-                      No communication details available for this customer.
-                    </p>
-                  )}
                 </div>
 
                 {/* Bottom Tools */}
-                <div className="flex items-center justify-between pt-2 border-t border-slate-800/80">
+                <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800">
                   <Button
                     onClick={() => handleOpen360(cust)}
-                    variant="primary"
+                    variant="ghost"
                     size="sm"
                     icon={BrainCircuit}
-                    className="text-xs font-semibold"
+                    className="text-xs font-semibold text-indigo-600 dark:text-indigo-400"
                   >
                     Customer 360°
                   </Button>
@@ -454,14 +451,14 @@ const CustomersPage = ({ onNavigate }) => {
                   <div className="flex items-center gap-1">
                     <button
                       onClick={() => handleEditClick(cust)}
-                      className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                      className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                       title="Edit Profile"
                     >
                       <Edit2 className="w-3.5 h-3.5" />
                     </button>
                     <button
                       onClick={() => handleDelete(cust.id, cust.name)}
-                      className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-slate-800 transition-colors"
+                      className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors"
                       title="Delete Profile"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
@@ -474,43 +471,66 @@ const CustomersPage = ({ onNavigate }) => {
         )}
       </div>
 
+      {/* Pagination Controls */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between pt-4 border-t border-slate-200 dark:border-slate-800 text-xs">
+          <span className="text-slate-500 dark:text-slate-400">
+            Showing {(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, filteredCustomers.length)} of {filteredCustomers.length}
+          </span>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="secondary"
+              size="sm"
+              disabled={currentPage === 1}
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+            >
+              Previous
+            </Button>
+            <span className="font-semibold text-slate-700 dark:text-slate-300 px-2">
+              Page {currentPage} of {totalPages}
+            </span>
+            <Button
+              variant="secondary"
+              size="sm"
+              disabled={currentPage === totalPages}
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Customer 360 Deep-Dive Modal */}
       {customer360ModalOpen && (
         <Modal
           isOpen={customer360ModalOpen}
           onClose={() => setCustomer360ModalOpen(false)}
-          title={`Customer 360° View: ${customer360Data?.customer?.name || 'Loading...'}`}
-          maxWidth="max-w-4xl"
+          title={`Customer 360°: ${customer360Data?.customer?.name || 'Loading...'}`}
+          maxWidth="max-w-3xl"
         >
           {loading360 ? (
             <div className="py-16 flex flex-col items-center justify-center space-y-3">
-              <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
-              <p className="text-xs text-slate-400">Synthesizing 360° behavioral timeline...</p>
+              <div className="w-8 h-8 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+              <p className="text-xs text-slate-500">Synthesizing 360° profile...</p>
             </div>
           ) : !customer360Data ? (
-            <div className="text-center py-8 text-xs text-slate-400">Failed to load customer details.</div>
+            <div className="text-center py-8 text-xs text-slate-500">Failed to load customer details.</div>
           ) : (
             <div className="space-y-4 text-xs">
-              {/* Top Banner: Behavioral Tag & Score */}
-              <div className="p-4 rounded-2xl bg-gradient-to-r from-indigo-950/50 via-slate-900 to-slate-900 border border-indigo-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-750 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-2xl bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center font-bold text-white text-lg">
+                  <div className="w-10 h-10 rounded-xl bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 flex items-center justify-center font-bold text-sm">
                     {customer360Data.behavior.score}
                   </div>
                   <div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-bold text-white">{customer360Data.customer.name}</span>
-                      <Badge variant={customer360Data.behavior.badge || 'ai'}>
-                        {customer360Data.behavior.tag}
-                      </Badge>
-                    </div>
-                    <p className="text-[11px] text-slate-400 mt-0.5">
-                      {customer360Data.customer.company} • {customer360Data.customer.email} • {customer360Data.customer.phone || 'No phone'}
+                    <span className="text-sm font-bold text-slate-900 dark:text-white block">{customer360Data.customer.name}</span>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      {customer360Data.customer.company} • {customer360Data.customer.email}
                     </p>
                   </div>
                 </div>
 
-                {/* Quick 1-Click Multilingual Communication Actions */}
                 <div className="flex items-center gap-2">
                   <Button
                     onClick={() => {
@@ -518,7 +538,6 @@ const CustomersPage = ({ onNavigate }) => {
                       handleOpenCommunication(customer360Data.customer, 'email');
                     }}
                     disabled={!customer360Data.customer.email || !customer360Data.customer.email.includes('@')}
-                    title={customer360Data.customer.email ? `Email ${customer360Data.customer.email}` : 'Email not available'}
                     variant="secondary"
                     size="sm"
                     icon={Mail}
@@ -527,93 +546,51 @@ const CustomersPage = ({ onNavigate }) => {
                   </Button>
                   <Button
                     onClick={() => {
-                      handleInitiateCall(customer360Data.customer);
-                    }}
-                    disabled={!customer360Data.customer.phone || !customer360Data.customer.phone.trim()}
-                    title={customer360Data.customer.phone ? `Call ${customer360Data.customer.phone} (tel:)` : 'Phone number not available'}
-                    variant="secondary"
-                    size="sm"
-                    icon={Phone}
-                  >
-                    Phone
-                  </Button>
-                  <Button
-                    onClick={() => {
                       setCustomer360ModalOpen(false);
                       handleOpenCommunication(customer360Data.customer, 'sms');
                     }}
                     disabled={!customer360Data.customer.phone || !customer360Data.customer.phone.trim()}
-                    title={customer360Data.customer.phone ? `Send Message to ${customer360Data.customer.phone}` : 'Phone number not available'}
                     variant="secondary"
                     size="sm"
                     icon={MessageSquare}
                   >
-                    Message
+                    SMS
                   </Button>
                 </div>
               </div>
 
               {/* Financial Breakdown Tiles */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                <div className="p-3 rounded-xl bg-slate-900 border border-slate-800">
-                  <span className="text-[10px] uppercase text-slate-400">Total Billed</span>
-                  <p className="text-sm font-bold text-white mt-1">
+                <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-800">
+                  <span className="text-[10px] uppercase text-slate-500">Total Billed</span>
+                  <p className="text-sm font-bold text-slate-900 dark:text-white mt-1">
                     {formatMoney(customer360Data.financials.total_invoiced)}
                   </p>
                 </div>
-                <div className="p-3 rounded-xl bg-slate-900 border border-slate-800">
-                  <span className="text-[10px] uppercase text-slate-400">Total Paid</span>
-                  <p className="text-sm font-bold text-emerald-400 mt-1">
+                <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-800">
+                  <span className="text-[10px] uppercase text-slate-500">Total Paid</span>
+                  <p className="text-sm font-bold text-emerald-600 dark:text-emerald-400 mt-1">
                     {formatMoney(customer360Data.financials.paid_amount)}
                   </p>
                 </div>
-                <div className="p-3 rounded-xl bg-slate-900 border border-slate-800">
-                  <span className="text-[10px] uppercase text-slate-400">Pending Amount</span>
-                  <p className="text-sm font-bold text-amber-400 mt-1">
+                <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-800">
+                  <span className="text-[10px] uppercase text-slate-500">Pending</span>
+                  <p className="text-sm font-bold text-amber-600 dark:text-amber-400 mt-1">
                     {formatMoney(customer360Data.financials.pending_amount)}
                   </p>
                 </div>
-                <div className="p-3 rounded-xl bg-slate-900 border border-slate-800">
-                  <span className="text-[10px] uppercase text-slate-400">Overdue Balance</span>
-                  <p className="text-sm font-bold text-rose-400 mt-1">
+                <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-800">
+                  <span className="text-[10px] uppercase text-slate-500">Overdue</span>
+                  <p className="text-sm font-bold text-rose-600 dark:text-rose-400 mt-1">
                     {formatMoney(customer360Data.financials.overdue_amount)}
                   </p>
                 </div>
               </div>
 
-              {/* AI Insight & Action Strip */}
-              <div className="p-3.5 rounded-xl bg-indigo-500/10 border border-indigo-500/20 space-y-2">
-                <div className="flex items-center gap-1.5 text-indigo-300 font-bold text-xs">
-                  <Sparkles className="w-3.5 h-3.5" />
-                  <span>AI Account Intelligence</span>
-                </div>
-                <p className="text-slate-300 text-[11px] leading-relaxed">
-                  {customer360Data.behavior.ai_insight}
-                </p>
-                <div className="flex items-center justify-between pt-2 border-t border-indigo-500/20">
-                  <span className="text-[11px] text-slate-400">
-                    💡 Next Recommended: <strong className="text-white">{customer360Data.behavior.next_action}</strong>
-                  </span>
-                  <Button
-                    onClick={() => {
-                      setCustomer360ModalOpen(false);
-                      handleOpenCommunication(customer360Data.customer, 'email');
-                    }}
-                    variant="primary"
-                    size="sm"
-                    icon={Send}
-                    className="text-xs"
-                  >
-                    Compose Notice
-                  </Button>
-                </div>
-              </div>
-
               {/* Invoices Timeline */}
               <div>
-                <h4 className="font-bold text-white text-xs mb-2 flex items-center gap-1.5">
-                  <Receipt className="w-3.5 h-3.5 text-indigo-400" />
-                  <span>Invoices & Settlement History ({customer360Data.invoices?.length || 0})</span>
+                <h4 className="font-bold text-slate-900 dark:text-white text-xs mb-2">
+                  Invoices ({customer360Data.invoices?.length || 0})
                 </h4>
                 <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
                   {!customer360Data.invoices?.length ? (
@@ -622,149 +599,99 @@ const CustomersPage = ({ onNavigate }) => {
                     customer360Data.invoices.map((inv) => (
                       <div
                         key={inv.id}
-                        className="p-2 rounded-lg bg-slate-900 border border-slate-800 flex items-center justify-between text-[11px]"
+                        className="p-2 rounded-lg bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-800 flex items-center justify-between text-[11px]"
                       >
-                        <span className="font-bold text-white">{inv.invoice_number}</span>
-                        <span className="text-slate-400">Due: {inv.due_date || 'N/A'}</span>
-                        <span className="font-semibold text-slate-200">{formatMoney(inv.amount)}</span>
-                        <Badge variant={inv.status === 'overdue' ? 'urgent' : (inv.status === 'paid' ? 'success' : 'warning')}>
-                          {inv.status.toUpperCase()}
+                        <span className="font-bold text-slate-900 dark:text-white">{inv.invoice_number}</span>
+                        <span className="text-slate-500">Due: {inv.due_date || 'N/A'}</span>
+                        <span className="font-semibold">{formatMoney(inv.amount)}</span>
+                        <Badge variant={inv.status}>
+                          {inv.status?.toUpperCase()}
                         </Badge>
                       </div>
                     ))
                   )}
                 </div>
               </div>
-
-              {/* Multilingual Communication History Timeline */}
-              <div>
-                <h4 className="font-bold text-white text-xs mb-2 flex items-center gap-1.5">
-                  <History className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>Communication History (Email / SMS / Call) ({customerCommunications.length})</span>
-                </h4>
-                <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
-                  {!customerCommunications.length ? (
-                    <p className="text-slate-500 text-[11px] py-2">No communications recorded yet for this client.</p>
-                  ) : (
-                    customerCommunications.map((comm) => (
-                      <div
-                        key={comm.id}
-                        className="p-2.5 rounded-xl bg-slate-900/90 border border-slate-800 space-y-1 text-[11px]"
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-1.5">
-                            <span className="px-1.5 py-0.5 rounded bg-slate-800 text-[10px] font-bold text-indigo-300 uppercase">
-                              {comm.communication_type}
-                            </span>
-                            <span className="px-1.5 py-0.5 rounded bg-indigo-950 text-[10px] font-semibold text-indigo-400 uppercase">
-                              {comm.language}
-                            </span>
-                            <span className="font-semibold text-white truncate max-w-xs">
-                              {comm.subject || comm.recipient}
-                            </span>
-                          </div>
-                          <Badge variant={comm.status === 'sent' ? 'success' : (comm.status === 'approved' ? 'success' : 'warning')}>
-                            {comm.status.toUpperCase()}
-                          </Badge>
-                        </div>
-                        <p className="text-slate-300 text-[11px] line-clamp-2 leading-relaxed">
-                          {comm.message}
-                        </p>
-                        <span className="text-[10px] text-slate-500 block">
-                          {new Date(comm.created_at).toLocaleString()}
-                        </span>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-
-              {/* Modal Footer */}
-              <div className="flex justify-end gap-2 pt-3 border-t border-slate-800">
-                <Button onClick={() => setCustomer360ModalOpen(false)} variant="secondary" size="sm">
-                  Close
-                </Button>
-              </div>
             </div>
           )}
         </Modal>
-      )}
-
-      {/* Reusable Customer Communication Modal */}
-      {commModalOpen && selectedCommCustomer && (
-        <CommunicationModal
-          isOpen={commModalOpen}
-          onClose={() => setCommModalOpen(false)}
-          customer={selectedCommCustomer}
-          initialType={commModalType}
-          onSuccess={fetchCustomers}
-        />
       )}
 
       {/* Create Customer Modal */}
       <Modal
         isOpen={createModalOpen}
         onClose={() => setCreateModalOpen(false)}
-        title="Add New Customer Profile"
+        title="Create New Customer"
+        maxWidth="max-w-md"
       >
-        <form onSubmit={handleCreateCustomer} className="space-y-3.5 text-xs">
+        <form onSubmit={handleCreateCustomer} className="space-y-3.5">
           <div>
-            <label className="block font-semibold text-slate-300 mb-1">
-              Customer Name <span className="text-rose-400">*</span>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Customer / Contact Name *
             </label>
             <input
               type="text"
               value={newCustomer.name}
               onChange={(e) => setNewCustomer({ ...newCustomer, name: e.target.value })}
-              placeholder="e.g. ABC Ltd or Jane Doe"
+              placeholder="e.g. Acme Corp or Jane Doe"
               required
-              className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-indigo-500"
+              className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block font-semibold text-slate-300 mb-1">
-                Email Address <span className="text-slate-500 font-normal text-[10px]">(Optional)</span>
-              </label>
-              <input
-                type="email"
-                value={newCustomer.email}
-                onChange={(e) => setNewCustomer({ ...newCustomer, email: e.target.value })}
-                placeholder="accounts@example.com"
-                className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-indigo-500"
-              />
-            </div>
-            <div>
-              <label className="block font-semibold text-slate-300 mb-1">
-                Phone Number <span className="text-slate-500 font-normal text-[10px]">(Optional)</span>
-              </label>
-              <input
-                type="text"
-                value={newCustomer.phone}
-                onChange={(e) => setNewCustomer({ ...newCustomer, phone: e.target.value })}
-                placeholder="+91XXXXXXXXXX"
-                className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-indigo-500"
-              />
-            </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Email Address
+            </label>
+            <input
+              type="email"
+              value={newCustomer.email}
+              onChange={(e) => setNewCustomer({ ...newCustomer, email: e.target.value })}
+              placeholder="customer@example.com"
+              className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
+            />
           </div>
 
           <div>
-            <label className="block font-semibold text-slate-300 mb-1">Company</label>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Phone Number
+            </label>
+            <input
+              type="text"
+              value={newCustomer.phone}
+              onChange={(e) => setNewCustomer({ ...newCustomer, phone: e.target.value })}
+              placeholder="+1-555-0199 or +91 9876543210"
+              className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Company Name
+            </label>
             <input
               type="text"
               value={newCustomer.company}
               onChange={(e) => setNewCustomer({ ...newCustomer, company: e.target.value })}
-              placeholder="Company legal name"
-              className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-indigo-500"
+              placeholder="Leave blank to use customer name"
+              className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
             />
           </div>
 
-          <div className="flex justify-end gap-2 pt-3 border-t border-slate-800">
-            <Button onClick={() => setCreateModalOpen(false)} variant="ghost" size="sm">
+          <div className="flex justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setCreateModalOpen(false)}
+            >
               Cancel
             </Button>
-            <Button type="submit" variant="primary" size="sm" loading={submitting}>
+            <Button
+              type="submit"
+              variant="primary"
+              size="sm"
+              loading={submitting}
+            >
               Save Profile
             </Button>
           </div>
@@ -776,66 +703,88 @@ const CustomersPage = ({ onNavigate }) => {
         isOpen={editModalOpen}
         onClose={() => setEditModalOpen(false)}
         title="Edit Customer Profile"
+        maxWidth="max-w-md"
       >
-        <form onSubmit={handleUpdateCustomer} className="space-y-3.5 text-xs">
+        <form onSubmit={handleUpdateCustomer} className="space-y-3.5">
           <div>
-            <label className="block font-semibold text-slate-300 mb-1">Customer Name</label>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Customer Name *
+            </label>
             <input
               type="text"
               value={editCustomer.name}
               onChange={(e) => setEditCustomer({ ...editCustomer, name: e.target.value })}
               required
-              className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-indigo-500"
+              className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block font-semibold text-slate-300 mb-1">
-                Email Address <span className="text-slate-500 font-normal text-[10px]">(Optional)</span>
-              </label>
-              <input
-                type="email"
-                value={editCustomer.email}
-                onChange={(e) => setEditCustomer({ ...editCustomer, email: e.target.value })}
-                placeholder="accounts@example.com"
-                className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-indigo-500"
-              />
-            </div>
-            <div>
-              <label className="block font-semibold text-slate-300 mb-1">
-                Phone Number <span className="text-slate-500 font-normal text-[10px]">(Optional)</span>
-              </label>
-              <input
-                type="text"
-                value={editCustomer.phone}
-                onChange={(e) => setEditCustomer({ ...editCustomer, phone: e.target.value })}
-                placeholder="+91XXXXXXXXXX"
-                className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-indigo-500"
-              />
-            </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Email Address
+            </label>
+            <input
+              type="email"
+              value={editCustomer.email}
+              onChange={(e) => setEditCustomer({ ...editCustomer, email: e.target.value })}
+              className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
+            />
           </div>
 
           <div>
-            <label className="block font-semibold text-slate-300 mb-1">Company</label>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Phone Number
+            </label>
+            <input
+              type="text"
+              value={editCustomer.phone}
+              onChange={(e) => setEditCustomer({ ...editCustomer, phone: e.target.value })}
+              className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Company
+            </label>
             <input
               type="text"
               value={editCustomer.company}
               onChange={(e) => setEditCustomer({ ...editCustomer, company: e.target.value })}
-              className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-indigo-500"
+              className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
             />
           </div>
 
-          <div className="flex justify-end gap-2 pt-3 border-t border-slate-800">
-            <Button onClick={() => setEditModalOpen(false)} variant="ghost" size="sm">
+          <div className="flex justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setEditModalOpen(false)}
+            >
               Cancel
             </Button>
-            <Button type="submit" variant="primary" size="sm" loading={submitting}>
+            <Button
+              type="submit"
+              variant="primary"
+              size="sm"
+              loading={submitting}
+            >
               Update Profile
             </Button>
           </div>
         </form>
       </Modal>
+
+      {/* Multilingual Communication Modal */}
+      {commModalOpen && selectedCommCustomer && (
+        <CommunicationModal
+          isOpen={commModalOpen}
+          onClose={() => setCommModalOpen(false)}
+          customer={selectedCommCustomer}
+          initialType={commModalType}
+          onSuccess={() => fetchCustomers()}
+        />
+      )}
     </div>
   );
 };

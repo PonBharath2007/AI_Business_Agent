@@ -3,25 +3,19 @@ import {
   Users,
   Receipt,
   AlertCircle,
-  AlertOctagon,
-  CheckSquare,
-  Sparkles,
-  CheckCircle2,
-  ArrowRight,
   TrendingUp,
-  Clock,
-  Send,
   RefreshCw,
-  FileText,
-  Activity,
+  ArrowRight,
+  Sparkles,
+  ExternalLink,
   ShieldCheck,
-  Zap
+  AlertOctagon,
+  CheckCircle2,
+  Clock
 } from 'lucide-react';
 import api from '../services/api';
 import { useBusiness } from '../context/BusinessContext';
 import { useNotifications } from '../context/NotificationContext';
-import StatCard from '../components/common/StatCard';
-import Badge from '../components/common/Badge';
 import Button from '../components/common/Button';
 
 const DashboardPage = ({ onNavigate }) => {
@@ -30,30 +24,20 @@ const DashboardPage = ({ onNavigate }) => {
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState(null);
   const [data, setData] = useState(null);
-  const [healthScore, setHealthScore] = useState(null);
-  const [exceptions, setExceptions] = useState([]);
-  const [reminderLoadingId, setReminderLoadingId] = useState(null);
 
-  const fetchDashboardData = useCallback(async () => {
+  const fetchDashboardData = useCallback(async (isRefresh = false) => {
+    if (isRefresh) setRefreshing(true);
+    setError(null);
     try {
-      const [dashRes, healthRes, excRes] = await Promise.allSettled([
-        api.get('/dashboard'),
-        api.get('/intelligence/health-score'),
-        api.get('/exceptions')
-      ]);
-
-      if (dashRes.status === 'fulfilled' && dashRes.value.data?.summary) {
-        setData(dashRes.value.data);
-      }
-      if (healthRes.status === 'fulfilled' && healthRes.value.data) {
-        setHealthScore(healthRes.value.data);
-      }
-      if (excRes.status === 'fulfilled' && excRes.value.data) {
-        setExceptions(excRes.value.data);
+      const res = await api.get(`/dashboard${isRefresh ? '?refresh=true' : ''}`);
+      if (res.data) {
+        setData(res.data);
       }
     } catch (err) {
-      console.warn('Dashboard fetch error:', err);
+      console.error('Dashboard data load error:', err);
+      setError('Unable to load dashboard information. Please try again.');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -61,81 +45,89 @@ const DashboardPage = ({ onNavigate }) => {
   }, []);
 
   useEffect(() => {
-    fetchDashboardData();
+    fetchDashboardData(false);
   }, [fetchDashboardData]);
 
   const handleRefresh = () => {
-    setRefreshing(true);
-    fetchDashboardData();
+    fetchDashboardData(true);
   };
 
-  const handleQuickReminder = async (invoiceId, invoiceNumber) => {
-    setReminderLoadingId(invoiceId);
-    try {
-      await api.post(`/invoices/${invoiceId}/reminder`);
-      addToast('success', 'Reminder Prepared', `AI draft for invoice ${invoiceNumber} is waiting in Approval Center.`);
-      fetchDashboardData();
+  const handleActionClick = (action) => {
+    if (action.action_target && action.action_target !== 'dashboard') {
+      onNavigate(action.action_target);
+    } else if (action.action_type === 'send_payment_reminder') {
+      onNavigate('invoices');
+    } else if (action.action_type === 'open_approvals') {
       onNavigate('approvals');
-    } catch (err) {
-      addToast('info', 'Action Prepared', `Reminder draft queued for invoice ${invoiceNumber}.`);
-      onNavigate('approvals');
-    } finally {
-      setReminderLoadingId(null);
     }
   };
 
-  const displayData = data || {
-    summary: {
-      total_customers: 0,
-      pending_invoices_count: 0,
-      pending_invoices_amount: 0.0,
-      overdue_invoices_count: 0,
-      overdue_invoices_amount: 0.0,
-      pending_tasks_count: 0,
-      high_priority_tasks_count: 0,
-      pending_approvals_count: 0,
-      ai_actions_count: 0,
-      completed_tasks_count: 0,
-      currency: business?.currency || 'USD'
-    },
-    daily_brief: {
-      headline: "Today's Business Operations Brief",
-      brief_markdown: "🤖 **AI Digital Employee Active**\n\n• **Operations Clear**: No overdue invoices or pending items requiring immediate action.\n• **Ready for Operations**: Upload your business invoices or add customers to activate real-time intelligence.",
-      recommended_actions: []
-    },
-    overdue_invoices: [],
-    urgent_tasks: [],
-    pending_approvals: [],
-    recent_activities: []
-  };
-
-  const { summary, daily_brief, overdue_invoices, urgent_tasks, pending_approvals, recent_activities } = displayData;
-  const criticalExceptions = exceptions.filter(e => e.severity === 'CRITICAL');
-
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
-        <div className="w-10 h-10 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin" />
-        <p className="text-sm text-slate-400">Loading AI Business Dashboard...</p>
+      <div className="space-y-6 max-w-5xl mx-auto py-4">
+        {/* Skeleton Header */}
+        <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
+          <div className="space-y-2">
+            <div className="h-6 w-48 bg-slate-200 dark:bg-slate-800 rounded-md animate-pulse" />
+            <div className="h-3.5 w-64 bg-slate-200 dark:bg-slate-800 rounded-md animate-pulse" />
+          </div>
+          <div className="h-8 w-24 bg-slate-200 dark:bg-slate-800 rounded-md animate-pulse" />
+        </div>
+
+        {/* Skeleton 4 KPI Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="h-28 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-xs animate-pulse flex flex-col justify-between">
+              <div className="flex justify-between items-center">
+                <div className="h-3 w-24 bg-slate-200 dark:bg-slate-800 rounded" />
+                <div className="h-8 w-8 bg-slate-200 dark:bg-slate-800 rounded-xl" />
+              </div>
+              <div className="h-7 w-20 bg-slate-200 dark:bg-slate-800 rounded mt-2" />
+            </div>
+          ))}
+        </div>
+
+        {/* Skeleton Today's Brief */}
+        <div className="h-32 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-xs animate-pulse" />
+
+        {/* Skeleton Recommended Actions */}
+        <div className="h-48 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-xs animate-pulse" />
       </div>
     );
   }
 
+  if (error) {
+    return (
+      <div className="max-w-md mx-auto my-16 p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-center shadow-md space-y-4">
+        <div className="w-10 h-10 rounded-full bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 mx-auto flex items-center justify-center">
+          <AlertCircle className="w-5 h-5" />
+        </div>
+        <h3 className="text-base font-bold text-slate-900 dark:text-white">{error}</h3>
+        <p className="text-xs text-slate-500">Please check your network connection and try again.</p>
+        <Button onClick={() => fetchDashboardData(true)} variant="primary" size="sm" icon={RefreshCw}>
+          Retry Now
+        </Button>
+      </div>
+    );
+  }
+
+  const totalCustomers = data?.total_customers ?? 0;
+  const pendingInvoices = data?.pending_invoices ?? 0;
+  const overdueInvoices = data?.overdue_invoices ?? 0;
+  const monthlyIncome = data?.monthly_income ?? 0.0;
+  const todayBrief = data?.today_brief || 'All operations are currently clear. Ready to process new invoices and manage customer accounts.';
+  const recommendedActions = data?.recommended_actions || [];
+
   return (
-    <div className="space-y-6">
-      {/* Top Welcome & Actions Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-800/80">
+    <div className="space-y-6 max-w-5xl mx-auto py-2">
+      {/* Top Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200 dark:border-slate-800">
         <div>
-          <div className="flex items-center gap-2">
-            <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
-              Operations Executive Dashboard
-            </h2>
-            <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-              AI Agent Active
-            </span>
-          </div>
-          <p className="text-xs sm:text-sm text-slate-400 mt-1">
-            Real-time business operations, document intelligence, and AI approval queues.
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
+            Business Overview
+          </h1>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+            Real-time business status and operational priorities for today.
           </p>
         </div>
 
@@ -146,473 +138,195 @@ const DashboardPage = ({ onNavigate }) => {
             size="sm"
             loading={refreshing}
             icon={RefreshCw}
+            className="text-xs"
           >
             Refresh
           </Button>
-          <Button
-            onClick={() => onNavigate('command_center')}
-            variant="primary"
-            size="sm"
-            icon={Sparkles}
-          >
-            Ask AI Agent
-          </Button>
         </div>
       </div>
 
-      {/* Critical Exceptions Alert Bar (if any) */}
-      {criticalExceptions.length > 0 && (
+      {/* 4 CORE KPI CARDS GRID */}
+      {/* Desktop: 4 in a row | Tablet: 2 x 2 | Mobile: 1 per row */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* 1. TOTAL CUSTOMERS */}
         <div
-          onClick={() => onNavigate('exceptions')}
-          className="p-3.5 rounded-2xl bg-gradient-to-r from-rose-950/60 via-rose-900/30 to-slate-900/50 border border-rose-500/40 cursor-pointer hover:border-rose-400 transition-all flex items-center justify-between gap-3"
-        >
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-rose-500/20 text-rose-400 border border-rose-500/30 shrink-0">
-              <AlertOctagon className="w-5 h-5 animate-pulse" />
-            </div>
-            <div>
-              <h4 className="text-xs sm:text-sm font-bold text-white flex items-center gap-2">
-                <span>{criticalExceptions.length} Critical Business Exceptions Detected</span>
-                <Badge variant="urgent">Immediate Action</Badge>
-              </h4>
-              <p className="text-[11px] text-rose-300/80 mt-0.5">
-                {criticalExceptions[0]?.description || 'Overdue accounts and pending approval bottlenecks require your review.'}
-              </p>
-            </div>
-          </div>
-          <Button variant="danger" size="sm" icon={ArrowRight} className="text-xs shrink-0 font-bold">
-            Triage Exceptions
-          </Button>
-        </div>
-      )}
-
-      {/* KPI Stat Cards Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5">
-        <StatCard
-          title="Customers"
-          value={summary?.total_customers || 0}
-          subtitle="Active accounts"
-          icon={Users}
-          color="indigo"
           onClick={() => onNavigate('customers')}
-        />
-        <StatCard
-          title="Pending Invoices"
-          value={formatMoney(summary?.pending_invoices_amount || 0)}
-          subtitle={`${summary?.pending_invoices_count || 0} pending`}
-          icon={Receipt}
-          color="amber"
-          onClick={() => onNavigate('invoices')}
-        />
-        <StatCard
-          title="Overdue"
-          value={formatMoney(summary?.overdue_invoices_amount || 0)}
-          subtitle={`${summary?.overdue_invoices_count || 0} overdue`}
-          icon={AlertCircle}
-          color="rose"
-          badgeText="Action Needed"
-          onClick={() => onNavigate('invoices')}
-        />
-        <StatCard
-          title="Open Tasks"
-          value={summary?.pending_tasks_count || 0}
-          subtitle={`${summary?.high_priority_tasks_count || 0} high priority`}
-          icon={CheckSquare}
-          color="sky"
-          onClick={() => onNavigate('tasks')}
-        />
-        <StatCard
-          title="Approvals"
-          value={summary?.pending_approvals_count || 0}
-          subtitle="Awaiting owner"
-          icon={Sparkles}
-          color="violet"
-          badgeText="HITL"
-          onClick={() => onNavigate('approvals')}
-        />
-        <StatCard
-          title="Completed"
-          value={summary?.completed_tasks_count || 0}
-          subtitle="Resolved operations"
-          icon={CheckCircle2}
-          color="emerald"
-          onClick={() => onNavigate('tasks')}
-        />
-      </div>
-
-      {/* Middle Row: Business Health Score Gauge & AI Daily Brief */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Business Health Score Gauge Widget */}
-        <div className="lg:col-span-4 glass-panel rounded-2xl p-5 border border-slate-800 flex flex-col justify-between space-y-4">
-          <div className="flex items-center justify-between pb-2 border-b border-slate-800">
-            <div className="flex items-center gap-2">
-              <Activity className="w-4 h-4 text-emerald-400" />
-              <h3 className="text-sm font-bold text-white">Business Health Score</h3>
-            </div>
-            <Badge variant="ai">AI Calculated</Badge>
-          </div>
-
-          <div className="flex items-center justify-center gap-4 py-2">
-            <div className="relative w-28 h-28 flex items-center justify-center">
-              <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
-                <path
-                  className="text-slate-800"
-                  strokeWidth="3.5"
-                  stroke="currentColor"
-                  fill="none"
-                  d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                />
-                <path
-                  className={
-                    (healthScore?.overall_score || 84) >= 80
-                      ? 'text-emerald-400'
-                      : (healthScore?.overall_score || 84) >= 60
-                      ? 'text-amber-400'
-                      : 'text-rose-400'
-                  }
-                  strokeDasharray={`${healthScore?.overall_score || 84}, 100`}
-                  strokeWidth="3.5"
-                  strokeLinecap="round"
-                  stroke="currentColor"
-                  fill="none"
-                  d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                />
-              </svg>
-              <div className="absolute flex flex-col items-center">
-                <span className="text-2xl font-black text-white">{healthScore?.overall_score || 84}</span>
-                <span className="text-[10px] uppercase font-bold text-slate-400">/ 100</span>
-              </div>
-            </div>
-
-            <div className="space-y-1">
-              <span className="text-xs font-bold text-emerald-400">
-                {healthScore?.rating || 'Optimal & Resilient'}
-              </span>
-              <p className="text-[11px] text-slate-400 leading-tight">
-                Synthesized from receivables aging, customer standing, and operations latency.
-              </p>
+          className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-xs hover:border-slate-300 dark:hover:border-slate-700 transition-all cursor-pointer flex flex-col justify-between"
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              Total Customers
+            </span>
+            <div className="p-2 rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-100 dark:bg-indigo-950/40 dark:text-indigo-400 dark:border-indigo-900/60">
+              <Users className="w-4 h-4" />
             </div>
           </div>
-
-          {/* Category Mini-Bars */}
-          <div className="space-y-2 pt-2 border-t border-slate-800/80">
-            {(healthScore?.categories || [
-              { name: 'Payment Health', score: 82 },
-              { name: 'Customer Health', score: 88 },
-              { name: 'Operational Health', score: 85 }
-            ]).slice(0, 3).map((cat, idx) => (
-              <div key={idx} className="space-y-0.5">
-                <div className="flex justify-between text-[10px] font-semibold">
-                  <span className="text-slate-300">{cat.name}</span>
-                  <span className="text-slate-400">{cat.score}%</span>
-                </div>
-                <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                  <div
-                    className={`h-full rounded-full ${
-                      cat.score >= 80 ? 'bg-emerald-400' : cat.score >= 60 ? 'bg-amber-400' : 'bg-rose-400'
-                    }`}
-                    style={{ width: `${cat.score}%` }}
-                  />
-                </div>
-              </div>
-            ))}
+          <div className="mt-3">
+            <span className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
+              {totalCustomers}
+            </span>
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+              Total Customers
+            </p>
           </div>
-
-          <Button
-            onClick={() => onNavigate('analytics')}
-            variant="ghost"
-            size="sm"
-            className="w-full text-xs text-indigo-400 hover:text-white"
-          >
-            Explore Detailed Analytics <ArrowRight className="w-3.5 h-3.5 ml-1" />
-          </Button>
         </div>
 
-        {/* AI Synthesized Daily Brief Widget */}
-        <div className="lg:col-span-8 glass-panel rounded-2xl p-5 border border-indigo-500/30 bg-gradient-to-r from-indigo-950/40 via-slate-900/60 to-slate-900/40 relative overflow-hidden flex flex-col justify-between">
-          <div className="flex items-center justify-between pb-3 border-b border-indigo-500/20">
-            <div className="flex items-center gap-2.5">
-              <div className="p-2 rounded-xl bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-                <Sparkles className="w-4 h-4" />
-              </div>
-              <div>
-                <h3 className="text-sm sm:text-base font-bold text-white tracking-tight">
-                  {daily_brief?.headline || "Today's Business Operations Brief"}
-                </h3>
-                <span className="text-[11px] text-indigo-300/80">AI Digital Employee Summary</span>
-              </div>
+        {/* 2. PENDING INVOICES */}
+        <div
+          onClick={() => onNavigate('invoices')}
+          className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-xs hover:border-slate-300 dark:hover:border-slate-700 transition-all cursor-pointer flex flex-col justify-between"
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              Pending Invoices
+            </span>
+            <div className="p-2 rounded-xl bg-amber-50 text-amber-600 border border-amber-100 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-900/60">
+              <Receipt className="w-4 h-4" />
             </div>
-
-            <Button
-              onClick={() => onNavigate('command_center')}
-              variant="ghost"
-              size="sm"
-              className="text-xs text-indigo-300 hover:text-white"
-            >
-              Chat with Agent <ArrowRight className="w-3.5 h-3.5 ml-1" />
-            </Button>
           </div>
-
-          <div className="my-3 prose prose-invert max-w-none text-xs sm:text-sm text-slate-300 leading-relaxed whitespace-pre-line">
-            {daily_brief?.brief_markdown}
+          <div className="mt-3">
+            <span className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
+              {pendingInvoices}
+            </span>
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+              Pending Invoices
+            </p>
           </div>
+        </div>
 
-          {/* Recommended Actions List */}
-          {daily_brief?.recommended_actions && daily_brief.recommended_actions.length > 0 && (
-            <div className="pt-3 border-t border-indigo-500/20">
-              <h4 className="text-xs font-semibold uppercase tracking-wider text-indigo-300 mb-2">
-                💡 Recommended Next Actions:
-              </h4>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                {daily_brief.recommended_actions.map((rec) => (
-                  <div
-                    key={rec.id}
-                    className="p-3 rounded-xl bg-slate-900/80 border border-indigo-500/20 flex flex-col justify-between"
-                  >
-                    <div>
-                      <div className="flex items-center justify-between gap-1">
-                        <span className="text-xs font-bold text-white truncate">{rec.title}</span>
-                        <Badge variant="urgent">{rec.priority}</Badge>
+        {/* 3. OVERDUE INVOICES */}
+        <div
+          onClick={() => onNavigate('invoices')}
+          className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-xs hover:border-slate-300 dark:hover:border-slate-700 transition-all cursor-pointer flex flex-col justify-between"
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              Overdue Invoices
+            </span>
+            <div className="p-2 rounded-xl bg-rose-50 text-rose-600 border border-rose-100 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-900/60">
+              <AlertCircle className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="mt-3">
+            <span className={`text-2xl sm:text-3xl font-bold tracking-tight ${overdueInvoices > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-slate-900 dark:text-white'}`}>
+              {overdueInvoices}
+            </span>
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+              Overdue Invoices
+            </p>
+          </div>
+        </div>
+
+        {/* 4. MONTHLY INCOME */}
+        <div
+          onClick={() => onNavigate('analytics')}
+          className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-xs hover:border-slate-300 dark:hover:border-slate-700 transition-all cursor-pointer flex flex-col justify-between"
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              Monthly Income
+            </span>
+            <div className="p-2 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-900/60">
+              <TrendingUp className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="mt-3">
+            <span className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
+              {formatMoney(monthlyIncome)}
+            </span>
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+              Monthly Income
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* SECTION 5: TODAY'S BRIEF */}
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 sm:p-6 shadow-xs">
+        <div className="flex items-center gap-2 pb-3 border-b border-slate-100 dark:border-slate-800">
+          <span className="text-base" role="img" aria-label="brain">🧠</span>
+          <h2 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white tracking-tight">
+            Today's Brief
+          </h2>
+        </div>
+        <div className="mt-3">
+          <p className="text-sm sm:text-base text-slate-700 dark:text-slate-200 font-medium leading-relaxed">
+            {todayBrief}
+          </p>
+        </div>
+      </div>
+
+      {/* SECTION 6: RECOMMENDED ACTIONS */}
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 sm:p-6 shadow-xs space-y-4">
+        <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+          <div className="flex items-center gap-2">
+            <span className="text-base" role="img" aria-label="robot">🤖</span>
+            <h2 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white tracking-tight">
+              Recommended Actions
+            </h2>
+          </div>
+          <span className="text-xs text-slate-400">
+            {recommendedActions.length} action{recommendedActions.length !== 1 ? 's' : ''}
+          </span>
+        </div>
+
+        <div className="space-y-2.5">
+          {!recommendedActions.length ? (
+            <div className="py-6 text-center text-xs text-slate-500">
+              No recommended actions today.
+            </div>
+          ) : (
+            recommendedActions.map((action) => {
+              // Priority indicator & badge styling
+              let indicator = '🟡';
+              let badgeClasses = 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800';
+
+              if (action.priority === 'Critical') {
+                indicator = '🔴';
+                badgeClasses = 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800';
+              } else if (action.priority === 'High') {
+                indicator = '🟠';
+                badgeClasses = 'bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950/40 dark:text-orange-300 dark:border-orange-800';
+              } else if (action.priority === 'Low') {
+                indicator = '🟢';
+                badgeClasses = 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800';
+              }
+
+              return (
+                <div
+                  key={action.id}
+                  onClick={() => handleActionClick(action)}
+                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-850/40 hover:bg-slate-100/70 dark:hover:bg-slate-800/60 transition-colors cursor-pointer"
+                >
+                  <div className="flex items-start gap-3 min-w-0">
+                    <span className="text-sm shrink-0 mt-0.5">{indicator}</span>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h4 className="text-xs sm:text-sm font-semibold text-slate-900 dark:text-white truncate">
+                          {action.title}
+                        </h4>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${badgeClasses}`}>
+                          {action.priority}
+                        </span>
                       </div>
-                      <p className="text-[11px] text-slate-400 mt-1 line-clamp-2">{rec.description}</p>
+                      {action.description && (
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-1">
+                          {action.description}
+                        </p>
+                      )}
                     </div>
-                    <button
-                      onClick={() => {
-                        if (rec.action_type === 'open_approvals') onNavigate('approvals');
-                        else if (rec.action_type === 'send_payment_reminder') onNavigate('invoices');
-                        else onNavigate('tasks');
-                      }}
-                      className="mt-2 text-[11px] font-semibold text-indigo-400 hover:text-indigo-300 inline-flex items-center gap-1 cursor-pointer"
-                    >
-                      Execute Workflow <ArrowRight className="w-3 h-3" />
-                    </button>
                   </div>
-                ))}
-              </div>
-            </div>
+
+                  {action.action_type !== 'none' && (
+                    <div className="flex items-center gap-1 text-xs font-semibold text-indigo-600 dark:text-indigo-400 self-end sm:self-center shrink-0">
+                      <span>View</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </div>
+                  )}
+                </div>
+              );
+            })
           )}
-        </div>
-      </div>
-
-      {/* Main Grid: Overdue Invoices & Pending Approvals */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Overdue Invoices Panel */}
-        <div className="glass-panel rounded-2xl p-5 border border-slate-800 flex flex-col">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-            <div className="flex items-center gap-2">
-              <div className="p-1.5 rounded-lg bg-rose-500/10 text-rose-400">
-                <AlertCircle className="w-4 h-4" />
-              </div>
-              <h3 className="text-sm font-bold text-white">Overdue Invoices</h3>
-              {overdue_invoices?.length > 0 && (
-                <Badge variant="urgent">{overdue_invoices.length} Overdue</Badge>
-              )}
-            </div>
-            <Button
-              onClick={() => onNavigate('invoices')}
-              variant="ghost"
-              size="sm"
-              className="text-xs"
-            >
-              View All Invoices
-            </Button>
-          </div>
-
-          <div className="mt-3 space-y-2.5 flex-1">
-            {!overdue_invoices?.length ? (
-              <div className="flex flex-col items-center justify-center py-8 text-center">
-                <CheckCircle2 className="w-8 h-8 text-emerald-400 mb-2" />
-                <p className="text-xs text-slate-400">Zero overdue invoices! All payments are on schedule.</p>
-              </div>
-            ) : (
-              overdue_invoices.map((inv) => (
-                <div
-                  key={inv.id}
-                  className="p-3 rounded-xl bg-slate-900/50 border border-slate-800/80 hover:border-slate-700 transition-all flex items-center justify-between gap-3"
-                >
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold text-white truncate">
-                        {inv.customer_name || 'Customer'}
-                      </span>
-                      <Badge variant="urgent">Overdue</Badge>
-                    </div>
-                    <span className="text-[11px] text-slate-400 mt-0.5 block">
-                      {inv.invoice_number} • Due: {inv.due_date}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-3 shrink-0">
-                    <span className="text-xs font-bold text-rose-400">
-                      {formatMoney(inv.amount)}
-                    </span>
-                    <Button
-                      onClick={() => handleQuickReminder(inv.id, inv.invoice_number)}
-                      variant="primary"
-                      size="sm"
-                      loading={reminderLoadingId === inv.id}
-                      icon={Send}
-                      className="text-xs"
-                    >
-                      Remind
-                    </Button>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-
-        {/* Human-in-the-Loop Approval Queue */}
-        <div className="glass-panel rounded-2xl p-5 border border-slate-800 flex flex-col">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-            <div className="flex items-center gap-2">
-              <div className="p-1.5 rounded-lg bg-indigo-500/10 text-indigo-400">
-                <Sparkles className="w-4 h-4" />
-              </div>
-              <h3 className="text-sm font-bold text-white">Approval Center (HITL)</h3>
-              {pending_approvals?.length > 0 && (
-                <Badge variant="ai">{pending_approvals.length} Pending</Badge>
-              )}
-            </div>
-            <Button
-              onClick={() => onNavigate('approvals')}
-              variant="ghost"
-              size="sm"
-              className="text-xs"
-            >
-              Approval Queue
-            </Button>
-          </div>
-
-          <div className="mt-3 space-y-2.5 flex-1">
-            {!pending_approvals?.length ? (
-              <div className="flex flex-col items-center justify-center py-8 text-center">
-                <CheckCircle2 className="w-8 h-8 text-emerald-400 mb-2" />
-                <p className="text-xs text-slate-400">No actions awaiting approval. Safe mode active.</p>
-              </div>
-            ) : (
-              pending_approvals.map((app) => (
-                <div
-                  key={app.id}
-                  className="p-3 rounded-xl bg-slate-900/50 border border-slate-800/80 hover:border-slate-700 transition-all space-y-2"
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <Badge variant="warning">{app.action_type}</Badge>
-                    <span className="text-[10px] text-slate-400">Requires Owner Sign-off</span>
-                  </div>
-                  <p className="text-xs text-slate-300 leading-snug line-clamp-2">
-                    {app.recommendation}
-                  </p>
-                  <div className="flex justify-end pt-1">
-                    <Button
-                      onClick={() => onNavigate('approvals')}
-                      variant="secondary"
-                      size="sm"
-                      icon={ArrowRight}
-                      className="text-xs text-indigo-300"
-                    >
-                      Review Action
-                    </Button>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Bottom Grid: Tasks & Activity Logs */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Urgent Tasks */}
-        <div className="glass-panel rounded-2xl p-5 border border-slate-800">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-            <div className="flex items-center gap-2">
-              <CheckSquare className="w-4 h-4 text-sky-400" />
-              <h3 className="text-sm font-bold text-white">Priority Operations Tasks</h3>
-            </div>
-            <Button
-              onClick={() => onNavigate('tasks')}
-              variant="ghost"
-              size="sm"
-              className="text-xs"
-            >
-              All Tasks
-            </Button>
-          </div>
-
-          <div className="mt-3 space-y-2">
-            {!urgent_tasks?.length ? (
-              <div className="text-center py-6 text-xs text-slate-400">
-                No active tasks.
-              </div>
-            ) : (
-              urgent_tasks.map((task) => (
-                <div
-                  key={task.id}
-                  className="p-3 rounded-xl bg-slate-900/50 border border-slate-800/80 flex items-center justify-between gap-3"
-                >
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <Badge variant={task.priority === 'High' ? 'urgent' : 'warning'}>
-                        {task.priority}
-                      </Badge>
-                      <span className="text-xs font-semibold text-slate-200 truncate">{task.title}</span>
-                    </div>
-                    <span className="text-[10px] text-slate-400 mt-0.5 block">
-                      Assigned: {task.assigned_user} {task.due_date ? `• Due: ${task.due_date}` : ''}
-                    </span>
-                  </div>
-                  <Badge variant={task.status === 'Completed' ? 'success' : 'gray'}>
-                    {task.status}
-                  </Badge>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-
-        {/* Recent Activity Audit Log */}
-        <div className="glass-panel rounded-2xl p-5 border border-slate-800">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-            <div className="flex items-center gap-2">
-              <Clock className="w-4 h-4 text-indigo-400" />
-              <h3 className="text-sm font-bold text-white">Recent Activity & Audit Trail</h3>
-            </div>
-            <Button
-              onClick={() => onNavigate('activity')}
-              variant="ghost"
-              size="sm"
-              className="text-xs"
-            >
-              Full Log
-            </Button>
-          </div>
-
-          <div className="mt-3 space-y-2.5 max-h-60 overflow-y-auto">
-            {!recent_activities?.length ? (
-              <div className="text-center py-6 text-xs text-slate-400">
-                No recent activity recorded.
-              </div>
-            ) : (
-              recent_activities.map((act) => (
-                <div
-                  key={act.id}
-                  className="p-2.5 rounded-xl bg-slate-900/40 border border-slate-800/60 flex items-start gap-2.5"
-                >
-                  <Badge variant={act.actor_type === 'AI Agent' ? 'ai' : 'gray'} className="shrink-0 mt-0.5">
-                    {act.actor_type === 'AI Agent' ? '🤖 AI' : '👤 Owner'}
-                  </Badge>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs text-slate-300 leading-snug">{act.description}</p>
-                    <span className="text-[10px] text-slate-500 mt-0.5 block">
-                      {new Date(act.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • {act.action}
-                    </span>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
         </div>
       </div>
     </div>

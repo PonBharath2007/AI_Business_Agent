@@ -84,18 +84,20 @@ class Document(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     business_id = Column(Integer, ForeignKey("businesses.id", ondelete="CASCADE"), nullable=False, index=True)
+    customer_id = Column(Integer, ForeignKey("customers.id", ondelete="SET NULL"), nullable=True, index=True)
+    invoice_id = Column(Integer, ForeignKey("invoices.id", ondelete="SET NULL"), nullable=True, index=True)
     file_name = Column(String(255), nullable=False)
     file_path = Column(String(500), nullable=False)
     file_type = Column(String(50), nullable=True) # pdf, png, jpg, docx
     file_size = Column(Integer, nullable=True)
     document_type = Column(String(50), default="invoice") # invoice, receipt, contract, statement, general
     extracted_data = Column(JSON, nullable=True)
-    processing_status = Column(String(50), default="pending") # pending, processing, completed, failed
+    processing_status = Column(String(50), default="pending") # pending, uploaded, processing, ocr_completed, validating, completed, needs_review, failed
     ocr_text = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     business = relationship("Business", back_populates="documents")
-    invoices = relationship("Invoice", back_populates="document")
+    invoices = relationship("Invoice", back_populates="document", foreign_keys="[Invoice.document_id]")
 
 
 class Invoice(Base):
@@ -106,18 +108,24 @@ class Invoice(Base):
     customer_id = Column(Integer, ForeignKey("customers.id", ondelete="SET NULL"), nullable=True, index=True)
     invoice_number = Column(String(100), nullable=False, index=True)
     amount = Column(Numeric(12, 2), nullable=False, default=0.00)
+    paid_amount = Column(Numeric(12, 2), nullable=False, default=0.00)
+    pending_amount = Column(Numeric(12, 2), nullable=False, default=0.00)
+    subtotal = Column(Numeric(12, 2), nullable=True, default=0.00)
+    tax_amount = Column(Numeric(12, 2), nullable=True, default=0.00)
+    discount_amount = Column(Numeric(12, 2), nullable=True, default=0.00)
     currency = Column(String(10), default="USD")
     issue_date = Column(Date, nullable=False)
     due_date = Column(Date, nullable=False, index=True)
-    status = Column(String(50), default="pending", index=True) # paid, pending, overdue
+    status = Column(String(50), default="pending", index=True) # paid, partially_paid, pending, overdue
     document_id = Column(Integer, ForeignKey("documents.id", ondelete="SET NULL"), nullable=True)
+    line_items = Column(JSON, nullable=True)
     notes = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     business = relationship("Business", back_populates="invoices")
     customer = relationship("Customer", back_populates="invoices")
-    document = relationship("Document", back_populates="invoices")
+    document = relationship("Document", back_populates="invoices", foreign_keys=[document_id])
 
 
 class Task(Base):

@@ -126,24 +126,24 @@ const WorkflowBuilderPage = ({ onNavigate }) => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-800">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200 dark:border-slate-800">
         <div>
-          <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight flex items-center gap-2">
+          <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
             AI Workflow Builder & Autonomous Agents
             <Badge variant="ai">Multi-Step Automation</Badge>
           </h2>
-          <p className="text-xs sm:text-sm text-slate-400 mt-1">
+          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
             Define declarative business automation rules (WHEN → CHECK → THEN → REQUIRE → EXECUTE) with built-in Human-in-the-Loop approval.
           </p>
         </div>
 
         <div className="flex items-center gap-2">
           {/* Tabs */}
-          <div className="flex items-center bg-slate-900 p-1 rounded-xl border border-slate-800">
+          <div className="flex items-center bg-slate-100 dark:bg-slate-900 p-1 rounded-xl border border-slate-200 dark:border-slate-800">
             <button
               onClick={() => setActiveTab('rules')}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                activeTab === 'rules' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white'
+                activeTab === 'rules' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
               Automation Rules ({rules.length})
@@ -151,7 +151,7 @@ const WorkflowBuilderPage = ({ onNavigate }) => {
             <button
               onClick={() => setActiveTab('executions')}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                activeTab === 'executions' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white'
+                activeTab === 'executions' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
               Execution Audit ({executions.length})
@@ -184,16 +184,16 @@ const WorkflowBuilderPage = ({ onNavigate }) => {
             rules.map((rule) => (
               <div
                 key={rule.id}
-                className="glass-panel rounded-2xl p-5 sm:p-6 border border-slate-800 hover:border-indigo-500/40 transition-all space-y-4"
+                className="rounded-2xl p-5 sm:p-6 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 hover:border-indigo-300 dark:hover:border-indigo-500/40 shadow-sm transition-all space-y-4"
               >
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800/80">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800/80">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 flex items-center justify-center font-bold">
+                    <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-500/20 flex items-center justify-center font-bold">
                       <Workflow className="w-5 h-5" />
                     </div>
                     <div>
-                      <h3 className="text-sm font-bold text-white">{rule.name}</h3>
-                      <p className="text-xs text-slate-400 mt-0.5">{rule.description || 'Continuous operations rule'}</p>
+                      <h3 className="text-sm font-bold text-slate-900 dark:text-white">{rule.name}</h3>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{rule.description || 'Continuous operations rule'}</p>
                     </div>
                   </div>
 
@@ -209,33 +209,33 @@ const WorkflowBuilderPage = ({ onNavigate }) => {
 
                 {/* Structured Logic Visual Flow Blocks */}
                 <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5 text-xs">
-                  <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-800">
-                    <span className="text-[10px] uppercase font-bold text-indigo-400">1. WHEN</span>
-                    <p className="font-semibold text-slate-200 mt-1 capitalize">{rule.trigger_event.replace('_', ' ')}</p>
+                  <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800">
+                    <span className="text-[10px] uppercase font-bold text-indigo-600 dark:text-indigo-400">1. WHEN</span>
+                    <p className="font-semibold text-slate-800 dark:text-slate-200 mt-1 capitalize">{rule.trigger_event.replace('_', ' ')}</p>
                   </div>
-                  <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-800">
-                    <span className="text-[10px] uppercase font-bold text-amber-400">2. CHECK</span>
-                    <p className="font-semibold text-slate-200 mt-1">
+                  <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800">
+                    <span className="text-[10px] uppercase font-bold text-amber-600 dark:text-amber-400">2. CHECK</span>
+                    <p className="font-semibold text-slate-800 dark:text-slate-200 mt-1">
                       {rule.condition_json?.amount_gt ? `Amount > ${formatMoney(rule.condition_json.amount_gt)}` : 'Overdue status'}
                     </p>
                   </div>
-                  <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-800">
-                    <span className="text-[10px] uppercase font-bold text-violet-400">3. THEN</span>
-                    <p className="font-semibold text-slate-200 mt-1 capitalize">{rule.action_type.replace('_', ' ')}</p>
+                  <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800">
+                    <span className="text-[10px] uppercase font-bold text-violet-600 dark:text-violet-400">3. THEN</span>
+                    <p className="font-semibold text-slate-800 dark:text-slate-200 mt-1 capitalize">{rule.action_type.replace('_', ' ')}</p>
                   </div>
-                  <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-800">
-                    <span className="text-[10px] uppercase font-bold text-emerald-400">4. REQUIRE</span>
-                    <p className="font-semibold text-slate-200 mt-1">{rule.require_approval ? 'Owner Approval' : 'Auto Execute'}</p>
+                  <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800">
+                    <span className="text-[10px] uppercase font-bold text-emerald-600 dark:text-emerald-400">4. REQUIRE</span>
+                    <p className="font-semibold text-slate-800 dark:text-slate-200 mt-1">{rule.require_approval ? 'Owner Approval' : 'Auto Execute'}</p>
                   </div>
-                  <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-800">
-                    <span className="text-[10px] uppercase font-bold text-sky-400">5. EXECUTE</span>
-                    <p className="font-semibold text-slate-200 mt-1">Dispatch & Audit Log</p>
+                  <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800">
+                    <span className="text-[10px] uppercase font-bold text-sky-600 dark:text-sky-400">5. EXECUTE</span>
+                    <p className="font-semibold text-slate-800 dark:text-slate-200 mt-1">Dispatch & Audit Log</p>
                   </div>
                 </div>
 
                 {/* Bottom Actions */}
-                <div className="pt-3 border-t border-slate-800/80 flex items-center justify-between">
-                  <span className="text-[11px] text-slate-500">
+                <div className="pt-3 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between">
+                  <span className="text-[11px] text-slate-400 dark:text-slate-500">
                     Created on {new Date(rule.created_at).toLocaleDateString()}
                   </span>
 
@@ -246,13 +246,13 @@ const WorkflowBuilderPage = ({ onNavigate }) => {
                       size="sm"
                       loading={executingId === rule.id}
                       icon={Play}
-                      className="text-xs text-indigo-300 hover:text-white"
+                      className="text-xs"
                     >
                       Run Rule Now
                     </Button>
                     <button
                       onClick={() => handleDeleteRule(rule.id)}
-                      className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-slate-800 transition-colors"
+                      className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
                       title="Delete Rule"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -265,10 +265,10 @@ const WorkflowBuilderPage = ({ onNavigate }) => {
         </div>
       ) : (
         /* Executions Audit Timeline */
-        <div className="glass-panel rounded-2xl border border-slate-800 overflow-hidden">
+        <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/40 shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
-              <thead className="bg-slate-900/80 text-slate-400 border-b border-slate-800 uppercase font-semibold">
+              <thead className="bg-slate-50 dark:bg-slate-900/80 text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800 uppercase font-semibold">
                 <tr>
                   <th className="p-4">Execution / Rule</th>
                   <th className="p-4">Trigger Data</th>
@@ -277,21 +277,21 @@ const WorkflowBuilderPage = ({ onNavigate }) => {
                   <th className="p-4">Timestamp</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/60 bg-slate-900/30">
+              <tbody className="divide-y divide-slate-200 dark:divide-slate-800/60 bg-white dark:bg-slate-900/30">
                 {!executions.length ? (
                   <tr>
-                    <td colSpan="5" className="p-8 text-center text-slate-400">
+                    <td colSpan="5" className="p-8 text-center text-slate-500 dark:text-slate-400">
                       No workflow execution records yet.
                     </td>
                   </tr>
                 ) : (
                   executions.map((ex) => (
-                    <tr key={ex.id} className="hover:bg-slate-800/30 transition-colors">
-                      <td className="p-4 font-bold text-white flex items-center gap-2">
-                        <Workflow className="w-4 h-4 text-indigo-400" />
+                    <tr key={ex.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+                      <td className="p-4 font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                        <Workflow className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
                         <span>{ex.rule_name || 'Golden Workflow'}</span>
                       </td>
-                      <td className="p-4 text-slate-300 font-mono text-[11px]">
+                      <td className="p-4 text-slate-700 dark:text-slate-300 font-mono text-[11px]">
                         {ex.trigger_data_json?.invoice_number ? `Invoice: ${ex.trigger_data_json.invoice_number}` : 'Manual Event'}
                       </td>
                       <td className="p-4">
@@ -299,10 +299,10 @@ const WorkflowBuilderPage = ({ onNavigate }) => {
                           {ex.status.replace('_', ' ').toUpperCase()}
                         </Badge>
                       </td>
-                      <td className="p-4 text-slate-300 text-[11px]">
+                      <td className="p-4 text-slate-700 dark:text-slate-300 text-[11px]">
                         {ex.execution_log_json?.length ? `${ex.execution_log_json.length} steps recorded` : 'Multi-step completed'}
                       </td>
-                      <td className="p-4 text-slate-400">
+                      <td className="p-4 text-slate-500 dark:text-slate-400">
                         {new Date(ex.created_at).toLocaleString()}
                       </td>
                     </tr>
@@ -322,35 +322,35 @@ const WorkflowBuilderPage = ({ onNavigate }) => {
       >
         <form onSubmit={handleCreateRule} className="space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1">Rule Name</label>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Rule Name</label>
             <input
               type="text"
               value={newRule.name}
               onChange={(e) => setNewRule({ ...newRule, name: e.target.value })}
               placeholder="e.g. Overdue Invoices > ₹50,000 Auto Reminder"
               required
-              className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
+              className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1">Description</label>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Description</label>
             <textarea
               value={newRule.description}
               onChange={(e) => setNewRule({ ...newRule, description: e.target.value })}
               placeholder="Describe what business situation this rule automates..."
               rows={2}
-              className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
+              className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">Trigger Event (WHEN)</label>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Trigger Event (WHEN)</label>
               <select
                 value={newRule.trigger_event}
                 onChange={(e) => setNewRule({ ...newRule, trigger_event: e.target.value })}
-                className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
+                className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
               >
                 <option value="invoice_overdue">Invoice Overdue</option>
                 <option value="invoice_uploaded">Invoice Uploaded</option>
@@ -359,11 +359,11 @@ const WorkflowBuilderPage = ({ onNavigate }) => {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">Action (THEN)</label>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Action (THEN)</label>
               <select
                 value={newRule.action_type}
                 onChange={(e) => setNewRule({ ...newRule, action_type: e.target.value })}
-                className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
+                className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
               >
                 <option value="generate_reminder">Generate Payment Reminder Draft</option>
                 <option value="create_task">Create High Priority Task</option>
@@ -374,36 +374,36 @@ const WorkflowBuilderPage = ({ onNavigate }) => {
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">Amount Threshold ({business.currency})</label>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Amount Threshold ({business?.currency || 'USD'})</label>
               <input
                 type="number"
                 value={newRule.amount_threshold}
                 onChange={(e) => setNewRule({ ...newRule, amount_threshold: e.target.value })}
-                className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
+                className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">Days Overdue</label>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Days Overdue</label>
               <input
                 type="number"
                 value={newRule.days_overdue}
                 onChange={(e) => setNewRule({ ...newRule, days_overdue: e.target.value })}
-                className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
+                className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
               />
             </div>
           </div>
 
-          <div className="p-3 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-between">
-            <span className="text-xs text-slate-200">Require Owner Approval Before Execution</span>
+          <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-between">
+            <span className="text-xs text-slate-800 dark:text-slate-200">Require Owner Approval Before Execution</span>
             <input
               type="checkbox"
               checked={newRule.require_approval}
               onChange={(e) => setNewRule({ ...newRule, require_approval: e.target.checked })}
-              className="w-4 h-4 rounded text-indigo-600 bg-slate-800 border-slate-700"
+              className="w-4 h-4 rounded text-indigo-600 bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700"
             />
           </div>
 
-          <div className="flex justify-end gap-2 pt-2 border-t border-slate-800">
+          <div className="flex justify-end gap-2 pt-2 border-t border-slate-200 dark:border-slate-800">
             <Button onClick={() => setCreateModalOpen(false)} variant="ghost" size="sm">
               Cancel
             </Button>

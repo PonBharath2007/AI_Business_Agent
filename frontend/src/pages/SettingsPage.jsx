@@ -22,14 +22,17 @@ import api from '../services/api';
 import { useBusiness } from '../context/BusinessContext';
 import { useNotifications } from '../context/NotificationContext';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import Button from '../components/common/Button';
 import Badge from '../components/common/Badge';
 import Modal from '../components/common/Modal';
+import { Sun, Moon } from 'lucide-react';
 
 const SettingsPage = () => {
   const { user } = useAuth();
   const { business, updateProfile, resetDemoData, formatMoney, loading: bizLoading } = useBusiness();
   const { addToast } = useNotifications();
+  const { theme, toggleTheme, isDark } = useTheme();
 
   const [activeTab, setActiveTab] = useState('profile'); // 'profile', 'policies', 'memory', 'demo'
   const [formData, setFormData] = useState({
@@ -179,19 +182,19 @@ const SettingsPage = () => {
   return (
     <div className="space-y-6 max-w-4xl">
       {/* Header & Tabs */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-800">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200 dark:border-slate-800">
         <div>
-          <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight flex items-center gap-2">
+          <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
             Business Profile & Policy Engine
             <Badge variant="ai">Configuration</Badge>
           </h2>
-          <p className="text-xs sm:text-sm text-slate-400 mt-1">
-            Configure company identity, business policies, and AI business memory.
+          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
+            Configure company identity, theme preferences, business policies, and AI business memory.
           </p>
         </div>
 
         {/* Navigation Tabs */}
-        <div className="flex items-center gap-1 bg-slate-900 p-1 rounded-xl border border-slate-800 self-start">
+        <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-900 p-1 rounded-xl border border-slate-200 dark:border-slate-800 self-start">
           {[
             { id: 'profile', label: 'Profile' },
             { id: 'policies', label: `Policies (${policies.length})` },
@@ -203,7 +206,7 @@ const SettingsPage = () => {
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                 activeTab === tab.id
                   ? 'bg-indigo-600 text-white shadow'
-                  : 'text-slate-400 hover:text-white'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
               {tab.label}
@@ -215,76 +218,122 @@ const SettingsPage = () => {
       {activeTab === 'profile' && (
         <div className="space-y-6">
           {/* User Account & Authentication Identity */}
-          <div className="glass-panel rounded-2xl p-5 border border-slate-800 bg-gradient-to-r from-indigo-950/30 via-slate-900 to-slate-900 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="rounded-2xl p-5 border border-slate-200 dark:border-slate-800 bg-gradient-to-r from-indigo-50/70 via-slate-50 to-white dark:from-indigo-950/30 dark:via-slate-900 dark:to-slate-900 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3.5">
               {user?.profile_picture ? (
                 <img
                   src={user.profile_picture}
                   alt={user.name || 'User'}
-                  className="w-12 h-12 rounded-full border border-indigo-500/40 object-cover"
+                  className="w-12 h-12 rounded-full border border-indigo-400/40 object-cover"
                 />
               ) : (
-                <div className="w-12 h-12 rounded-2xl bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 flex items-center justify-center font-bold text-lg">
+                <div className="w-12 h-12 rounded-2xl bg-indigo-100 dark:bg-indigo-600/20 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-500/30 flex items-center justify-center font-bold text-lg">
                   {user?.name ? user.name[0].toUpperCase() : 'U'}
                 </div>
               )}
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-bold text-white">{user?.name || 'Business Owner'}</span>
+                  <span className="text-sm font-bold text-slate-900 dark:text-white">{user?.name || 'Business Owner'}</span>
                   <Badge variant={user?.auth_provider === 'google' ? 'ai' : 'success'}>
                     {user?.auth_provider === 'google' ? 'Google OAuth' : 'Email & Password'}
                   </Badge>
                   {user?.email_verified && (
-                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-300 border border-emerald-500/30 font-medium">
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-500/30 font-medium">
                       ✓ Verified
                     </span>
                   )}
                 </div>
-                <p className="text-xs text-slate-400 mt-0.5">{user?.email}</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{user?.email}</p>
               </div>
             </div>
-            <div className="text-xs text-slate-400 sm:text-right">
-              <span className="text-[10px] uppercase tracking-wider text-slate-500 block">Authentication Provider</span>
-              <span className="font-semibold text-slate-200">
+            <div className="text-xs text-slate-500 dark:text-slate-400 sm:text-right">
+              <span className="text-[10px] uppercase tracking-wider text-slate-400 dark:text-slate-500 block">Authentication Provider</span>
+              <span className="font-semibold text-slate-700 dark:text-slate-200">
                 {user?.auth_provider === 'google' ? 'Google Sign-In (OAuth 2.0)' : 'Local Email / Password'}
               </span>
             </div>
           </div>
 
+          {/* Theme & Display Mode */}
+          <div className="rounded-2xl p-6 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 shadow-sm space-y-4">
+            <h3 className="text-sm font-bold text-slate-900 dark:text-white pb-2 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+              <span>Appearance & Theme</span>
+              <span className="text-xs font-normal text-slate-500">Current: <strong className="capitalize text-indigo-600 dark:text-indigo-400">{theme} Mode</strong></span>
+            </h3>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <button
+                type="button"
+                onClick={() => theme === 'dark' && toggleTheme()}
+                className={`p-4 rounded-xl border flex items-center gap-3 text-left transition-all cursor-pointer ${
+                  theme === 'light'
+                    ? 'border-indigo-600 bg-indigo-50/50 text-indigo-950 shadow-xs'
+                    : 'border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/40 text-slate-600 dark:text-slate-400 hover:border-slate-300'
+                }`}
+              >
+                <div className="w-9 h-9 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center shrink-0">
+                  <Sun className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-slate-900 dark:text-white">Light Mode (Default)</h4>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Clean SaaS white aesthetic with high-contrast slate borders.</p>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => theme === 'light' && toggleTheme()}
+                className={`p-4 rounded-xl border flex items-center gap-3 text-left transition-all cursor-pointer ${
+                  theme === 'dark'
+                    ? 'border-indigo-500 bg-indigo-950/30 text-indigo-200 shadow-xs'
+                    : 'border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/40 text-slate-600 dark:text-slate-400 hover:border-slate-300'
+                }`}
+              >
+                <div className="w-9 h-9 rounded-xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center shrink-0">
+                  <Moon className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-slate-900 dark:text-white">Dark Mode</h4>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Sleek obsidian palette for low-light environments.</p>
+                </div>
+              </button>
+            </div>
+          </div>
+
           <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="glass-panel rounded-2xl p-6 border border-slate-800 space-y-4">
-              <h3 className="text-sm font-bold text-white pb-2 border-b border-slate-800">
+            <div className="rounded-2xl p-6 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 shadow-sm space-y-4">
+              <h3 className="text-sm font-bold text-slate-900 dark:text-white pb-2 border-b border-slate-200 dark:border-slate-800">
                 Company Identity & Localization
               </h3>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">Company / Agency Name</label>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Company / Agency Name</label>
                 <input
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
+                  className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
                 />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">Industry / Category</label>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Industry / Category</label>
                 <input
                   type="text"
                   value={formData.category}
                   onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
+                  className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
                 />
               </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">Currency</label>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Currency</label>
                 <select
                   value={formData.currency}
                   onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
+                  className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
                 >
                   <option value="INR">INR (₹) – Indian Rupee</option>
                   <option value="USD">USD ($) – US Dollar</option>
@@ -293,54 +342,54 @@ const SettingsPage = () => {
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">Timezone</label>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Timezone</label>
                 <input
                   type="text"
                   value={formData.timezone}
                   onChange={(e) => setFormData({ ...formData, timezone: e.target.value })}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
+                  className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">Standard Payment Terms</label>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Standard Payment Terms</label>
               <input
                 type="text"
                 value={formData.payment_terms}
                 onChange={(e) => setFormData({ ...formData, payment_terms: e.target.value })}
-                className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
+                className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
               />
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">Billing Email</label>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Billing Email</label>
                 <input
                   type="email"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
+                  className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
                 />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">Phone Number</label>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Phone Number</label>
                 <input
                   type="text"
                   value={formData.phone}
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
+                  className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">Default AI Email Signature</label>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Default AI Email Signature</label>
               <textarea
                 value={formData.email_signature}
                 onChange={(e) => setFormData({ ...formData, email_signature: e.target.value })}
                 rows={3}
-                className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-indigo-500 font-mono leading-relaxed"
+                className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 font-mono leading-relaxed"
               />
             </div>
 
@@ -357,7 +406,7 @@ const SettingsPage = () => {
       {activeTab === 'policies' && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-bold text-white">Active Business Governance Policies</h3>
+            <h3 className="text-sm font-bold text-slate-900 dark:text-white">Active Business Governance Policies</h3>
             <Button onClick={() => setPolicyModalOpen(true)} variant="primary" size="sm" icon={Plus} className="text-xs">
               Add Policy Rule
             </Button>
@@ -365,23 +414,23 @@ const SettingsPage = () => {
 
           <div className="space-y-3">
             {policies.map((p) => (
-              <div key={p.id} className="glass-panel rounded-2xl p-4 border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div key={p.id} className="rounded-2xl p-4 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
                   <div className="flex items-center gap-2">
-                    <ShieldCheck className="w-4 h-4 text-indigo-400 shrink-0" />
-                    <span className="text-xs font-bold text-white">{p.policy_name}</span>
+                    <ShieldCheck className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
+                    <span className="text-xs font-bold text-slate-900 dark:text-white">{p.policy_name}</span>
                     <Badge variant={p.is_active ? 'success' : 'gray'}>
                       {p.is_active ? 'Active' : 'Disabled'}
                     </Badge>
                   </div>
-                  <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">{p.description}</p>
-                  <div className="mt-1 text-[10px] text-indigo-300">
+                  <p className="text-[11px] text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">{p.description}</p>
+                  <div className="mt-1 text-[10px] text-indigo-600 dark:text-indigo-300">
                     Action: <strong>{p.action_required}</strong> {p.threshold_value ? `• Threshold: ${formatMoney(p.threshold_value)}` : ''}
                   </div>
                 </div>
                 <button
                   onClick={() => handleDeletePolicy(p.id)}
-                  className="self-end sm:self-center p-1.5 rounded-lg text-slate-400 hover:text-rose-400 transition-colors cursor-pointer"
+                  className="self-end sm:self-center p-1.5 rounded-lg text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 transition-colors cursor-pointer"
                   title="Delete Policy"
                 >
                   <Trash2 className="w-4 h-4" />
@@ -396,8 +445,8 @@ const SettingsPage = () => {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-sm font-bold text-white">AI Business Memory & Learned Context</h3>
-              <p className="text-[11px] text-slate-400">Context injected into AI agent decisions and command reasoning.</p>
+              <h3 className="text-sm font-bold text-slate-900 dark:text-white">AI Business Memory & Learned Context</h3>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400">Context injected into AI agent decisions and command reasoning.</p>
             </div>
             <Button onClick={() => setMemoryModalOpen(true)} variant="primary" size="sm" icon={Plus} className="text-xs">
               Add Memory
@@ -406,22 +455,22 @@ const SettingsPage = () => {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {memories.map((m) => (
-              <div key={m.id} className="glass-panel rounded-2xl p-4 border border-violet-500/20 bg-gradient-to-br from-violet-950/20 to-slate-900/40 space-y-2 flex flex-col justify-between">
+              <div key={m.id} className="rounded-2xl p-4 border border-violet-200 dark:border-violet-500/20 bg-violet-50/30 dark:bg-gradient-to-br dark:from-violet-950/20 dark:to-slate-900/40 space-y-2 flex flex-col justify-between shadow-2xs">
                 <div>
                   <div className="flex items-center justify-between gap-1">
-                    <span className="text-xs font-bold text-white flex items-center gap-1.5">
-                      <BrainCircuit className="w-3.5 h-3.5 text-violet-400" />
+                    <span className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                      <BrainCircuit className="w-3.5 h-3.5 text-violet-600 dark:text-violet-400" />
                       {m.memory_key}
                     </span>
                     <Badge variant="ai">{m.category}</Badge>
                   </div>
-                  <p className="text-xs text-slate-300 mt-2 leading-relaxed">{m.memory_value}</p>
+                  <p className="text-xs text-slate-700 dark:text-slate-300 mt-2 leading-relaxed">{m.memory_value}</p>
                 </div>
-                <div className="flex items-center justify-between pt-2 border-t border-slate-800/80 text-[10px] text-slate-500">
+                <div className="flex items-center justify-between pt-2 border-t border-slate-200 dark:border-slate-800/80 text-[10px] text-slate-500">
                   <span>Confidence: {int(parseFloat(m.confidence || 0.95)*100)}%</span>
                   <button
                     onClick={() => handleDeleteMemory(m.id)}
-                    className="p-1 rounded text-slate-500 hover:text-rose-400 transition-colors cursor-pointer"
+                    className="p-1 rounded text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 transition-colors cursor-pointer"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
@@ -437,22 +486,22 @@ const SettingsPage = () => {
       <Modal isOpen={policyModalOpen} onClose={() => setPolicyModalOpen(false)} title="Configure Business Policy">
         <form onSubmit={handleCreatePolicy} className="space-y-3 text-xs">
           <div>
-            <label className="block font-semibold text-slate-300 mb-1">Policy Name</label>
+            <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Policy Name</label>
             <input
               type="text"
               value={newPolicy.policy_name}
               onChange={(e) => setNewPolicy({ ...newPolicy, policy_name: e.target.value })}
               placeholder="e.g. Transactions > ₹50,000 Approval Required"
               required
-              className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-indigo-500"
+              className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
             />
           </div>
           <div>
-            <label className="block font-semibold text-slate-300 mb-1">Policy Type</label>
+            <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Policy Type</label>
             <select
               value={newPolicy.policy_type}
               onChange={(e) => setNewPolicy({ ...newPolicy, policy_type: e.target.value })}
-              className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-indigo-500"
+              className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
             >
               <option value="approval_threshold">Amount Approval Threshold</option>
               <option value="overdue_reminder">Overdue Reminder Schedule</option>
@@ -461,24 +510,24 @@ const SettingsPage = () => {
             </select>
           </div>
           <div>
-            <label className="block font-semibold text-slate-300 mb-1">Threshold Value ({business.currency})</label>
+            <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Threshold Value ({business?.currency || 'USD'})</label>
             <input
               type="number"
               value={newPolicy.threshold_value}
               onChange={(e) => setNewPolicy({ ...newPolicy, threshold_value: e.target.value })}
-              className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-indigo-500"
+              className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
             />
           </div>
           <div>
-            <label className="block font-semibold text-slate-300 mb-1">Description</label>
+            <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Description</label>
             <textarea
               value={newPolicy.description}
               onChange={(e) => setNewPolicy({ ...newPolicy, description: e.target.value })}
               rows={2}
-              className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-indigo-500"
+              className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
             />
           </div>
-          <div className="flex justify-end gap-2 pt-2 border-t border-slate-800">
+          <div className="flex justify-end gap-2 pt-2 border-t border-slate-200 dark:border-slate-800">
             <Button onClick={() => setPolicyModalOpen(false)} variant="ghost" size="sm">Cancel</Button>
             <Button type="submit" variant="primary" size="sm">Save Policy</Button>
           </div>
@@ -489,22 +538,22 @@ const SettingsPage = () => {
       <Modal isOpen={memoryModalOpen} onClose={() => setMemoryModalOpen(false)} title="Record AI Business Memory">
         <form onSubmit={handleCreateMemory} className="space-y-3 text-xs">
           <div>
-            <label className="block font-semibold text-slate-300 mb-1">Memory Title / Key</label>
+            <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Memory Title / Key</label>
             <input
               type="text"
               value={newMemory.memory_key}
               onChange={(e) => setNewMemory({ ...newMemory, memory_key: e.target.value })}
               placeholder="e.g. ABC Ltd Billing Habit"
               required
-              className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-indigo-500"
+              className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
             />
           </div>
           <div>
-            <label className="block font-semibold text-slate-300 mb-1">Category</label>
+            <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Category</label>
             <select
               value={newMemory.category}
               onChange={(e) => setNewMemory({ ...newMemory, category: e.target.value })}
-              className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-indigo-500"
+              className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
             >
               <option value="payment_behavior">Payment Behavior Pattern</option>
               <option value="business_instruction">Business Owner Instruction</option>
@@ -513,17 +562,17 @@ const SettingsPage = () => {
             </select>
           </div>
           <div>
-            <label className="block font-semibold text-slate-300 mb-1">Memory Content / Observation</label>
+            <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Memory Content / Observation</label>
             <textarea
               value={newMemory.memory_value}
               onChange={(e) => setNewMemory({ ...newMemory, memory_value: e.target.value })}
               rows={3}
               placeholder="Detail what the AI should remember when interacting with this customer or executing workflows..."
               required
-              className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-indigo-500"
+              className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
             />
           </div>
-          <div className="flex justify-end gap-2 pt-2 border-t border-slate-800">
+          <div className="flex justify-end gap-2 pt-2 border-t border-slate-200 dark:border-slate-800">
             <Button onClick={() => setMemoryModalOpen(false)} variant="ghost" size="sm">Cancel</Button>
             <Button type="submit" variant="primary" size="sm">Store Memory</Button>
           </div>

@@ -82,20 +82,30 @@ def init_db():
     # Safe schema migration for newly added User OAuth fields
     with engine.connect() as conn:
         dialect_name = engine.dialect.name
-        columns_to_add = [
-            ("auth_provider", "VARCHAR(50) DEFAULT 'local'"),
-            ("google_id", "VARCHAR(255)"),
-            ("profile_picture", "VARCHAR(500)"),
-            ("email_verified", "BOOLEAN DEFAULT FALSE")
+        user_cols = [
+            ("users", "auth_provider", "VARCHAR(50) DEFAULT 'local'"),
+            ("users", "google_id", "VARCHAR(255)"),
+            ("users", "profile_picture", "VARCHAR(500)"),
+            ("users", "email_verified", "BOOLEAN DEFAULT FALSE"),
+            # Invoices
+            ("invoices", "paid_amount", "NUMERIC(12, 2) DEFAULT 0.00"),
+            ("invoices", "pending_amount", "NUMERIC(12, 2) DEFAULT 0.00"),
+            ("invoices", "subtotal", "NUMERIC(12, 2) DEFAULT 0.00"),
+            ("invoices", "tax_amount", "NUMERIC(12, 2) DEFAULT 0.00"),
+            ("invoices", "discount_amount", "NUMERIC(12, 2) DEFAULT 0.00"),
+            ("invoices", "line_items", "JSON"),
+            # Documents
+            ("documents", "customer_id", "INTEGER"),
+            ("documents", "invoice_id", "INTEGER")
         ]
 
-        for col_name, col_type in columns_to_add:
+        for tbl, col_name, col_type in user_cols:
             try:
                 if dialect_name == "postgresql":
-                    conn.execute(text(f"ALTER TABLE users ADD COLUMN IF NOT EXISTS {col_name} {col_type};"))
+                    conn.execute(text(f"ALTER TABLE {tbl} ADD COLUMN IF NOT EXISTS {col_name} {col_type};"))
                     conn.commit()
                 elif dialect_name == "sqlite":
-                    conn.execute(text(f"ALTER TABLE users ADD COLUMN {col_name} {col_type};"))
+                    conn.execute(text(f"ALTER TABLE {tbl} ADD COLUMN {col_name} {col_type};"))
                     conn.commit()
             except Exception:
                 # Column likely already exists

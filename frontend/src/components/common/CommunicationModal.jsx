@@ -278,33 +278,33 @@ const CommunicationModal = ({
     >
       <div className="space-y-4 text-xs">
         {/* Customer Context Strip */}
-        <div className="p-3.5 rounded-2xl bg-slate-900/90 border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center font-bold text-indigo-300">
+            <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-500/20 border border-indigo-200 dark:border-indigo-500/30 flex items-center justify-center font-bold text-indigo-600 dark:text-indigo-300">
               <User className="w-5 h-5" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-sm font-bold text-white">{customer.name}</span>
-                <span className="text-[11px] text-slate-400">({customer.company || 'Direct Client'})</span>
+                <span className="text-sm font-bold text-slate-900 dark:text-white">{customer.name}</span>
+                <span className="text-[11px] text-slate-500 dark:text-slate-400">({customer.company || 'Direct Client'})</span>
               </div>
-              <div className="flex flex-wrap items-center gap-3 text-[11px] text-slate-400 mt-0.5">
+              <div className="flex flex-wrap items-center gap-3 text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
                 <span className="flex items-center gap-1">
-                  <Mail className="w-3 h-3 text-slate-500" />
-                  {customer.email || <em className="text-amber-400 font-normal">Email not available</em>}
+                  <Mail className="w-3 h-3 text-slate-400 dark:text-slate-500" />
+                  {customer.email || <em className="text-amber-600 dark:text-amber-400 font-normal">Email not available</em>}
                 </span>
                 <span className="flex items-center gap-1">
-                  <Phone className="w-3 h-3 text-slate-500" />
-                  {customer.phone || <em className="text-amber-400 font-normal">Phone not available</em>}
+                  <Phone className="w-3 h-3 text-slate-400 dark:text-slate-500" />
+                  {customer.phone || <em className="text-amber-600 dark:text-amber-400 font-normal">Phone not available</em>}
                 </span>
               </div>
             </div>
           </div>
 
           {(customer.overdue_amount > 0 || customer.pending_amount > 0) && (
-            <div className="text-right sm:border-l sm:border-slate-800 sm:pl-4">
-              <span className="text-[10px] uppercase font-bold text-slate-500 block">Overdue Balance</span>
-              <span className="text-xs font-bold text-rose-400">
+            <div className="text-right sm:border-l sm:border-slate-200 dark:sm:border-slate-800 sm:pl-4">
+              <span className="text-[10px] uppercase font-bold text-slate-400 dark:text-slate-500 block">Overdue Balance</span>
+              <span className="text-xs font-bold text-rose-600 dark:text-rose-400">
                 {formatMoney(customer.overdue_amount || customer.pending_amount || 0)}
               </span>
             </div>
@@ -313,20 +313,20 @@ const CommunicationModal = ({
 
         {/* Global Warnings based on customer data */}
         {!hasEmail && !hasPhone && (
-          <div className="p-3 rounded-xl bg-rose-950/40 border border-rose-500/40 text-rose-300 flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
+          <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-500/40 text-rose-700 dark:text-rose-300 flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0 text-rose-600 dark:text-rose-400" />
             <span>No communication details available for this customer. Please update customer contact information.</span>
           </div>
         )}
         {!hasEmail && hasPhone && commType === 'email' && (
-          <div className="p-3 rounded-xl bg-amber-950/30 border border-amber-500/30 text-amber-300 flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 shrink-0 text-amber-400" />
+          <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-500/30 text-amber-700 dark:text-amber-300 flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0 text-amber-600 dark:text-amber-400" />
             <span>Email is not available for this customer. You can switch to <strong>Message</strong> or <strong>Call</strong> to contact them directly.</span>
           </div>
         )}
         {!hasPhone && hasEmail && (commType === 'sms' || commType === 'call') && (
-          <div className="p-3 rounded-xl bg-amber-950/30 border border-amber-500/30 text-amber-300 flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 shrink-0 text-amber-400" />
+          <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-500/30 text-amber-700 dark:text-amber-300 flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0 text-amber-600 dark:text-amber-400" />
             <span>Phone number is not available for this customer. You can use <strong>Email</strong> to contact them.</span>
           </div>
         )}
@@ -335,10 +335,10 @@ const CommunicationModal = ({
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {/* Communication Type */}
           <div>
-            <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+            <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">
               Communication Option
             </label>
-            <div className="grid grid-cols-3 gap-1.5 bg-slate-900/80 p-1 rounded-xl border border-slate-800">
+            <div className="grid grid-cols-3 gap-1.5 bg-slate-100 dark:bg-slate-900/80 p-1 rounded-xl border border-slate-200 dark:border-slate-800">
               {[
                 { id: 'email', label: 'Email', icon: Mail, disabled: !hasEmail, reason: 'Email not available' },
                 { id: 'call', label: 'Phone', icon: Phone, disabled: !hasPhone, reason: 'Phone not available' },
@@ -357,12 +357,12 @@ const CommunicationModal = ({
                       setCommType(t.id);
                       setDeviceUri('');
                     }}
-                    className={`flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg font-semibold transition-all ${
+                    className={`flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg font-semibold transition-all cursor-pointer ${
                       t.disabled
-                        ? 'opacity-40 cursor-not-allowed text-slate-600 bg-transparent'
+                        ? 'opacity-40 cursor-not-allowed text-slate-400 dark:text-slate-600 bg-transparent'
                         : active
-                        ? 'bg-indigo-600 text-white shadow-md'
-                        : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+                        ? 'bg-indigo-600 text-white shadow-sm'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800/60'
                     }`}
                   >
                     <Icon className="w-3.5 h-3.5" />
@@ -375,11 +375,11 @@ const CommunicationModal = ({
 
           {/* Language Selector (Disabled for Call) */}
           <div>
-            <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5 flex items-center justify-between">
+            <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5 flex items-center justify-between">
               <span>Message Language</span>
-              <span className="text-[10px] text-indigo-400 normal-case">UI remains English</span>
+              <span className="text-[10px] text-indigo-600 dark:text-indigo-400 normal-case">UI remains English</span>
             </label>
-            <div className="grid grid-cols-3 gap-1.5 bg-slate-900/80 p-1 rounded-xl border border-slate-800">
+            <div className="grid grid-cols-3 gap-1.5 bg-slate-100 dark:bg-slate-900/80 p-1 rounded-xl border border-slate-200 dark:border-slate-800">
               {[
                 { id: 'en', label: 'English' },
                 { id: 'ta', label: 'Tamil' },
@@ -392,12 +392,12 @@ const CommunicationModal = ({
                     type="button"
                     disabled={commType === 'call'}
                     onClick={() => setLanguage(l.id)}
-                    className={`py-2 px-2 text-center rounded-lg font-semibold transition-all ${
+                    className={`py-2 px-2 text-center rounded-lg font-semibold transition-all cursor-pointer ${
                       commType === 'call'
-                        ? 'opacity-40 cursor-not-allowed text-slate-500'
+                        ? 'opacity-40 cursor-not-allowed text-slate-400 dark:text-slate-500'
                         : active
-                        ? 'bg-indigo-600 text-white shadow-md'
-                        : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+                        ? 'bg-indigo-600 text-white shadow-sm'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800/60'
                     }`}
                   >
                     {l.label}
@@ -410,27 +410,27 @@ const CommunicationModal = ({
 
         {/* AI Generation Control Bar (For Email and Message / SMS) */}
         {commType !== 'call' && (
-          <div className="p-3.5 rounded-2xl bg-indigo-950/20 border border-indigo-500/20 space-y-3">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-indigo-500/10">
-              <div className="flex items-center gap-1.5 text-indigo-300 font-bold">
+          <div className="p-3.5 rounded-2xl bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-200 dark:border-indigo-500/20 space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-indigo-100 dark:border-indigo-500/10">
+              <div className="flex items-center gap-1.5 text-indigo-700 dark:text-indigo-300 font-bold">
                 <Sparkles className="w-4 h-4" />
                 <span>AI Message Generator</span>
                 <Badge variant="ai">Gemini</Badge>
               </div>
-              <span className="text-[11px] text-slate-400">
+              <span className="text-[11px] text-slate-500 dark:text-slate-400">
                 Context: {customer.overdue_amount > 0 ? 'Overdue Invoice Detected' : 'Active Account'}
               </span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
               <div>
-                <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">
+                <label className="block text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 mb-1">
                   Message Purpose
                 </label>
                 <select
                   value={templateType}
                   onChange={(e) => setTemplateType(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-2.5 py-1.5 text-white focus:outline-none focus:border-indigo-500"
+                  className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700/80 rounded-xl px-2.5 py-1.5 text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
                 >
                   <option value="payment_reminder">Payment Reminder</option>
                   <option value="overdue_invoice">Overdue Invoice</option>
@@ -443,13 +443,13 @@ const CommunicationModal = ({
               </div>
 
               <div>
-                <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">
+                <label className="block text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 mb-1">
                   Tone Profile
                 </label>
                 <select
                   value={tone}
                   onChange={(e) => setTone(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-2.5 py-1.5 text-white focus:outline-none focus:border-indigo-500"
+                  className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700/80 rounded-xl px-2.5 py-1.5 text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
                 >
                   <option value="professional">Professional (Default)</option>
                   <option value="urgent">Urgent / Action Required</option>
@@ -459,7 +459,7 @@ const CommunicationModal = ({
               </div>
 
               <div>
-                <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">
+                <label className="block text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 mb-1">
                   Custom Instructions (Optional)
                 </label>
                 <input
@@ -467,7 +467,7 @@ const CommunicationModal = ({
                   value={customInstructions}
                   onChange={(e) => setCustomInstructions(e.target.value)}
                   placeholder="e.g. mention invoice INV-1001"
-                  className="w-full bg-slate-900 border border-slate-700/80 rounded-xl px-2.5 py-1.5 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                  className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700/80 rounded-xl px-2.5 py-1.5 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-indigo-500"
                 />
               </div>
             </div>
@@ -490,19 +490,19 @@ const CommunicationModal = ({
 
         {/* Message Composition / Call Section */}
         {commType === 'call' ? (
-          <div className="p-6 rounded-2xl bg-slate-900/90 border border-slate-800 text-center space-y-4">
-            <div className="w-14 h-14 rounded-2xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center mx-auto">
+          <div className="p-6 rounded-2xl bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 text-center space-y-4 shadow-sm">
+            <div className="w-14 h-14 rounded-2xl bg-emerald-50 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/30 flex items-center justify-center mx-auto">
               <Phone className="w-7 h-7" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-white">Direct Phone Call</h3>
-              <p className="text-slate-400 text-xs mt-1">
+              <h3 className="text-base font-bold text-slate-900 dark:text-white">Direct Phone Call</h3>
+              <p className="text-slate-500 dark:text-slate-400 text-xs mt-1">
                 Initiate a call to {customer.name} using your device's native calling application (tel:).
               </p>
             </div>
 
             <div className="max-w-xs mx-auto">
-              <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1 text-left">
+              <label className="block text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 mb-1 text-left">
                 Recipient Phone Number
               </label>
               <input
@@ -510,7 +510,7 @@ const CommunicationModal = ({
                 value={recipient}
                 onChange={(e) => setRecipient(e.target.value)}
                 placeholder="+91XXXXXXXXXX"
-                className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono text-sm focus:outline-none focus:border-indigo-500 text-center"
+                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-slate-900 dark:text-white font-mono text-sm focus:outline-none focus:border-indigo-500 text-center"
               />
             </div>
 
@@ -533,7 +533,7 @@ const CommunicationModal = ({
             {/* Recipient & Subject Row */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">
+                <label className="block text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 mb-1">
                   {commType === 'email' ? 'To (Email)' : 'To (Phone Number)'}
                 </label>
                 <input
@@ -542,13 +542,13 @@ const CommunicationModal = ({
                   onChange={(e) => setRecipient(e.target.value)}
                   placeholder={commType === 'email' ? 'customer@example.com' : '+91XXXXXXXXXX'}
                   required
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-indigo-500 font-mono text-xs"
+                  className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 font-mono text-xs"
                 />
               </div>
 
               {commType === 'email' && (
                 <div>
-                  <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">
+                  <label className="block text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 mb-1">
                     Subject Line
                   </label>
                   <input
@@ -556,7 +556,7 @@ const CommunicationModal = ({
                     value={subject}
                     onChange={(e) => setSubject(e.target.value)}
                     placeholder="e.g. Payment Reminder - Invoice INV-1001"
-                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-indigo-500 text-xs"
+                    className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 text-xs"
                   />
                 </div>
               )}
@@ -565,7 +565,7 @@ const CommunicationModal = ({
             {/* View Mode Toggle: Editor vs Live Preview & Copy / Clear */}
             <div className="flex items-center justify-between pt-1">
               <div className="flex items-center gap-2">
-                <span className="text-[10px] uppercase font-bold text-slate-400">
+                <span className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400">
                   {commType === 'email' ? 'Email Body' : 'Message Content'} ({language === 'en' ? 'English' : (language === 'ta' ? 'Tamil' : 'English + Tamil')})
                 </span>
                 {generatedEngine && (
@@ -578,7 +578,7 @@ const CommunicationModal = ({
                   type="button"
                   onClick={handleClear}
                   disabled={!message && !subject}
-                  className="px-2 py-1 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 flex items-center gap-1 text-[11px] transition-colors disabled:opacity-40"
+                  className="px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-800/80 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 flex items-center gap-1 text-[11px] transition-colors disabled:opacity-40 cursor-pointer"
                   title="Clear composer"
                 >
                   <RotateCcw className="w-3 h-3" />
@@ -588,17 +588,17 @@ const CommunicationModal = ({
                   type="button"
                   onClick={handleCopyMessage}
                   disabled={!message}
-                  className="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center gap-1 text-[11px] transition-colors disabled:opacity-40"
+                  className="px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 flex items-center gap-1 text-[11px] transition-colors disabled:opacity-40 cursor-pointer"
                 >
-                  {copied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                  {copied ? <Check className="w-3 h-3 text-emerald-600 dark:text-emerald-400" /> : <Copy className="w-3 h-3" />}
                   <span>{copied ? 'Copied' : 'Copy'}</span>
                 </button>
-                <div className="bg-slate-900 p-0.5 rounded-lg border border-slate-800 flex items-center">
+                <div className="bg-slate-100 dark:bg-slate-900 p-0.5 rounded-lg border border-slate-200 dark:border-slate-800 flex items-center">
                   <button
                     type="button"
                     onClick={() => setActiveView('editor')}
-                    className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all ${
-                      activeView === 'editor' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'
+                    className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all cursor-pointer ${
+                      activeView === 'editor' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                     }`}
                   >
                     Edit
@@ -606,8 +606,8 @@ const CommunicationModal = ({
                   <button
                     type="button"
                     onClick={() => setActiveView('preview')}
-                    className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all ${
-                      activeView === 'preview' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'
+                    className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all cursor-pointer ${
+                      activeView === 'preview' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                     }`}
                   >
                     Preview
@@ -629,23 +629,23 @@ const CommunicationModal = ({
                         ? 'Write or generate your business email in English, Tamil, or English + Tamil...'
                         : 'Write or generate normal message in English, Tamil, or English + Tamil...'
                     }
-                    className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-slate-200 focus:outline-none focus:border-indigo-500 leading-relaxed font-sans text-xs"
+                    className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl p-3 text-slate-900 dark:text-slate-200 focus:outline-none focus:border-indigo-500 leading-relaxed font-sans text-xs"
                   />
                 </div>
 
                 {/* Character Counter & Segment Warning for SMS / Normal Message */}
                 {commType === 'sms' && (
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 px-1">
-                    <div className="text-[11px] text-slate-400 flex items-center gap-2">
-                      <span>Characters: <strong className="text-white">{charCount}</strong></span>
+                    <div className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-2">
+                      <span>Characters: <strong className="text-slate-900 dark:text-white">{charCount}</strong></span>
                       <span>•</span>
-                      <span>Segments: <strong className="text-white">{segments}</strong></span>
+                      <span>Segments: <strong className="text-slate-900 dark:text-white">{segments}</strong></span>
                       {hasTamil && (
-                        <span className="text-indigo-400 text-[10px]">(Tamil Unicode detected)</span>
+                        <span className="text-indigo-600 dark:text-indigo-400 text-[10px]">(Tamil Unicode detected)</span>
                       )}
                     </div>
                     {isMultiSegment && (
-                      <div className="text-[11px] text-amber-400 flex items-center gap-1 font-medium">
+                      <div className="text-[11px] text-amber-600 dark:text-amber-400 flex items-center gap-1 font-medium">
                         <AlertCircle className="w-3.5 h-3.5 shrink-0" />
                         <span>This message may be split into multiple SMS segments.</span>
                       </div>
@@ -654,14 +654,14 @@ const CommunicationModal = ({
                 )}
               </div>
             ) : (
-              <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
+              <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-2">
                 {commType === 'email' && subject && (
-                  <div className="pb-2 border-b border-slate-800 text-slate-300 font-bold">
+                  <div className="pb-2 border-b border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-300 font-bold">
                     Subject: {subject}
                   </div>
                 )}
-                <div className="whitespace-pre-wrap text-slate-200 font-sans leading-relaxed text-xs">
-                  {message || <em className="text-slate-500">No message content to preview.</em>}
+                <div className="whitespace-pre-wrap text-slate-800 dark:text-slate-200 font-sans leading-relaxed text-xs">
+                  {message || <em className="text-slate-400 dark:text-slate-500">No message content to preview.</em>}
                 </div>
               </div>
             )}
@@ -670,7 +670,7 @@ const CommunicationModal = ({
         )}
 
         {/* Modal Footer Actions */}
-        <div className="flex items-center justify-between pt-3 border-t border-slate-800">
+        <div className="flex items-center justify-between pt-3 border-t border-slate-200 dark:border-slate-800">
           <Button onClick={onClose} variant="ghost" size="sm">
             Cancel
           </Button>

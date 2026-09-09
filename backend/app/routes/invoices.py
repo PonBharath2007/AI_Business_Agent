@@ -1,8 +1,8 @@
 from datetime import date
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy.orm import Session
-from sqlalchemy import desc
+from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import desc, or_
 from backend.app.database.session import get_db
 from backend.app.models.models import Invoice, Customer, Business, Approval, Task
 from backend.app.schemas.schemas import InvoiceCreate, InvoiceUpdate, InvoiceOut
@@ -14,47 +14,83 @@ from backend.app.utils.helpers import format_currency
 
 router = APIRouter(prefix="/api/invoices", tags=["Invoices"])
 
+def _format_invoice(inv: Invoice) -> dict:
+    cust = inv.customer
+    total_amt = float(inv.amount or 0.0)
+    paid_amt = float(inv.paid_amount or 0.0)
+
+    if (inv.status or "").lower() == "paid":
+        pending_amt = 0.0
+        if paid_amt == 0.0 and total_amt > 0:
+            paid_amt = total_amt
+    else:
+        if inv.pending_amount is not None and float(inv.pending_amount) > 0:
+            pending_amt = float(inv.pending_amount)
+        else:
+            pending_amt = max(0.0, total_amt - paid_amt)
+
+    inv_status = (inv.status or "pending").lower()
+    if inv_status != "paid" and paid_amt > 0 and pending_amt > 0:
+        inv_status = "partially_paid"
+
+    priority = "High" if inv_status == "overdue" or total_amt > 10000 else "Medium"
+
+    return {
+        "id": inv.id,
+        "business_id": inv.business_id,
+        "customer_id": inv.customer_id,
+        "invoice_number": inv.invoice_number,
+        "amount": total_amt,
+        "paid_amount": paid_amt,
+        "pending_amount": pending_amt,
+        "subtotal": float(inv.subtotal or 0.0),
+        "tax_amount": float(inv.tax_amount or 0.0),
+        "discount_amount": float(inv.discount_amount or 0.0),
+        "currency": inv.currency or "USD",
+        "issue_date": inv.issue_date,
+        "due_date": inv.due_date,
+        "status": inv_status,
+        "document_id": inv.document_id,
+        "notes": inv.notes,
+        "line_items": inv.line_items or [],
+        "created_at": inv.created_at,
+        "updated_at": inv.updated_at,
+        "customer_name": cust.name if cust else "Unknown",
+        "customer_email": cust.email if cust else None,
+        "customer_phone": cust.phone if cust else None,
+        "customer_company": cust.company if cust else None,
+        "priority": priority
+    }
+
 @router.get("", response_model=List[InvoiceOut])
 def get_invoices(
     status_filter: Optional[str] = Query(None, alias="status"),
     customer_id: Optional[int] = None,
+    search: Optional[str] = None,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=500),
     db: Session = Depends(get_db),
     business: Business = Depends(get_current_business)
 ):
     check_and_update_overdue_statuses(db, business.id)
 
-    query = db.query(Invoice).filter(Invoice.business_id == business.id)
+    query = db.query(Invoice).options(joinedload(Invoice.customer)).filter(Invoice.business_id == business.id)
     if status_filter and status_filter != "all":
         query = query.filter(Invoice.status == status_filter.lower())
     if customer_id:
         query = query.filter(Invoice.customer_id == customer_id)
+    if search:
+        s = f"%{search.strip()}%"
+        query = query.join(Invoice.customer, isouter=True).filter(
+            or_(
+                Invoice.invoice_number.ilike(s),
+                Customer.name.ilike(s),
+                Customer.email.ilike(s)
+            )
+        )
 
-    invoices = query.order_by(Invoice.due_date.asc()).all()
-
-    results = []
-    for inv in invoices:
-        cust = inv.customer
-        priority = "High" if inv.status == "overdue" or float(inv.amount) > 10000 else "Medium"
-        results.append({
-            "id": inv.id,
-            "business_id": inv.business_id,
-            "customer_id": inv.customer_id,
-            "invoice_number": inv.invoice_number,
-            "amount": float(inv.amount),
-            "currency": inv.currency,
-            "issue_date": inv.issue_date,
-            "due_date": inv.due_date,
-            "status": inv.status,
-            "document_id": inv.document_id,
-            "notes": inv.notes,
-            "created_at": inv.created_at,
-            "updated_at": inv.updated_at,
-            "customer_name": cust.name if cust else "Unknown",
-            "customer_email": cust.email if cust else None,
-            "customer_company": cust.company if cust else None,
-            "priority": priority
-        })
-    return results
+    invoices = query.order_by(Invoice.due_date.asc()).offset(skip).limit(limit).all()
+    return [_format_invoice(inv) for inv in invoices]
 
 
 @router.post("", response_model=InvoiceOut)
@@ -64,26 +100,7 @@ def create_invoice(
     business: Business = Depends(get_current_business)
 ):
     inv = create_invoice_record(db, business.id, invoice_in)
-    cust = inv.customer
-    return {
-        "id": inv.id,
-        "business_id": inv.business_id,
-        "customer_id": inv.customer_id,
-        "invoice_number": inv.invoice_number,
-        "amount": float(inv.amount),
-        "currency": inv.currency,
-        "issue_date": inv.issue_date,
-        "due_date": inv.due_date,
-        "status": inv.status,
-        "document_id": inv.document_id,
-        "notes": inv.notes,
-        "created_at": inv.created_at,
-        "updated_at": inv.updated_at,
-        "customer_name": cust.name if cust else "Unknown",
-        "customer_email": cust.email if cust else None,
-        "customer_company": cust.company if cust else None,
-        "priority": "High" if inv.status == "overdue" else "Medium"
-    }
+    return _format_invoice(inv)
 
 
 @router.get("/{invoice_id}", response_model=InvoiceOut)
@@ -95,27 +112,7 @@ def get_invoice(
     inv = db.query(Invoice).filter(Invoice.id == invoice_id, Invoice.business_id == business.id).first()
     if not inv:
         raise HTTPException(status_code=404, detail="Invoice not found")
-    
-    cust = inv.customer
-    return {
-        "id": inv.id,
-        "business_id": inv.business_id,
-        "customer_id": inv.customer_id,
-        "invoice_number": inv.invoice_number,
-        "amount": float(inv.amount),
-        "currency": inv.currency,
-        "issue_date": inv.issue_date,
-        "due_date": inv.due_date,
-        "status": inv.status,
-        "document_id": inv.document_id,
-        "notes": inv.notes,
-        "created_at": inv.created_at,
-        "updated_at": inv.updated_at,
-        "customer_name": cust.name if cust else "Unknown",
-        "customer_email": cust.email if cust else None,
-        "customer_company": cust.company if cust else None,
-        "priority": "High" if inv.status == "overdue" else "Medium"
-    }
+    return _format_invoice(inv)
 
 
 @router.put("/{invoice_id}", response_model=InvoiceOut)
@@ -134,27 +131,7 @@ def update_invoice(
 
     db.commit()
     db.refresh(inv)
-
-    cust = inv.customer
-    return {
-        "id": inv.id,
-        "business_id": inv.business_id,
-        "customer_id": inv.customer_id,
-        "invoice_number": inv.invoice_number,
-        "amount": float(inv.amount),
-        "currency": inv.currency,
-        "issue_date": inv.issue_date,
-        "due_date": inv.due_date,
-        "status": inv.status,
-        "document_id": inv.document_id,
-        "notes": inv.notes,
-        "created_at": inv.created_at,
-        "updated_at": inv.updated_at,
-        "customer_name": cust.name if cust else "Unknown",
-        "customer_email": cust.email if cust else None,
-        "customer_company": cust.company if cust else None,
-        "priority": "High" if inv.status == "overdue" else "Medium"
-    }
+    return _format_invoice(inv)
 
 
 @router.delete("/{invoice_id}")

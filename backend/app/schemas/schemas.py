@@ -113,6 +113,8 @@ class CustomerOut(CustomerBase):
 class DocumentOut(BaseModel):
     id: int
     business_id: int
+    customer_id: Optional[int] = None
+    invoice_id: Optional[int] = None
     file_name: str
     file_path: str
     file_type: Optional[str] = None
@@ -134,11 +136,17 @@ class InvoiceBase(BaseModel):
     customer_id: Optional[int] = None
     invoice_number: str
     amount: float
+    paid_amount: Optional[float] = 0.0
+    pending_amount: Optional[float] = 0.0
+    subtotal: Optional[float] = 0.0
+    tax_amount: Optional[float] = 0.0
+    discount_amount: Optional[float] = 0.0
     currency: Optional[str] = "USD"
     issue_date: date
     due_date: date
-    status: Optional[str] = "pending" # paid, pending, overdue
+    status: Optional[str] = "pending" # paid, partially_paid, pending, overdue
     document_id: Optional[int] = None
+    line_items: Optional[List[Dict[str, Any]]] = None
     notes: Optional[str] = None
 
 class InvoiceCreate(InvoiceBase):
@@ -148,10 +156,16 @@ class InvoiceUpdate(BaseModel):
     customer_id: Optional[int] = None
     invoice_number: Optional[str] = None
     amount: Optional[float] = None
+    paid_amount: Optional[float] = None
+    pending_amount: Optional[float] = None
+    subtotal: Optional[float] = None
+    tax_amount: Optional[float] = None
+    discount_amount: Optional[float] = None
     currency: Optional[str] = None
     issue_date: Optional[date] = None
     due_date: Optional[date] = None
     status: Optional[str] = None
+    line_items: Optional[List[Dict[str, Any]]] = None
     notes: Optional[str] = None
 
 class InvoiceOut(InvoiceBase):
@@ -161,6 +175,7 @@ class InvoiceOut(InvoiceBase):
     updated_at: datetime
     customer_name: Optional[str] = None
     customer_email: Optional[str] = None
+    customer_phone: Optional[str] = None
     customer_company: Optional[str] = None
     priority: Optional[str] = "Medium"
 
