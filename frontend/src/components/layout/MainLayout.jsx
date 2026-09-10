@@ -7,7 +7,7 @@ const MainLayout = ({ activeTab, setActiveTab, children, pendingApprovalsCount =
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-[#0b0f19] text-slate-900 dark:text-slate-100 flex flex-col antialiased transition-colors duration-150">
+    <div className="min-h-screen bg-[#f8fafc] dark:bg-[#09090b] text-[#0f172a] dark:text-[#f4f4f5] flex flex-col antialiased transition-colors duration-150">
       {/* Sidebar */}
       <Sidebar
         activeTab={activeTab}

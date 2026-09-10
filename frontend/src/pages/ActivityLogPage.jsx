@@ -48,7 +48,7 @@ const ActivityLogPage = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200 dark:border-slate-800">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200 dark:border-[#26262c]">
         <div>
           <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
             Activity & System Audit Log
@@ -70,9 +70,9 @@ const ActivityLogPage = () => {
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="p-3 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3">
+      <div className="p-3 rounded-2xl border border-slate-200 dark:border-[#26262c] bg-white dark:bg-[#141417] shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3">
         {/* Actor filter tabs */}
-        <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-900/80 p-1 rounded-xl border border-slate-200 dark:border-slate-800 w-full sm:w-auto">
+        <div className="flex items-center gap-1 bg-slate-100 dark:bg-[#18181d] p-1 rounded-xl border border-slate-200 dark:border-[#26262c] w-full sm:w-auto">
           {[
             { id: 'all', label: 'All Actors' },
             { id: 'AI Agent', label: '🤖 AI Agent' },
@@ -101,13 +101,13 @@ const ActivityLogPage = () => {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search audit descriptions..."
-            className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700/80 rounded-xl pl-9 pr-4 py-1.5 text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+            className="w-full bg-slate-50 dark:bg-[#18181d] border border-slate-300 dark:border-[#2e2e36] rounded-xl pl-9 pr-4 py-1.5 text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-indigo-500"
           />
         </div>
       </div>
 
       {/* Timeline List */}
-      <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 p-4 sm:p-6 space-y-4 shadow-sm">
+      <div className="rounded-2xl border border-slate-200 dark:border-[#26262c] bg-white dark:bg-[#141417] p-4 sm:p-6 space-y-4 shadow-sm">
         {!filtered.length ? (
           <EmptyState
             icon={History}
@@ -115,7 +115,7 @@ const ActivityLogPage = () => {
             description="No actions found matching the current search parameters."
           />
         ) : (
-          <div className="relative pl-6 space-y-6 before:absolute before:left-2.5 before:top-3 before:bottom-3 before:w-0.5 before:bg-slate-200 dark:before:bg-slate-800">
+          <div className="relative pl-6 space-y-6 before:absolute before:left-2.5 before:top-3 before:bottom-3 before:w-0.5 before:bg-slate-200 dark:before:bg-[#26262c]">
             {filtered.map((act) => {
               const isAI = act.actor_type === 'AI Agent';
               const isWarning = act.status === 'warning';
@@ -124,7 +124,7 @@ const ActivityLogPage = () => {
                 <div key={act.id} className="relative group">
                   {/* Timeline Dot */}
                   <div
-                    className={`absolute -left-6 top-1 w-5 h-5 rounded-full border-2 border-white dark:border-slate-900 flex items-center justify-center text-[9px] font-bold ${
+                    className={`absolute -left-6 top-1 w-5 h-5 rounded-full border-2 border-white dark:border-[#141417] flex items-center justify-center text-[9px] font-bold ${
                       isAI
                         ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-500/50'
                         : isWarning
@@ -135,8 +135,8 @@ const ActivityLogPage = () => {
                     {isAI ? 'AI' : 'U'}
                   </div>
 
-                  <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800/80 hover:border-slate-300 dark:hover:border-slate-700 transition-colors">
-                    <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-200 dark:border-slate-800/60">
+                  <div className="p-4 rounded-xl bg-slate-50 dark:bg-[#18181d] border border-slate-200 dark:border-[#26262c] hover:border-slate-300 dark:hover:border-[#3e3e48] transition-colors">
+                    <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-200 dark:border-[#26262c]">
                       <div className="flex items-center gap-2">
                         <Badge variant={isAI ? 'ai' : 'gray'}>
                           {act.actor_type}

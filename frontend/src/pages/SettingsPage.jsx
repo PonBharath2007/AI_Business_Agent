@@ -218,7 +218,7 @@ const SettingsPage = () => {
       {activeTab === 'profile' && (
         <div className="space-y-6">
           {/* User Account & Authentication Identity */}
-          <div className="rounded-2xl p-5 border border-slate-200 dark:border-slate-800 bg-gradient-to-r from-indigo-50/70 via-slate-50 to-white dark:from-indigo-950/30 dark:via-slate-900 dark:to-slate-900 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="rounded-2xl p-5 border border-slate-200 dark:border-[#26262c] bg-white dark:bg-[#141417] shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3.5">
               {user?.profile_picture ? (
                 <img
@@ -227,7 +227,7 @@ const SettingsPage = () => {
                   className="w-12 h-12 rounded-full border border-indigo-400/40 object-cover"
                 />
               ) : (
-                <div className="w-12 h-12 rounded-2xl bg-indigo-100 dark:bg-indigo-600/20 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-500/30 flex items-center justify-center font-bold text-lg">
+                <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-600/20 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-500/30 flex items-center justify-center font-bold text-lg">
                   {user?.name ? user.name[0].toUpperCase() : 'U'}
                 </div>
               )}
@@ -255,8 +255,8 @@ const SettingsPage = () => {
           </div>
 
           {/* Theme & Display Mode */}
-          <div className="rounded-2xl p-6 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 shadow-sm space-y-4">
-            <h3 className="text-sm font-bold text-slate-900 dark:text-white pb-2 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+          <div className="rounded-2xl p-6 border border-slate-200 dark:border-[#26262c] bg-white dark:bg-[#141417] shadow-sm space-y-4">
+            <h3 className="text-sm font-bold text-slate-900 dark:text-white pb-2 border-b border-slate-200 dark:border-[#26262c] flex items-center justify-between">
               <span>Appearance & Theme</span>
               <span className="text-xs font-normal text-slate-500">Current: <strong className="capitalize text-indigo-600 dark:text-indigo-400">{theme} Mode</strong></span>
             </h3>
@@ -267,15 +267,15 @@ const SettingsPage = () => {
                 onClick={() => setTheme('light')}
                 className={`p-4 rounded-xl border flex items-center gap-3 text-left transition-all cursor-pointer ${
                   theme === 'light'
-                    ? 'border-indigo-600 bg-indigo-50/70 dark:bg-indigo-950/40 text-indigo-950 dark:text-indigo-200 shadow-xs ring-1 ring-indigo-500/20'
-                    : 'border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/40 text-slate-600 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-700'
+                    ? 'border-indigo-600 bg-indigo-50/60 dark:bg-[#18181d] text-slate-900 dark:text-slate-100 shadow-xs ring-1 ring-indigo-500/20'
+                    : 'border-slate-200 dark:border-[#26262c] bg-slate-50 dark:bg-[#18181d] text-slate-600 dark:text-slate-400 hover:border-slate-300 dark:hover:border-[#3e3e48]'
                 }`}
               >
                 <div className="w-9 h-9 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center shrink-0">
                   <Sun className="w-5 h-5" />
                 </div>
                 <div>
-                  <h4 className="text-xs font-bold text-slate-900 dark:text-white">Light Mode (Default)</h4>
+                  <h4 className="text-xs font-bold text-slate-900 dark:text-white">Light Mode</h4>
                   <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Clean SaaS white aesthetic with high-contrast slate borders.</p>
                 </div>
               </button>
@@ -285,8 +285,8 @@ const SettingsPage = () => {
                 onClick={() => setTheme('dark')}
                 className={`p-4 rounded-xl border flex items-center gap-3 text-left transition-all cursor-pointer ${
                   theme === 'dark'
-                    ? 'border-indigo-500 bg-indigo-50/70 dark:bg-indigo-950/50 text-indigo-950 dark:text-indigo-200 shadow-xs ring-1 ring-indigo-500/30'
-                    : 'border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/40 text-slate-600 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-700'
+                    ? 'border-indigo-500 bg-indigo-50/60 dark:bg-[#18181d] text-slate-900 dark:text-slate-100 shadow-xs ring-1 ring-indigo-500/30'
+                    : 'border-slate-200 dark:border-[#26262c] bg-slate-50 dark:bg-[#18181d] text-slate-600 dark:text-slate-400 hover:border-slate-300 dark:hover:border-[#3e3e48]'
                 }`}
               >
                 <div className="w-9 h-9 rounded-xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center shrink-0">
@@ -294,7 +294,7 @@ const SettingsPage = () => {
                 </div>
                 <div>
                   <h4 className="text-xs font-bold text-slate-900 dark:text-white">Dark Mode</h4>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Sleek obsidian palette for low-light environments.</p>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Sleek dark obsidian palette with high contrast neutral surfaces.</p>
                 </div>
               </button>
             </div>

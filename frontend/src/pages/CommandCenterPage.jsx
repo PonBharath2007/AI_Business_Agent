@@ -129,11 +129,11 @@ const CommandCenterPage = ({ onNavigate }) => {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-8.5rem)] rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden bg-white dark:bg-slate-950/60 shadow-sm">
+    <div className="flex flex-col h-[calc(100vh-8.5rem)] rounded-2xl border border-slate-200 dark:border-[#26262c] overflow-hidden bg-white dark:bg-[#141417] shadow-sm">
       {/* Chat Header */}
-      <div className="px-5 py-3.5 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 flex items-center justify-between">
+      <div className="px-5 py-3.5 border-b border-slate-200 dark:border-[#26262c] bg-slate-50 dark:bg-[#18181d] flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center text-white shadow-md shadow-indigo-500/20">
+          <div className="w-8 h-8 rounded-xl bg-indigo-600 flex items-center justify-center text-white shadow-md shadow-indigo-500/20">
             <Bot className="w-5 h-5" />
           </div>
           <div>
@@ -160,8 +160,8 @@ const CommandCenterPage = ({ onNavigate }) => {
       </div>
 
       {/* Suggested Prompts Bar */}
-      <div className="px-4 py-2.5 bg-slate-50/70 dark:bg-slate-900/40 border-b border-slate-200 dark:border-slate-800/80 overflow-x-auto whitespace-nowrap flex items-center gap-2">
-        <span className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-300 uppercase tracking-wider flex items-center gap-1 shrink-0">
+      <div className="px-4 py-2.5 bg-slate-50 dark:bg-[#141417] border-b border-slate-200 dark:border-[#26262c] overflow-x-auto whitespace-nowrap flex items-center gap-2">
+        <span className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider flex items-center gap-1 shrink-0">
           <Sparkles className="w-3.5 h-3.5" /> Suggestions:
         </span>
         {SUGGESTED_PROMPTS.map((prompt, idx) => (
@@ -169,7 +169,7 @@ const CommandCenterPage = ({ onNavigate }) => {
             key={idx}
             onClick={() => handleSendMessage(prompt)}
             disabled={loading}
-            className="px-2.5 py-1 rounded-full text-xs bg-white dark:bg-slate-800/80 hover:bg-indigo-50 dark:hover:bg-indigo-600/30 text-slate-700 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-white border border-slate-200 dark:border-slate-700/60 hover:border-indigo-300 dark:hover:border-indigo-500/40 transition-all shrink-0 cursor-pointer shadow-2xs"
+            className="px-2.5 py-1 rounded-full text-xs bg-white dark:bg-[#18181d] hover:bg-indigo-50 dark:hover:bg-indigo-950/40 text-slate-700 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-300 border border-slate-200 dark:border-[#2e2e36] hover:border-indigo-300 dark:hover:border-indigo-500/40 transition-all shrink-0 cursor-pointer shadow-2xs"
           >
             {prompt}
           </button>
@@ -177,7 +177,7 @@ const CommandCenterPage = ({ onNavigate }) => {
       </div>
 
       {/* Messages Scroll Area */}
-      <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 bg-slate-50/20 dark:bg-transparent">
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 bg-slate-50/30 dark:bg-[#09090b]">
         {messages.map((msg) => (
           <div
             key={msg.id}
@@ -190,7 +190,7 @@ const CommandCenterPage = ({ onNavigate }) => {
               className={`w-7 h-7 rounded-lg shrink-0 flex items-center justify-center text-xs font-bold ${
                 msg.sender === 'user'
                   ? 'bg-indigo-600 text-white'
-                  : 'bg-slate-100 dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 border border-slate-200 dark:border-slate-700'
+                  : 'bg-slate-100 dark:bg-[#18181d] text-indigo-600 dark:text-indigo-400 border border-slate-200 dark:border-[#26262c]'
               }`}
             >
               {msg.sender === 'user' ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
@@ -201,7 +201,7 @@ const CommandCenterPage = ({ onNavigate }) => {
               className={`rounded-2xl p-4 text-xs sm:text-sm leading-relaxed shadow-sm ${
                 msg.sender === 'user'
                   ? 'bg-indigo-600 text-white rounded-tr-none'
-                  : 'bg-white dark:bg-slate-900/90 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-800 rounded-tl-none shadow-sm'
+                  : 'bg-white dark:bg-[#141417] text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-[#26262c] rounded-tl-none shadow-sm'
               }`}
             >
               <div className="whitespace-pre-wrap max-w-none text-xs sm:text-sm leading-relaxed">
@@ -210,12 +210,12 @@ const CommandCenterPage = ({ onNavigate }) => {
 
               {/* Interactive action buttons returned by AI */}
               {msg.suggested_actions && msg.suggested_actions.length > 0 && (
-                <div className="mt-3.5 pt-3 border-t border-slate-100 dark:border-slate-800 flex flex-wrap gap-2">
+                <div className="mt-3.5 pt-3 border-t border-slate-100 dark:border-[#26262c] flex flex-wrap gap-2">
                   {msg.suggested_actions.map((act, i) => (
                     <button
                       key={i}
                       onClick={() => handleActionClick(act)}
-                      className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-indigo-50 dark:bg-indigo-500/20 hover:bg-indigo-100 dark:hover:bg-indigo-500/30 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-500/40 inline-flex items-center gap-1.5 transition-colors cursor-pointer"
+                      className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-indigo-50 dark:bg-indigo-950/40 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-500/30 inline-flex items-center gap-1.5 transition-colors cursor-pointer"
                     >
                       {act.label} <ArrowRight className="w-3 h-3" />
                     </button>
@@ -232,10 +232,10 @@ const CommandCenterPage = ({ onNavigate }) => {
 
         {loading && (
           <div className="flex gap-3 max-w-xl mr-auto">
-            <div className="w-7 h-7 rounded-lg shrink-0 flex items-center justify-center bg-slate-100 dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 border border-slate-200 dark:border-slate-700">
+            <div className="w-7 h-7 rounded-lg shrink-0 flex items-center justify-center bg-slate-100 dark:bg-[#18181d] text-indigo-600 dark:text-indigo-400 border border-slate-200 dark:border-[#26262c]">
               <Bot className="w-4 h-4" />
             </div>
-            <div className="rounded-2xl rounded-tl-none p-3.5 bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 flex items-center gap-2 text-xs text-indigo-600 dark:text-indigo-300 shadow-sm">
+            <div className="rounded-2xl rounded-tl-none p-3.5 bg-white dark:bg-[#141417] border border-slate-200 dark:border-[#26262c] flex items-center gap-2 text-xs text-indigo-600 dark:text-indigo-300 shadow-sm">
               <div className="w-2 h-2 rounded-full bg-indigo-500 animate-ping" />
               <span>Analyzing business database & reasoning...</span>
             </div>
@@ -246,7 +246,7 @@ const CommandCenterPage = ({ onNavigate }) => {
       </div>
 
       {/* Input Box */}
-      <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/70">
+      <div className="p-4 border-t border-slate-200 dark:border-[#26262c] bg-white dark:bg-[#141417]">
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -260,7 +260,7 @@ const CommandCenterPage = ({ onNavigate }) => {
             onChange={(e) => setInputMessage(e.target.value)}
             placeholder="Ask about invoices, overdue payments, tasks, or prepare emails..."
             disabled={loading}
-            className="flex-1 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700/80 rounded-xl px-4 py-2.5 text-xs sm:text-sm text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
+            className="flex-1 bg-slate-50 dark:bg-[#18181d] border border-slate-300 dark:border-[#2e2e36] rounded-xl px-4 py-2.5 text-xs sm:text-sm text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
           />
           <Button
             type="submit"

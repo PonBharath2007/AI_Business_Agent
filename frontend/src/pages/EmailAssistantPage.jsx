@@ -362,25 +362,25 @@ const EmailAssistantPage = ({ onNavigate }) => {
   return (
     <div className="space-y-6">
       {/* Header & Tabs */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-800">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200 dark:border-[#222227]">
         <div>
-          <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight flex items-center gap-2">
+          <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
             AI Email Assistant & Dispatch Studio
             <Badge variant="ai">GenAI Operations</Badge>
           </h2>
-          <p className="text-xs sm:text-sm text-slate-400 mt-1">
+          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
             Generate customized, context-aware correspondence, reminders, and manage communication logs.
           </p>
         </div>
 
         {/* Studio vs History Nav */}
-        <div className="flex items-center gap-1.5 bg-slate-900/90 p-1 rounded-xl border border-slate-800 self-start sm:self-auto">
+        <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-[#18181d] p-1 rounded-xl border border-slate-200 dark:border-[#26262c] self-start sm:self-auto">
           <button
             onClick={() => setActiveTab('studio')}
             className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer ${
               activeTab === 'studio'
-                ? 'bg-indigo-600 text-white shadow-md'
-                : 'text-slate-400 hover:text-white'
+                ? 'bg-indigo-600 text-white shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
             <Sparkles className="w-3.5 h-3.5" />
@@ -390,8 +390,8 @@ const EmailAssistantPage = ({ onNavigate }) => {
             onClick={() => setActiveTab('history')}
             className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer ${
               activeTab === 'history'
-                ? 'bg-indigo-600 text-white shadow-md'
-                : 'text-slate-400 hover:text-white'
+                ? 'bg-indigo-600 text-white shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
             <History className="w-3.5 h-3.5" />
@@ -403,21 +403,21 @@ const EmailAssistantPage = ({ onNavigate }) => {
       {activeTab === 'studio' ? (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Left Form Controls (5 cols) */}
-          <div className="lg:col-span-5 glass-panel rounded-2xl p-5 border border-slate-800 space-y-4">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-800">
-              <div className="flex items-center gap-2 text-sm font-bold text-white">
-                <Sliders className="w-4 h-4 text-indigo-400" />
+          <div className="lg:col-span-5 bg-white dark:bg-[#141417] rounded-2xl p-5 border border-slate-200 dark:border-[#26262c] shadow-xs space-y-4">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-[#26262c]">
+              <div className="flex items-center gap-2 text-sm font-bold text-slate-900 dark:text-white">
+                <Sliders className="w-4 h-4 text-indigo-500 dark:text-indigo-400" />
                 <span>Generation Parameters</span>
               </div>
-              <span className="text-[11px] text-slate-500 font-medium">Step 1: Configure</span>
+              <span className="text-[11px] text-slate-400 dark:text-slate-500 font-medium">Step 1: Configure</span>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">Target Customer</label>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Target Customer</label>
               <select
                 value={selectedCustomerId}
                 onChange={handleCustomerChange}
-                className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
+                className="w-full bg-slate-50 dark:bg-[#18181d] border border-slate-300 dark:border-[#2e2e36] rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
               >
                 <option value="">-- Custom / Direct Recipient --</option>
                 {customers.map((c) => (
@@ -432,19 +432,19 @@ const EmailAssistantPage = ({ onNavigate }) => {
             {selectedCustomerId && (
               <div className="space-y-2">
                 {invoiceLoading ? (
-                  <div className="p-3 rounded-xl bg-slate-900/60 border border-slate-800 flex items-center gap-2 text-xs text-indigo-400">
-                    <RefreshCw className="w-4 h-4 animate-spin text-indigo-400 shrink-0" />
+                  <div className="p-3 rounded-xl bg-slate-50 dark:bg-[#18181d] border border-slate-200 dark:border-[#26262c] flex items-center gap-2 text-xs text-indigo-600 dark:text-indigo-400">
+                    <RefreshCw className="w-4 h-4 animate-spin text-indigo-500 shrink-0" />
                     <span>Loading invoice...</span>
                   </div>
                 ) : customerInvoices.length > 1 ? (
                   <div>
-                    <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                       Select Invoice ({customerInvoices.length} active invoices)
                     </label>
                     <select
                       value={selectedInvoiceId}
                       onChange={handleInvoiceChange}
-                      className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
+                      className="w-full bg-slate-50 dark:bg-[#18181d] border border-slate-300 dark:border-[#2e2e36] rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
                     >
                       {customerInvoices.map((inv) => (
                         <option key={inv.id} value={inv.id}>
@@ -457,11 +457,11 @@ const EmailAssistantPage = ({ onNavigate }) => {
 
                 {/* Selected Invoice Details Card */}
                 {selectedInvoice ? (
-                  <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800 space-y-2">
+                  <div className="p-3 rounded-xl bg-slate-50 dark:bg-[#18181d] border border-slate-200 dark:border-[#26262c] space-y-2">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <Receipt className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
-                        <span className="font-bold text-xs text-white font-mono">{selectedInvoice.invoice_number}</span>
+                        <Receipt className="w-3.5 h-3.5 text-indigo-500 dark:text-indigo-400 shrink-0" />
+                        <span className="font-bold text-xs text-slate-900 dark:text-white font-mono">{selectedInvoice.invoice_number}</span>
                       </div>
                       <Badge variant={
                         selectedInvoice.status === 'paid' ? 'success' :
@@ -472,35 +472,35 @@ const EmailAssistantPage = ({ onNavigate }) => {
                       </Badge>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-2 text-xs pt-1 border-t border-slate-800/80">
+                    <div className="grid grid-cols-2 gap-2 text-xs pt-1 border-t border-slate-200 dark:border-[#26262c]">
                       <div>
-                        <span className="text-[10px] text-slate-500 block uppercase font-semibold">Total Amount</span>
-                        <span className="font-bold text-slate-200">
+                        <span className="text-[10px] text-slate-500 dark:text-slate-400 block uppercase font-semibold">Total Amount</span>
+                        <span className="font-bold text-slate-800 dark:text-slate-200">
                           {formatMoney(selectedInvoice.total_amount ?? selectedInvoice.amount ?? 0)}
                         </span>
                       </div>
                       <div>
-                        <span className="text-[10px] text-slate-500 block uppercase font-semibold">Pending Amount</span>
-                        <span className="font-bold text-amber-400">
+                        <span className="text-[10px] text-slate-500 dark:text-slate-400 block uppercase font-semibold">Pending Amount</span>
+                        <span className="font-bold text-amber-600 dark:text-amber-400">
                           {formatMoney(selectedInvoice.pending_amount ?? selectedInvoice.amount ?? 0)}
                         </span>
                       </div>
                       <div>
-                        <span className="text-[10px] text-slate-500 block uppercase font-semibold">Paid Amount</span>
-                        <span className="font-medium text-emerald-400">
+                        <span className="text-[10px] text-slate-500 dark:text-slate-400 block uppercase font-semibold">Paid Amount</span>
+                        <span className="font-medium text-emerald-600 dark:text-emerald-400">
                           {formatMoney(selectedInvoice.paid_amount ?? 0)}
                         </span>
                       </div>
                       <div>
-                        <span className="text-[10px] text-slate-500 block uppercase font-semibold">Due Date</span>
-                        <span className="font-medium text-slate-300">
+                        <span className="text-[10px] text-slate-500 dark:text-slate-400 block uppercase font-semibold">Due Date</span>
+                        <span className="font-medium text-slate-600 dark:text-slate-300">
                           {selectedInvoice.due_date ? new Date(selectedInvoice.due_date).toLocaleDateString() : 'N/A'}
                         </span>
                       </div>
                     </div>
                   </div>
                 ) : !invoiceLoading && invoiceMessage ? (
-                  <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs flex items-center gap-2">
+                  <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-300 text-xs flex items-center gap-2">
                     <Info className="w-4 h-4 shrink-0" />
                     <span>{invoiceMessage}</span>
                   </div>
@@ -509,11 +509,11 @@ const EmailAssistantPage = ({ onNavigate }) => {
             )}
 
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">Template Objective</label>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Template Objective</label>
               <select
                 value={templateType}
                 onChange={(e) => setTemplateType(e.target.value)}
-                className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
+                className="w-full bg-slate-50 dark:bg-[#18181d] border border-slate-300 dark:border-[#2e2e36] rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
               >
                 <option value="payment_reminder">Payment Reminder (Overdue / Upcoming)</option>
                 <option value="invoice_followup">Invoice Follow-Up & Statement</option>
@@ -527,8 +527,8 @@ const EmailAssistantPage = ({ onNavigate }) => {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">Message Language</label>
-              <div className="grid grid-cols-3 gap-1.5 bg-slate-900/80 p-1 rounded-xl border border-slate-800">
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Message Language</label>
+              <div className="grid grid-cols-3 gap-1.5 bg-slate-100 dark:bg-[#18181d] p-1 rounded-xl border border-slate-200 dark:border-[#26262c]">
                 {[
                   { id: 'en', label: 'English' },
                   { id: 'ta', label: 'Tamil' },
@@ -540,8 +540,8 @@ const EmailAssistantPage = ({ onNavigate }) => {
                     onClick={() => setLanguage(l.id)}
                     className={`py-1.5 px-2 text-center rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                       language === l.id
-                        ? 'bg-indigo-600 text-white shadow-md'
-                        : 'text-slate-400 hover:text-white'
+                        ? 'bg-indigo-600 text-white shadow-xs'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                     }`}
                   >
                     {l.label}
@@ -551,7 +551,7 @@ const EmailAssistantPage = ({ onNavigate }) => {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">Desired Tone</label>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Desired Tone</label>
               <div className="grid grid-cols-2 gap-2">
                 {[
                   { id: 'professional', label: '👔 Professional' },
@@ -565,8 +565,8 @@ const EmailAssistantPage = ({ onNavigate }) => {
                     onClick={() => setTone(t.id)}
                     className={`py-1.5 px-2.5 rounded-xl border text-xs font-semibold transition-all cursor-pointer ${
                       tone === t.id
-                        ? 'border-indigo-500 bg-indigo-500/20 text-white'
-                        : 'border-slate-800 bg-slate-900/60 text-slate-400 hover:text-white'
+                        ? 'border-indigo-600 bg-indigo-50 text-indigo-700 dark:border-indigo-500/60 dark:bg-indigo-500/20 dark:text-white'
+                        : 'border-slate-200 bg-slate-50 text-slate-600 hover:text-slate-900 hover:bg-slate-100 dark:border-[#26262c] dark:bg-[#18181d] dark:text-slate-400 dark:hover:text-white'
                     }`}
                   >
                     {t.label}
@@ -576,13 +576,13 @@ const EmailAssistantPage = ({ onNavigate }) => {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">Custom Notes / Instructions</label>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Custom Notes / Instructions</label>
               <textarea
                 value={customInstructions}
                 onChange={(e) => setCustomInstructions(e.target.value)}
                 placeholder="e.g. Mention 10% discount on next phase if paid by Friday, or reference invoice details..."
                 rows={3}
-                className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
+                className="w-full bg-slate-50 dark:bg-[#18181d] border border-slate-300 dark:border-[#2e2e36] rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-indigo-500"
               />
             </div>
 
@@ -592,16 +592,16 @@ const EmailAssistantPage = ({ onNavigate }) => {
               size="md"
               loading={loading}
               icon={Sparkles}
-              className="w-full font-bold cursor-pointer shadow-lg shadow-indigo-500/20"
+              className="w-full font-bold cursor-pointer"
             >
               {loading ? 'AI Reasoning in Progress...' : 'Generate AI Email Draft'}
             </Button>
 
             {/* Live Progress Stepper during generation */}
             {loading && (
-              <div className="mt-4 p-4 rounded-xl bg-slate-950 border border-indigo-500/30 space-y-2 animate-fadeIn">
-                <div className="flex items-center gap-2 text-xs font-bold text-indigo-400">
-                  <div className="w-2.5 h-2.5 rounded-full bg-indigo-400 animate-ping" />
+              <div className="mt-4 p-4 rounded-xl bg-slate-50 dark:bg-[#18181d] border border-indigo-200 dark:border-indigo-500/30 space-y-2 animate-fadeIn">
+                <div className="flex items-center gap-2 text-xs font-bold text-indigo-600 dark:text-indigo-400">
+                  <div className="w-2.5 h-2.5 rounded-full bg-indigo-500 animate-ping" />
                   <span>AI Generation Pipeline</span>
                 </div>
                 <div className="space-y-1.5 pt-1">
@@ -609,15 +609,15 @@ const EmailAssistantPage = ({ onNavigate }) => {
                     <div
                       key={idx}
                       className={`flex items-center gap-2 text-[11px] transition-all ${
-                        idx <= currentStepIndex ? 'text-slate-200 font-medium' : 'text-slate-600'
+                        idx <= currentStepIndex ? 'text-slate-800 dark:text-slate-200 font-medium' : 'text-slate-400 dark:text-slate-600'
                       }`}
                     >
                       {idx < currentStepIndex ? (
-                        <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                        <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
                       ) : idx === currentStepIndex ? (
-                        <div className="w-3.5 h-3.5 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin shrink-0" />
+                        <div className="w-3.5 h-3.5 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin shrink-0" />
                       ) : (
-                        <div className="w-3.5 h-3.5 rounded-full border border-slate-700 shrink-0" />
+                        <div className="w-3.5 h-3.5 rounded-full border border-slate-300 dark:border-slate-700 shrink-0" />
                       )}
                       <span>{step}</span>
                     </div>
@@ -628,11 +628,11 @@ const EmailAssistantPage = ({ onNavigate }) => {
           </div>
 
           {/* Right Editor & Preview (7 cols) */}
-          <div className="lg:col-span-7 glass-panel rounded-2xl p-5 border border-slate-800 flex flex-col justify-between space-y-4">
+          <div className="lg:col-span-7 bg-white dark:bg-[#141417] rounded-2xl p-5 border border-slate-200 dark:border-[#26262c] flex flex-col justify-between space-y-4 shadow-xs">
             <div className="space-y-4">
-              <div className="flex items-center justify-between pb-2 border-b border-slate-800">
-                <div className="flex items-center gap-2 text-sm font-bold text-white">
-                  <Mail className="w-4 h-4 text-indigo-400" />
+              <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-[#26262c]">
+                <div className="flex items-center gap-2 text-sm font-bold text-slate-900 dark:text-white">
+                  <Mail className="w-4 h-4 text-indigo-500 dark:text-indigo-400" />
                   <span>Interactive Email Composer</span>
                   {generatedEngine && (
                     <Badge variant="ai">{generatedEngine}</Badge>
@@ -640,7 +640,7 @@ const EmailAssistantPage = ({ onNavigate }) => {
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <div className="flex items-center bg-slate-100 dark:bg-slate-900 p-0.5 rounded-lg border border-slate-200 dark:border-slate-800">
+                  <div className="flex items-center bg-slate-100 dark:bg-[#18181d] p-0.5 rounded-lg border border-slate-200 dark:border-[#26262c]">
                     <button
                       type="button"
                       onClick={() => setPreviewMode('editor')}
@@ -676,31 +676,31 @@ const EmailAssistantPage = ({ onNavigate }) => {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">Recipient Email</label>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Recipient Email</label>
                 <input
                   type="email"
                   value={recipientEmail}
                   onChange={(e) => setRecipientEmail(e.target.value)}
                   placeholder="recipient@example.com"
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
+                  className="w-full bg-slate-50 dark:bg-[#18181d] border border-slate-300 dark:border-[#2e2e36] rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-indigo-500"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">Subject Line</label>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Subject Line</label>
                 <input
                   type="text"
                   value={subject}
                   onChange={(e) => setSubject(e.target.value)}
                   placeholder="e.g. Payment Reminder – Invoice INV-1001"
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs font-semibold text-white focus:outline-none focus:border-indigo-500"
+                  className="w-full bg-slate-50 dark:bg-[#18181d] border border-slate-300 dark:border-[#2e2e36] rounded-xl px-3 py-2 text-xs font-semibold text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-indigo-500"
                 />
               </div>
 
               {previewMode === 'editor' ? (
                 <div>
                   <div className="flex flex-wrap items-center justify-between gap-2 mb-1.5">
-                    <label className="block text-xs font-semibold text-slate-300">Email Body Content</label>
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">Email Body Content</label>
                     
                     {/* AI Quick Transformation Bar */}
                     <div className="flex flex-wrap items-center gap-1.5">
@@ -748,20 +748,20 @@ const EmailAssistantPage = ({ onNavigate }) => {
                     onChange={(e) => setBody(e.target.value)}
                     placeholder="Click 'Generate AI Email Draft' on the left to start, or type directly here..."
                     rows={11}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3.5 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 font-sans leading-relaxed transition-all"
+                    className="w-full bg-slate-50 dark:bg-[#18181d] border border-slate-300 dark:border-[#2e2e36] rounded-xl p-3.5 text-xs text-slate-900 dark:text-slate-200 focus:outline-none focus:border-indigo-500 font-sans leading-relaxed transition-all"
                   />
-                  <div className="flex justify-end text-[10px] text-slate-500 mt-1">
+                  <div className="flex justify-end text-[10px] text-slate-500 dark:text-slate-400 mt-1">
                     <span>{wordCount} words | {charCount} characters</span>
                   </div>
                 </div>
               ) : (
-                <div className="rounded-xl bg-slate-950 border border-slate-800 p-4 space-y-3 min-h-[260px]">
-                  <div className="pb-3 border-b border-slate-800/80 text-xs text-slate-400 space-y-1">
-                    <div><strong className="text-slate-300">From:</strong> {business.name} &lt;{business.email || 'noreply@company.com'}&gt;</div>
-                    <div><strong className="text-slate-300">To:</strong> {recipientEmail || '(No recipient set)'}</div>
-                    <div><strong className="text-slate-300">Subject:</strong> {subject || '(No subject)'}</div>
+                <div className="rounded-xl bg-slate-50 dark:bg-[#18181d] border border-slate-200 dark:border-[#26262c] p-4 space-y-3 min-h-[260px]">
+                  <div className="pb-3 border-b border-slate-200 dark:border-[#26262c] text-xs text-slate-600 dark:text-slate-400 space-y-1">
+                    <div><strong className="text-slate-800 dark:text-slate-300">From:</strong> {business.name} &lt;{business.email || 'noreply@company.com'}&gt;</div>
+                    <div><strong className="text-slate-800 dark:text-slate-300">To:</strong> {recipientEmail || '(No recipient set)'}</div>
+                    <div><strong className="text-slate-800 dark:text-slate-300">Subject:</strong> {subject || '(No subject)'}</div>
                   </div>
-                  <div className="text-xs text-slate-200 whitespace-pre-wrap font-sans leading-relaxed py-2">
+                  <div className="text-xs text-slate-800 dark:text-slate-200 whitespace-pre-wrap font-sans leading-relaxed py-2">
                     {body || <em>(No content yet. Click Generate on the left to build draft.)</em>}
                   </div>
                 </div>
@@ -769,10 +769,10 @@ const EmailAssistantPage = ({ onNavigate }) => {
             </div>
 
             {/* Bottom Actions & Controls */}
-            <div className="pt-3 border-t border-slate-800 space-y-3">
-              <div className="flex items-center justify-between text-[11px] text-slate-400">
+            <div className="pt-3 border-t border-slate-100 dark:border-[#26262c] space-y-3">
+              <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
                 <span>Step 2: Choose Dispatch Mode</span>
-                <span className="text-indigo-400 font-medium">Human-in-the-Loop Supported</span>
+                <span className="text-indigo-600 dark:text-indigo-400 font-medium">Human-in-the-Loop Supported</span>
               </div>
 
               <div className="flex flex-wrap items-center justify-between gap-3">
@@ -782,7 +782,7 @@ const EmailAssistantPage = ({ onNavigate }) => {
                   size="sm"
                   disabled={!subject || !body || sending}
                   icon={ShieldCheck}
-                  className="text-xs cursor-pointer hover:border-indigo-500"
+                  className="text-xs"
                 >
                   Send to Approval Center
                 </Button>
@@ -794,7 +794,7 @@ const EmailAssistantPage = ({ onNavigate }) => {
                   loading={sending}
                   disabled={!subject || !body}
                   icon={Send}
-                  className="text-xs font-bold cursor-pointer shadow-md shadow-emerald-600/20"
+                  className="text-xs font-bold"
                 >
                   Send Immediately
                 </Button>
@@ -806,7 +806,7 @@ const EmailAssistantPage = ({ onNavigate }) => {
         /* History & Dispatched Logs View */
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <div className="text-xs text-slate-400">
+            <div className="text-xs text-slate-500 dark:text-slate-400">
               Audit log of all AI generated and dispatched client correspondence.
             </div>
             <Button
@@ -830,53 +830,53 @@ const EmailAssistantPage = ({ onNavigate }) => {
               onAction={() => setActiveTab('studio')}
             />
           ) : (
-            <div className="glass-panel rounded-2xl border border-slate-800 overflow-hidden">
+            <div className="bg-white dark:bg-[#141417] rounded-2xl border border-slate-200 dark:border-[#26262c] overflow-hidden shadow-xs">
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs text-slate-300">
-                  <thead className="bg-slate-900/80 border-b border-slate-800 text-[11px] uppercase tracking-wider text-slate-400">
+                <table className="w-full text-left text-xs text-slate-700 dark:text-slate-300">
+                  <thead className="bg-slate-50 dark:bg-[#18181d] border-b border-slate-200 dark:border-[#26262c] text-[11px] uppercase tracking-wider text-slate-500 dark:text-slate-400">
                     <tr>
-                      <th className="py-3.5 px-4">Recipient / Customer</th>
-                      <th className="py-3.5 px-4">Subject</th>
-                      <th className="py-3.5 px-4">Status</th>
-                      <th className="py-3.5 px-4">Dispatched At</th>
-                      <th className="py-3.5 px-4 text-right">Actions</th>
+                      <th className="py-3.5 px-4 font-bold">Recipient / Customer</th>
+                      <th className="py-3.5 px-4 font-bold">Subject</th>
+                      <th className="py-3.5 px-4 font-bold">Status</th>
+                      <th className="py-3.5 px-4 font-bold">Dispatched At</th>
+                      <th className="py-3.5 px-4 font-bold text-right">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-800/60">
+                  <tbody className="divide-y divide-slate-100 dark:divide-[#26262c]">
                     {emailHistory.map((em) => (
-                      <tr key={em.id} className="hover:bg-slate-900/40 transition-colors">
-                        <td className="py-3.5 px-4 font-medium text-white">
+                      <tr key={em.id} className="hover:bg-slate-50 dark:hover:bg-[#18181d] transition-colors">
+                        <td className="py-3.5 px-4 font-medium text-slate-900 dark:text-white">
                           <div className="flex items-center gap-2">
-                            <div className="w-7 h-7 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 flex items-center justify-center">
+                            <div className="w-7 h-7 rounded-lg bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-500/20 flex items-center justify-center">
                               <Mail className="w-3.5 h-3.5" />
                             </div>
                             <div>
                               <div>{em.customer_name}</div>
-                              <div className="text-[11px] text-slate-400">{em.recipient_email}</div>
+                              <div className="text-[11px] text-slate-500 dark:text-slate-400">{em.recipient_email}</div>
                             </div>
                           </div>
                         </td>
-                        <td className="py-3.5 px-4 font-semibold text-slate-200 max-w-xs truncate">
+                        <td className="py-3.5 px-4 font-semibold text-slate-800 dark:text-slate-200 max-w-xs truncate">
                           {em.subject}
                         </td>
                         <td className="py-3.5 px-4">
                           {renderStatusBadge(em.status)}
                         </td>
-                        <td className="py-3.5 px-4 text-slate-400">
+                        <td className="py-3.5 px-4 text-slate-500 dark:text-slate-400">
                           {em.created_at ? new Date(em.created_at).toLocaleString() : 'Recent'}
                         </td>
                         <td className="py-3.5 px-4 text-right">
                           <div className="flex items-center justify-end gap-1.5">
                             <button
                               onClick={() => setViewingEmail(em)}
-                              className="p-1.5 rounded-lg bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700 transition-all cursor-pointer"
+                              className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 dark:bg-[#1c1c21] dark:text-slate-300 dark:hover:text-white dark:hover:bg-[#27272e] transition-all cursor-pointer"
                               title="View Full Content"
                             >
                               <Eye className="w-3.5 h-3.5" />
                             </button>
                             <button
                               onClick={() => handleDeleteEmailLog(em.id)}
-                              className="p-1.5 rounded-lg bg-slate-800 text-rose-400 hover:text-rose-300 hover:bg-rose-950/40 transition-all cursor-pointer"
+                              className="p-1.5 rounded-lg bg-slate-100 hover:bg-rose-50 text-slate-500 hover:text-rose-600 dark:bg-[#1c1c21] dark:text-rose-400 dark:hover:text-rose-300 dark:hover:bg-rose-950/40 transition-all cursor-pointer"
                               title="Delete Record"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
@@ -902,22 +902,22 @@ const EmailAssistantPage = ({ onNavigate }) => {
           maxWidth="max-w-2xl"
         >
           <div className="space-y-4">
-            <div className="p-3 rounded-xl bg-slate-900 border border-slate-800 text-xs space-y-1.5">
-              <div><strong className="text-slate-400">Recipient:</strong> <span className="text-white">{viewingEmail.recipient_email}</span></div>
-              <div><strong className="text-slate-400">Customer:</strong> <span className="text-white">{viewingEmail.customer_name}</span></div>
-              <div><strong className="text-slate-400">Subject:</strong> <span className="text-white font-semibold">{viewingEmail.subject}</span></div>
-              <div><strong className="text-slate-400">Status:</strong> {renderStatusBadge(viewingEmail.status)}</div>
-              <div><strong className="text-slate-400">Date:</strong> <span className="text-slate-300">{new Date(viewingEmail.created_at).toLocaleString()}</span></div>
+            <div className="p-3 rounded-xl bg-slate-50 dark:bg-[#18181d] border border-slate-200 dark:border-[#26262c] text-xs space-y-1.5">
+              <div><strong className="text-slate-500 dark:text-slate-400">Recipient:</strong> <span className="text-slate-900 dark:text-white font-medium">{viewingEmail.recipient_email}</span></div>
+              <div><strong className="text-slate-500 dark:text-slate-400">Customer:</strong> <span className="text-slate-900 dark:text-white font-medium">{viewingEmail.customer_name}</span></div>
+              <div><strong className="text-slate-500 dark:text-slate-400">Subject:</strong> <span className="text-slate-900 dark:text-white font-semibold">{viewingEmail.subject}</span></div>
+              <div><strong className="text-slate-500 dark:text-slate-400">Status:</strong> {renderStatusBadge(viewingEmail.status)}</div>
+              <div><strong className="text-slate-500 dark:text-slate-400">Date:</strong> <span className="text-slate-700 dark:text-slate-300">{new Date(viewingEmail.created_at).toLocaleString()}</span></div>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">Message Body</label>
-              <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-200 whitespace-pre-wrap font-sans leading-relaxed max-h-96 overflow-y-auto">
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Message Body</label>
+              <div className="p-4 rounded-xl bg-slate-50 dark:bg-[#18181d] border border-slate-200 dark:border-[#26262c] text-xs text-slate-800 dark:text-slate-200 whitespace-pre-wrap font-sans leading-relaxed max-h-96 overflow-y-auto">
                 {viewingEmail.body}
               </div>
             </div>
 
-            <div className="flex justify-end gap-2 pt-2 border-t border-slate-800">
+            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-[#26262c]">
               <Button
                 onClick={() => {
                   setSubject(viewingEmail.subject);

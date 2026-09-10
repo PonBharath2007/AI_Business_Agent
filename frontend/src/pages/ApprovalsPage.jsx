@@ -135,7 +135,7 @@ const ApprovalsPage = ({ onNavigate }) => {
         </div>
 
         {/* Status Filter Tabs */}
-        <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-900/80 p-1 rounded-xl border border-slate-200 dark:border-slate-800 self-start sm:self-auto">
+        <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-[#18181d] p-1 rounded-xl border border-slate-200 dark:border-[#26262c] self-start sm:self-auto">
           {[
             { id: 'pending', label: 'Pending Approval' },
             { id: 'approved', label: 'Approved & Executed' },
@@ -182,13 +182,13 @@ const ApprovalsPage = ({ onNavigate }) => {
                 key={app.id}
                 className={`rounded-2xl border p-5 sm:p-6 transition-all ${
                   isPending
-                    ? 'border-indigo-200 dark:border-indigo-500/40 bg-white dark:bg-gradient-to-br dark:from-indigo-950/20 dark:via-slate-900/70 dark:to-slate-900/50 shadow-sm dark:shadow-xl'
+                    ? 'border-indigo-300 dark:border-indigo-500/40 bg-white dark:bg-[#141417] shadow-sm'
                     : isApproved
-                    ? 'border-emerald-200 dark:border-emerald-500/20 bg-emerald-50/30 dark:bg-slate-900/40 opacity-90'
-                    : 'border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/40 opacity-75'
+                    ? 'border-emerald-200 dark:border-emerald-500/30 bg-white dark:bg-[#141417]'
+                    : 'border-slate-200 dark:border-[#26262c] bg-slate-50 dark:bg-[#141417] opacity-80'
                 }`}
               >
-                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-slate-200 dark:border-slate-800/80">
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-slate-200 dark:border-[#26262c]">
                   <div className="flex items-start gap-3.5">
                     <div className="w-10 h-10 rounded-2xl bg-indigo-50 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-500/30 flex items-center justify-center shrink-0">
                       {isSms ? <MessageSquare className="w-5 h-5" /> : <Sparkles className="w-5 h-5" />}
@@ -233,7 +233,7 @@ const ApprovalsPage = ({ onNavigate }) => {
 
                 {/* AI Recommendation Message */}
                 {app.recommendation && (
-                  <div className="mt-4 p-3.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-500/20 flex items-start gap-2.5">
+                  <div className="mt-4 p-3.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/20 border border-indigo-200 dark:border-indigo-500/20 flex items-start gap-2.5">
                     <Sparkles className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5" />
                     <div className="text-xs text-slate-700 dark:text-slate-200">
                       <strong className="text-indigo-700 dark:text-indigo-300">AI Recommendation: </strong>
@@ -244,8 +244,8 @@ const ApprovalsPage = ({ onNavigate }) => {
 
                 {/* Generated Content Preview */}
                 {(data.body || data.message) && (
-                  <div className="mt-4 p-4 rounded-xl bg-slate-50 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800 space-y-2">
-                    <div className="flex flex-wrap items-center justify-between text-xs text-slate-500 dark:text-slate-400 pb-2 border-b border-slate-200 dark:border-slate-900 gap-2">
+                  <div className="mt-4 p-4 rounded-xl bg-slate-50 dark:bg-[#18181d] border border-slate-200 dark:border-[#26262c] space-y-2">
+                    <div className="flex flex-wrap items-center justify-between text-xs text-slate-500 dark:text-slate-400 pb-2 border-b border-slate-200 dark:border-[#26262c] gap-2">
                       <span><strong>Recipient:</strong> {isSms ? (data.recipient_phone || data.phone || data.customer_phone) : (data.recipient_email || data.customer_email)}</span>
                       {!isSms && data.subject && <span><strong>Subject:</strong> {data.subject}</span>}
                     </div>
@@ -257,7 +257,7 @@ const ApprovalsPage = ({ onNavigate }) => {
 
                 {/* Bottom Decision Actions */}
                 {isPending && (
-                  <div className="mt-5 pt-4 border-t border-slate-200 dark:border-slate-800/80 flex flex-wrap items-center justify-between gap-3">
+                  <div className="mt-5 pt-4 border-t border-slate-200 dark:border-[#26262c] flex flex-wrap items-center justify-between gap-3">
                     <div className="text-xs text-slate-500 dark:text-slate-400">
                       👉 <em>Review the draft above. You can approve immediately, edit contents, or reject.</em>
                     </div>

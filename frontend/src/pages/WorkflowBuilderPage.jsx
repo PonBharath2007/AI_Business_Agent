@@ -137,16 +137,16 @@ const WorkflowBuilderPage = ({ onNavigate }) => {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
-          {/* Tabs */}
-          <div className="flex items-center bg-slate-100 dark:bg-slate-900 p-1 rounded-xl border border-slate-200 dark:border-slate-800">
+        <div className="flex flex-wrap items-center gap-2.5 self-start sm:self-auto">
+          {/* Tab Switcher */}
+          <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-[#18181d] p-1 rounded-xl border border-slate-200 dark:border-[#26262c]">
             <button
               onClick={() => setActiveTab('rules')}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                 activeTab === 'rules' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
-              Automation Rules ({rules.length})
+              Automated Rules ({rules.length})
             </button>
             <button
               onClick={() => setActiveTab('executions')}
@@ -184,9 +184,9 @@ const WorkflowBuilderPage = ({ onNavigate }) => {
             rules.map((rule) => (
               <div
                 key={rule.id}
-                className="rounded-2xl p-5 sm:p-6 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 hover:border-indigo-300 dark:hover:border-indigo-500/40 shadow-sm transition-all space-y-4"
+                className="rounded-2xl p-5 sm:p-6 border border-slate-200 dark:border-[#26262c] bg-white dark:bg-[#141417] hover:border-indigo-300 dark:hover:border-indigo-500/40 shadow-sm transition-all space-y-4"
               >
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800/80">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-[#26262c]">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-500/20 flex items-center justify-center font-bold">
                       <Workflow className="w-5 h-5" />
@@ -209,32 +209,32 @@ const WorkflowBuilderPage = ({ onNavigate }) => {
 
                 {/* Structured Logic Visual Flow Blocks */}
                 <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5 text-xs">
-                  <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800">
+                  <div className="p-3 rounded-xl bg-slate-50 dark:bg-[#18181d] border border-slate-200 dark:border-[#26262c]">
                     <span className="text-[10px] uppercase font-bold text-indigo-600 dark:text-indigo-400">1. WHEN</span>
                     <p className="font-semibold text-slate-800 dark:text-slate-200 mt-1 capitalize">{rule.trigger_event.replace('_', ' ')}</p>
                   </div>
-                  <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800">
+                  <div className="p-3 rounded-xl bg-slate-50 dark:bg-[#18181d] border border-slate-200 dark:border-[#26262c]">
                     <span className="text-[10px] uppercase font-bold text-amber-600 dark:text-amber-400">2. CHECK</span>
                     <p className="font-semibold text-slate-800 dark:text-slate-200 mt-1">
                       {rule.condition_json?.amount_gt ? `Amount > ${formatMoney(rule.condition_json.amount_gt)}` : 'Overdue status'}
                     </p>
                   </div>
-                  <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800">
+                  <div className="p-3 rounded-xl bg-slate-50 dark:bg-[#18181d] border border-slate-200 dark:border-[#26262c]">
                     <span className="text-[10px] uppercase font-bold text-violet-600 dark:text-violet-400">3. THEN</span>
                     <p className="font-semibold text-slate-800 dark:text-slate-200 mt-1 capitalize">{rule.action_type.replace('_', ' ')}</p>
                   </div>
-                  <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800">
+                  <div className="p-3 rounded-xl bg-slate-50 dark:bg-[#18181d] border border-slate-200 dark:border-[#26262c]">
                     <span className="text-[10px] uppercase font-bold text-emerald-600 dark:text-emerald-400">4. REQUIRE</span>
                     <p className="font-semibold text-slate-800 dark:text-slate-200 mt-1">{rule.require_approval ? 'Owner Approval' : 'Auto Execute'}</p>
                   </div>
-                  <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800">
+                  <div className="p-3 rounded-xl bg-slate-50 dark:bg-[#18181d] border border-slate-200 dark:border-[#26262c]">
                     <span className="text-[10px] uppercase font-bold text-sky-600 dark:text-sky-400">5. EXECUTE</span>
                     <p className="font-semibold text-slate-800 dark:text-slate-200 mt-1">Dispatch & Audit Log</p>
                   </div>
                 </div>
 
                 {/* Bottom Actions */}
-                <div className="pt-3 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between">
+                <div className="pt-3 border-t border-slate-100 dark:border-[#26262c] flex items-center justify-between">
                   <span className="text-[11px] text-slate-400 dark:text-slate-500">
                     Created on {new Date(rule.created_at).toLocaleDateString()}
                   </span>

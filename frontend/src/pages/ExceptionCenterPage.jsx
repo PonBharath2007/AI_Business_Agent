@@ -24,31 +24,31 @@ import EmptyState from '../components/common/EmptyState';
 const SEVERITY_CONFIG = {
   CRITICAL: {
     label: 'Critical Priority',
-    color: 'border-rose-200 dark:border-rose-500/40 bg-rose-50/50 dark:bg-gradient-to-r dark:from-rose-950/30 dark:via-slate-900/60 dark:to-slate-900/40',
+    color: 'border-slate-200 dark:border-[#26262c] bg-white dark:bg-[#141417]',
     badge: 'urgent',
     icon: AlertOctagon,
-    iconColor: 'text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-500/10 border-rose-200 dark:border-rose-500/20'
+    iconColor: 'text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/30 border-rose-200 dark:border-rose-500/20'
   },
   HIGH: {
     label: 'High Priority',
-    color: 'border-amber-200 dark:border-amber-500/40 bg-amber-50/50 dark:bg-gradient-to-r dark:from-amber-950/20 dark:via-slate-900/60 dark:to-slate-900/40',
+    color: 'border-slate-200 dark:border-[#26262c] bg-white dark:bg-[#141417]',
     badge: 'warning',
     icon: AlertTriangle,
-    iconColor: 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/20'
+    iconColor: 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-500/20'
   },
   MEDIUM: {
     label: 'Medium Priority',
-    color: 'border-sky-200 dark:border-sky-500/30 bg-sky-50/50 dark:bg-slate-900/40',
+    color: 'border-slate-200 dark:border-[#26262c] bg-white dark:bg-[#141417]',
     badge: 'info',
     icon: AlertCircle,
-    iconColor: 'text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-500/10 border-sky-200 dark:border-sky-500/20'
+    iconColor: 'text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-950/30 border-sky-200 dark:border-sky-500/20'
   },
   LOW: {
     label: 'Low Priority',
-    color: 'border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/30',
+    color: 'border-slate-200 dark:border-[#26262c] bg-white dark:bg-[#141417]',
     badge: 'gray',
     icon: Info,
-    iconColor: 'text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700'
+    iconColor: 'text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-[#18181d] border-slate-200 dark:border-[#26262c]'
   }
 };
 
@@ -140,45 +140,45 @@ const ExceptionCenterPage = ({ onNavigate }) => {
 
       {/* Exception Metrics Summary Pills */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
-        <div className="p-4 rounded-2xl bg-rose-50/60 dark:bg-rose-950/40 border border-rose-100 dark:border-rose-500/30 shadow-xs">
+        <div className="p-4 rounded-2xl bg-white dark:bg-[#141417] border border-slate-200 dark:border-[#26262c] shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] uppercase font-bold text-rose-600 dark:text-rose-300 tracking-wider">Critical Anomalies</span>
+            <span className="text-[10px] uppercase font-bold text-rose-600 dark:text-rose-400 tracking-wider">Critical Anomalies</span>
             <AlertOctagon className="w-4 h-4 text-rose-600 dark:text-rose-400" />
           </div>
           <p className="text-2xl font-bold text-slate-900 dark:text-white mt-2">{criticalCount}</p>
-          <span className="text-[10px] text-rose-600/80 dark:text-rose-300/80 mt-0.5 block">Immediate action required</span>
+          <span className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5 block">Immediate action required</span>
         </div>
 
-        <div className="p-4 rounded-2xl bg-amber-50/60 dark:bg-amber-950/40 border border-amber-100 dark:border-amber-500/30 shadow-xs">
+        <div className="p-4 rounded-2xl bg-white dark:bg-[#141417] border border-slate-200 dark:border-[#26262c] shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] uppercase font-bold text-amber-600 dark:text-amber-300 tracking-wider">High Priority Risks</span>
+            <span className="text-[10px] uppercase font-bold text-amber-600 dark:text-amber-400 tracking-wider">High Priority Risks</span>
             <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400" />
           </div>
           <p className="text-2xl font-bold text-slate-900 dark:text-white mt-2">{highCount}</p>
-          <span className="text-[10px] text-amber-600/80 dark:text-amber-300/80 mt-0.5 block">Pending review within 24h</span>
+          <span className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5 block">Pending review within 24h</span>
         </div>
 
-        <div className="p-4 rounded-2xl bg-indigo-50/60 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-500/30 shadow-xs">
+        <div className="p-4 rounded-2xl bg-white dark:bg-[#141417] border border-slate-200 dark:border-[#26262c] shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] uppercase font-bold text-indigo-600 dark:text-indigo-300 tracking-wider">Total Detected</span>
+            <span className="text-[10px] uppercase font-bold text-indigo-600 dark:text-indigo-400 tracking-wider">Total Detected</span>
             <Sparkles className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
           </div>
           <p className="text-2xl font-bold text-slate-900 dark:text-white mt-2">{exceptions.length}</p>
-          <span className="text-[10px] text-indigo-600/80 dark:text-indigo-300/80 mt-0.5 block">Monitored database items</span>
+          <span className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5 block">Monitored database items</span>
         </div>
 
-        <div className="p-4 rounded-2xl bg-emerald-50/60 dark:bg-emerald-950/40 border border-emerald-100 dark:border-emerald-500/30 shadow-xs">
+        <div className="p-4 rounded-2xl bg-white dark:bg-[#141417] border border-slate-200 dark:border-[#26262c] shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] uppercase font-bold text-emerald-600 dark:text-emerald-300 tracking-wider">AI Sentinel Mode</span>
+            <span className="text-[10px] uppercase font-bold text-emerald-600 dark:text-emerald-400 tracking-wider">AI Sentinel Mode</span>
             <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
           </div>
           <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-2">Active</p>
-          <span className="text-[10px] text-emerald-600/80 dark:text-emerald-300/80 mt-0.5 block">Continuous rule evaluation</span>
+          <span className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5 block">Continuous rule evaluation</span>
         </div>
       </div>
 
       {/* Severity Filter Tabs */}
-      <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-900/80 p-1 rounded-xl border border-slate-200 dark:border-slate-800 self-start">
+      <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-[#18181d] p-1 rounded-xl border border-slate-200 dark:border-[#26262c] self-start">
         {[
           { id: 'all', label: 'All Exceptions' },
           { id: 'CRITICAL', label: '🔴 Critical' },
