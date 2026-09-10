@@ -6,21 +6,33 @@
   :root {
     --bg-page: #f8fafc;
     --bg-card: #ffffff;
-    --bg-surface: #ffffff;
+    --bg-surface: #f1f5f9;
+    --bg-input: #ffffff;
     --border-color: #e2e8f0;
+    --border-hover: #cbd5e1;
     --text-primary: #0f172a;
     --text-secondary: #475569;
     --text-muted: #64748b;
+    --primary-blue: #4f46e5;
+    --primary-blue-hover: #4338ca;
+    --primary-blue-muted: #e0e7ff;
+    --shadow-subtle: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05);
   }
 
   .dark {
     --bg-page: #0b0f19;
-    --bg-card: #111827;
+    --bg-card: #0f172a;
     --bg-surface: #1e293b;
+    --bg-input: #0f172a;
     --border-color: #1e293b;
+    --border-hover: #334155;
     --text-primary: #f8fafc;
     --text-secondary: #cbd5e1;
     --text-muted: #94a3b8;
+    --primary-blue: #6366f1;
+    --primary-blue-hover: #818cf8;
+    --primary-blue-muted: rgba(99, 102, 241, 0.15);
+    --shadow-subtle: 0 1px 3px 0 rgba(0, 0, 0, 0.4), 0 1px 2px -1px rgba(0, 0, 0, 0.3);
   }
 
   body {
@@ -80,7 +92,7 @@
 }
 
 .dark .glass-panel {
-  background: rgba(17, 24, 39, 0.85);
+  background: rgba(15, 23, 42, 0.9);
   border: 1px solid rgba(51, 65, 85, 0.6);
 }
 
@@ -90,7 +102,7 @@
 }
 
 .dark .glass-card {
-  background: #111827;
+  background: #0f172a;
   border: 1px solid #1e293b;
 }
 
@@ -105,5 +117,5 @@
 
 .dark .glass-card-hover:hover {
   border-color: rgba(99, 102, 241, 0.4);
-  box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.4);
 }

@@ -760,12 +760,12 @@ const MessageCenterPage = ({ onNavigate, preSelectedCustomerId = null }) => {
                   </button>
 
                   {/* Edit vs Preview Toggle */}
-                  <div className="bg-slate-900 p-0.5 rounded-xl border border-slate-800 flex items-center">
+                  <div className="bg-slate-100 dark:bg-slate-900 p-0.5 rounded-xl border border-slate-200 dark:border-slate-800 flex items-center">
                     <button
                       type="button"
                       onClick={() => setPreviewMode('editor')}
                       className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
-                        previewMode === 'editor' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'
+                        previewMode === 'editor' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                       }`}
                     >
                       Edit
@@ -774,7 +774,7 @@ const MessageCenterPage = ({ onNavigate, preSelectedCustomerId = null }) => {
                       type="button"
                       onClick={() => setPreviewMode('preview')}
                       className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
-                        previewMode === 'preview' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'
+                        previewMode === 'preview' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                       }`}
                     >
                       Preview
@@ -827,9 +827,9 @@ const MessageCenterPage = ({ onNavigate, preSelectedCustomerId = null }) => {
                   </div>
                 </div>
               ) : (
-                <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
+                <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-2">
                   <span className="text-[10px] uppercase font-bold text-slate-500 block">Live Message Preview</span>
-                  <div className="whitespace-pre-wrap text-slate-200 font-sans leading-relaxed text-xs">
+                  <div className="whitespace-pre-wrap text-slate-800 dark:text-slate-200 font-sans leading-relaxed text-xs">
                     {messageBody || <em className="text-slate-500">No message content to preview.</em>}
                   </div>
                 </div>
@@ -837,18 +837,18 @@ const MessageCenterPage = ({ onNavigate, preSelectedCustomerId = null }) => {
 
               {/* Queue Status Notification Banner */}
               {queuedInfo && (
-                <div className="p-3.5 rounded-xl bg-indigo-950/40 border border-indigo-500/30 flex items-center justify-between gap-3 text-indigo-200">
+                <div className="p-3.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-500/30 flex items-center justify-between gap-3 text-indigo-900 dark:text-indigo-200">
                   <div className="flex items-center gap-2.5 text-xs">
-                    <Clock className="w-4 h-4 shrink-0 text-amber-400 animate-pulse" />
+                    <Clock className="w-4 h-4 shrink-0 text-amber-500 dark:text-amber-400 animate-pulse" />
                     <div>
-                      <div className="font-bold text-white flex items-center gap-2">
+                      <div className="font-bold text-slate-900 dark:text-white flex items-center gap-2">
                         <span>SMS Queued (ID: #{queuedInfo.smsId})</span>
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 uppercase">
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-500/20 dark:text-amber-300 dark:border-amber-500/40 uppercase">
                           Waiting for Android Gateway
                         </span>
                       </div>
-                      <p className="text-[11px] text-slate-400 mt-0.5">
-                        Queued for <strong className="text-slate-200">{queuedInfo.phone}</strong> at {queuedInfo.time}. Ready for Android phone SIM dispatch.
+                      <p className="text-[11px] text-slate-600 dark:text-slate-400 mt-0.5">
+                        Queued for <strong className="text-slate-900 dark:text-slate-200">{queuedInfo.phone}</strong> at {queuedInfo.time}. Ready for Android phone SIM dispatch.
                       </p>
                     </div>
                   </div>
@@ -934,7 +934,7 @@ const MessageCenterPage = ({ onNavigate, preSelectedCustomerId = null }) => {
               </div>
             ) : (
               <table className="w-full text-left text-xs">
-                <thead className="bg-slate-900/80 text-slate-400 uppercase font-semibold text-[10px] border-b border-slate-800">
+                <thead className="bg-slate-50 dark:bg-slate-900/80 text-slate-500 dark:text-slate-400 uppercase font-semibold text-[10px] border-b border-slate-200 dark:border-slate-800">
                   <tr>
                     <th className="py-3 px-4">Channel</th>
                     <th className="py-3 px-4">Customer</th>
@@ -948,7 +948,7 @@ const MessageCenterPage = ({ onNavigate, preSelectedCustomerId = null }) => {
                     <th className="py-3 px-4 text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-800/60 text-slate-300">
+                <tbody className="divide-y divide-slate-200 dark:divide-slate-800/60 text-slate-700 dark:text-slate-300">
                   {messageHistory.map((msg) => {
                     const statusLower = (msg.status || '').toLowerCase();
                     const isPending = statusLower === 'pending';
@@ -958,27 +958,27 @@ const MessageCenterPage = ({ onNavigate, preSelectedCustomerId = null }) => {
                     const isFailed = statusLower === 'failed';
 
                     return (
-                      <tr key={msg.id} className="hover:bg-slate-800/40 transition-colors">
+                      <tr key={msg.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
                         <td className="py-3 px-4">
-                          <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-emerald-950 text-emerald-300 border border-emerald-800">
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800">
                             SMS
                           </span>
                         </td>
-                        <td className="py-3 px-4 font-bold text-white">
+                        <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">
                           {msg.customer_name || 'Direct Recipient'}
                         </td>
-                        <td className="py-3 px-4 font-mono text-slate-300">
+                        <td className="py-3 px-4 font-mono text-slate-600 dark:text-slate-300">
                           {msg.phone_number || msg.recipient}
                         </td>
-                        <td className="py-3 px-4 capitalize text-slate-400">
+                        <td className="py-3 px-4 capitalize text-slate-600 dark:text-slate-400">
                           {(msg.purpose || 'Reminder').replace('_', ' ')}
                         </td>
                         <td className="py-3 px-4">
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-indigo-950 text-indigo-300 border border-indigo-800">
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-indigo-50 text-indigo-700 border border-indigo-200 dark:bg-indigo-950/60 dark:text-indigo-300 dark:border-indigo-800">
                             {msg.language === 'en_ta' ? 'English+Tamil' : (msg.language === 'ta' ? 'Tamil' : 'English')}
                           </span>
                         </td>
-                        <td className="py-3 px-4 max-w-xs truncate text-slate-300">
+                        <td className="py-3 px-4 max-w-xs truncate text-slate-600 dark:text-slate-300">
                           {msg.message}
                         </td>
                         <td className="py-3 px-4">

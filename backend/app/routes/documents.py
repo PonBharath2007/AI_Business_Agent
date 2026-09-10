@@ -136,6 +136,7 @@ def get_document_ocr(
         "file_name": doc.file_name,
         "processing_status": doc.processing_status,
         "ocr_text": doc.ocr_text or "No text extracted",
+        "length": len(doc.ocr_text or ""),
         "extracted_data": doc.extracted_data or {}
     }
 

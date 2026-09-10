@@ -153,15 +153,15 @@ const AnalyticsPage = () => {
     { bucket: '90+ Days', amount: cashFlow.aging_buckets.days_90_plus || 0, fill: '#881337' }
   ] : [];
 
-  const gridStroke = isDark ? '#1e293b' : '#e2e8f0';
-  const textStroke = isDark ? '#64748b' : '#94a3b8';
+  const gridStroke = isDark ? '#334155' : '#e2e8f0';
+  const textStroke = isDark ? '#cbd5e1' : '#475569';
   const tooltipStyle = {
     backgroundColor: isDark ? '#0f172a' : '#ffffff',
-    borderColor: isDark ? '#334155' : '#cbd5e1',
+    borderColor: isDark ? '#334155' : '#e2e8f0',
     borderRadius: '0.75rem',
     fontSize: '12px',
     color: isDark ? '#f8fafc' : '#0f172a',
-    boxShadow: isDark ? '0 10px 15px -3px rgba(0,0,0,0.5)' : '0 4px 6px -1px rgba(0,0,0,0.1)'
+    boxShadow: isDark ? '0 10px 15px -3px rgba(0,0,0,0.6)' : '0 4px 6px -1px rgba(0,0,0,0.08)'
   };
 
   return (

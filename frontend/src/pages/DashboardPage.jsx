@@ -265,44 +265,44 @@ const DashboardPage = ({ onNavigate }) => {
               Recommended Actions
             </h2>
           </div>
-          <span className="text-xs text-slate-400">
+          <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">
             {recommendedActions.length} action{recommendedActions.length !== 1 ? 's' : ''}
           </span>
         </div>
 
-        <div className="space-y-2.5">
+        <div className="space-y-3">
           {!recommendedActions.length ? (
-            <div className="py-6 text-center text-xs text-slate-500">
-              No recommended actions today.
+            <div className="py-8 text-center text-xs text-slate-500 dark:text-slate-400 font-medium">
+              No recommended actions today. All operations up to date.
             </div>
           ) : (
             recommendedActions.map((action) => {
-              // Priority indicator & badge styling
+              // Priority indicator & badge styling with high contrast in both themes
               let indicator = '🟡';
-              let badgeClasses = 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800';
+              let badgeClasses = 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800/80';
 
               if (action.priority === 'Critical') {
                 indicator = '🔴';
-                badgeClasses = 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800';
+                badgeClasses = 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-800/80';
               } else if (action.priority === 'High') {
                 indicator = '🟠';
-                badgeClasses = 'bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950/40 dark:text-orange-300 dark:border-orange-800';
+                badgeClasses = 'bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950/60 dark:text-orange-300 dark:border-orange-800/80';
               } else if (action.priority === 'Low') {
                 indicator = '🟢';
-                badgeClasses = 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800';
+                badgeClasses = 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800/80';
               }
 
               return (
                 <div
                   key={action.id}
                   onClick={() => handleActionClick(action)}
-                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-850/40 hover:bg-slate-100/70 dark:hover:bg-slate-800/60 transition-colors cursor-pointer"
+                  className="group flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-xl border border-slate-200/90 hover:border-slate-300 bg-white hover:bg-slate-50/80 dark:bg-slate-800/60 dark:hover:bg-slate-800 dark:border-slate-700/70 dark:hover:border-slate-600 shadow-2xs hover:shadow-xs transition-all cursor-pointer"
                 >
                   <div className="flex items-start gap-3 min-w-0">
                     <span className="text-sm shrink-0 mt-0.5">{indicator}</span>
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <h4 className="text-xs sm:text-sm font-semibold text-slate-900 dark:text-white truncate">
+                        <h4 className="text-xs sm:text-sm font-semibold text-slate-900 dark:text-white truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
                           {action.title}
                         </h4>
                         <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${badgeClasses}`}>
@@ -310,7 +310,7 @@ const DashboardPage = ({ onNavigate }) => {
                         </span>
                       </div>
                       {action.description && (
-                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-1">
+                        <p className="text-xs text-slate-600 dark:text-slate-300 mt-1 line-clamp-1">
                           {action.description}
                         </p>
                       )}
@@ -318,7 +318,7 @@ const DashboardPage = ({ onNavigate }) => {
                   </div>
 
                   {action.action_type !== 'none' && (
-                    <div className="flex items-center gap-1 text-xs font-semibold text-indigo-600 dark:text-indigo-400 self-end sm:self-center shrink-0">
+                    <div className="flex items-center gap-1.5 text-xs font-semibold text-indigo-600 dark:text-indigo-400 px-2.5 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-100 dark:border-indigo-800/60 self-end sm:self-center shrink-0 group-hover:bg-indigo-100 dark:group-hover:bg-indigo-900/60 transition-colors">
                       <span>View</span>
                       <ArrowRight className="w-3.5 h-3.5" />
                     </div>

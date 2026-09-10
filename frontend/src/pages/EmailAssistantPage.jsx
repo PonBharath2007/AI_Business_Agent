@@ -640,12 +640,12 @@ const EmailAssistantPage = ({ onNavigate }) => {
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <div className="flex items-center bg-slate-900 p-0.5 rounded-lg border border-slate-800">
+                  <div className="flex items-center bg-slate-100 dark:bg-slate-900 p-0.5 rounded-lg border border-slate-200 dark:border-slate-800">
                     <button
                       type="button"
                       onClick={() => setPreviewMode('editor')}
                       className={`px-2 py-1 rounded text-[11px] font-semibold transition-all ${
-                        previewMode === 'editor' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'
+                        previewMode === 'editor' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                       }`}
                     >
                       Editor
@@ -654,7 +654,7 @@ const EmailAssistantPage = ({ onNavigate }) => {
                       type="button"
                       onClick={() => setPreviewMode('preview')}
                       className={`px-2 py-1 rounded text-[11px] font-semibold transition-all ${
-                        previewMode === 'preview' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'
+                        previewMode === 'preview' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                       }`}
                     >
                       Preview
@@ -703,13 +703,13 @@ const EmailAssistantPage = ({ onNavigate }) => {
                     <label className="block text-xs font-semibold text-slate-300">Email Body Content</label>
                     
                     {/* AI Quick Transformation Bar */}
-                    <div className="flex flex-wrap items-center gap-1">
-                      <span className="text-[10px] text-indigo-400 font-bold uppercase mr-1">AI Edit:</span>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold uppercase mr-1">AI Edit:</span>
                       <button
                         type="button"
                         onClick={() => handleTransformEmail('make_urgent')}
                         disabled={loading || !body}
-                        className="px-2 py-0.5 rounded-md bg-rose-500/10 text-rose-300 border border-rose-500/20 text-[10px] font-semibold hover:bg-rose-500/20 transition-all cursor-pointer"
+                        className="px-2 py-0.5 rounded-md bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100 dark:bg-rose-500/10 dark:text-rose-300 dark:border-rose-500/20 dark:hover:bg-rose-500/20 text-[10px] font-semibold transition-all cursor-pointer"
                         title="Enhance urgency"
                       >
                         ⚡ Make Urgent
@@ -718,7 +718,7 @@ const EmailAssistantPage = ({ onNavigate }) => {
                         type="button"
                         onClick={() => handleTransformEmail('make_professional')}
                         disabled={loading || !body}
-                        className="px-2 py-0.5 rounded-md bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 text-[10px] font-semibold hover:bg-indigo-500/20 transition-all cursor-pointer"
+                        className="px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100 dark:bg-indigo-500/10 dark:text-indigo-300 dark:border-indigo-500/20 dark:hover:bg-indigo-500/20 text-[10px] font-semibold transition-all cursor-pointer"
                         title="Refine professional tone"
                       >
                         👔 Executive
@@ -727,7 +727,7 @@ const EmailAssistantPage = ({ onNavigate }) => {
                         type="button"
                         onClick={() => handleTransformEmail('shorten')}
                         disabled={loading || !body}
-                        className="px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-300 border border-amber-500/20 text-[10px] font-semibold hover:bg-amber-500/20 transition-all cursor-pointer"
+                        className="px-2 py-0.5 rounded-md bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 dark:bg-amber-500/10 dark:text-amber-300 dark:border-amber-500/20 dark:hover:bg-amber-500/20 text-[10px] font-semibold transition-all cursor-pointer"
                         title="Shorten to concise length"
                       >
                         ✂️ Shorten
@@ -736,7 +736,7 @@ const EmailAssistantPage = ({ onNavigate }) => {
                         type="button"
                         onClick={() => handleTransformEmail('translate', 'Tamil')}
                         disabled={loading || !body}
-                        className="px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 text-[10px] font-semibold hover:bg-emerald-500/20 transition-all cursor-pointer"
+                        className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-300 dark:border-emerald-500/20 dark:hover:bg-emerald-500/20 text-[10px] font-semibold transition-all cursor-pointer"
                         title="Translate body to Tamil"
                       >
                         🌐 Translate to தமிழ்

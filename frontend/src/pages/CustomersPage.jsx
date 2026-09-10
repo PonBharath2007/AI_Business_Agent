@@ -518,7 +518,7 @@ const CustomersPage = ({ onNavigate }) => {
             <div className="text-center py-8 text-xs text-slate-500">Failed to load customer details.</div>
           ) : (
             <div className="space-y-4 text-xs">
-              <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-750 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 flex items-center justify-center font-bold text-sm">
                     {customer360Data.behavior.score}
@@ -561,25 +561,25 @@ const CustomersPage = ({ onNavigate }) => {
 
               {/* Financial Breakdown Tiles */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-800">
+                <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800">
                   <span className="text-[10px] uppercase text-slate-500">Total Billed</span>
                   <p className="text-sm font-bold text-slate-900 dark:text-white mt-1">
                     {formatMoney(customer360Data.financials.total_invoiced)}
                   </p>
                 </div>
-                <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-800">
+                <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800">
                   <span className="text-[10px] uppercase text-slate-500">Total Paid</span>
                   <p className="text-sm font-bold text-emerald-600 dark:text-emerald-400 mt-1">
                     {formatMoney(customer360Data.financials.paid_amount)}
                   </p>
                 </div>
-                <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-800">
+                <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800">
                   <span className="text-[10px] uppercase text-slate-500">Pending</span>
                   <p className="text-sm font-bold text-amber-600 dark:text-amber-400 mt-1">
                     {formatMoney(customer360Data.financials.pending_amount)}
                   </p>
                 </div>
-                <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-800">
+                <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800">
                   <span className="text-[10px] uppercase text-slate-500">Overdue</span>
                   <p className="text-sm font-bold text-rose-600 dark:text-rose-400 mt-1">
                     {formatMoney(customer360Data.financials.overdue_amount)}
@@ -599,7 +599,7 @@ const CustomersPage = ({ onNavigate }) => {
                     customer360Data.invoices.map((inv) => (
                       <div
                         key={inv.id}
-                        className="p-2 rounded-lg bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-800 flex items-center justify-between text-[11px]"
+                        className="p-2 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 flex items-center justify-between text-[11px]"
                       >
                         <span className="font-bold text-slate-900 dark:text-white">{inv.invoice_number}</span>
                         <span className="text-slate-500">Due: {inv.due_date || 'N/A'}</span>

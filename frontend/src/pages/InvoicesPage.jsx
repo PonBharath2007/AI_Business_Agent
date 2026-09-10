@@ -236,7 +236,7 @@ const InvoicesPage = ({ onNavigate }) => {
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse text-xs">
             <thead>
-              <tr className="bg-slate-50 dark:bg-slate-850 text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800">
+              <tr className="bg-slate-50 dark:bg-slate-800/80 text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800">
                 <th className="p-3.5 font-bold uppercase tracking-wider">Invoice #</th>
                 <th className="p-3.5 font-bold uppercase tracking-wider">Customer</th>
                 <th className="p-3.5 font-bold uppercase tracking-wider">Amount</th>
@@ -494,7 +494,7 @@ const InvoicesPage = ({ onNavigate }) => {
           title={`Invoice Details – ${viewInvoice.invoice_number}`}
         >
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4 p-4 rounded-xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-800 text-xs">
+            <div className="grid grid-cols-2 gap-4 p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 text-xs">
               <div>
                 <span className="text-slate-500 font-semibold block">Customer:</span>
                 <span className="text-slate-900 dark:text-white font-bold text-sm">{viewInvoice.customer_name}</span>

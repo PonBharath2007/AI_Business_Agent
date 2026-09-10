@@ -302,7 +302,9 @@ def deterministic_invoice_parser(file_name: str, raw_text: str) -> Dict[str, Any
     paid_amount = 0.0
     pending_amount = None
 
-    gt_match = re.search(r'\|\s*(?:Grand\s*Total|Total\s*Amount|Net\s*Payable|Total)\s*\|\s*[^0-9]*([\d,]+(?:\.\d{2})?)', raw_text, re.IGNORECASE)
+    gt_match = re.search(r'\|\s*(?:Grand\s*Total|Total\s*Amount|Net\s*Payable|Invoice\s*Total)\s*\|\s*([^|\r\n]*[\d,]+(?:\.\d{2})?)', raw_text, re.IGNORECASE)
+    if not gt_match:
+        gt_match = re.search(r'\|\s*Total\s*\|\s*([^|\r\n]*[\d,]+(?:\.\d{2})?)', raw_text, re.IGNORECASE)
     if gt_match:
         grand_total = parse_amount(gt_match.group(1))
 
@@ -311,23 +313,23 @@ def deterministic_invoice_parser(file_name: str, raw_text: str) -> Dict[str, Any
         if gt_text:
             grand_total = parse_amount(gt_text.group(1))
 
-    sub_match = re.search(r'\|\s*Subtotal\s*\|\s*[^0-9]*([\d,]+(?:\.\d{2})?)', raw_text, re.IGNORECASE)
+    sub_match = re.search(r'\|\s*Subtotal\s*\|\s*([^|\r\n]*[\d,]+(?:\.\d{2})?)', raw_text, re.IGNORECASE)
     if sub_match:
         subtotal = parse_amount(sub_match.group(1))
 
-    tax_m = re.search(r'\|\s*(?:Total\s*GST|Tax|Total\s*Tax)\s*\|\s*[^0-9]*([\d,]+(?:\.\d{2})?)', raw_text, re.IGNORECASE)
+    tax_m = re.search(r'\|\s*(?:Total\s*GST|Tax|Total\s*Tax)\s*\|\s*([^|\r\n]*[\d,]+(?:\.\d{2})?)', raw_text, re.IGNORECASE)
     if tax_m:
         total_tax = parse_amount(tax_m.group(1))
 
-    disc_m = re.search(r'\|\s*(?:Discount)\s*\|\s*[^0-9]*([\d,]+(?:\.\d{2})?)', raw_text, re.IGNORECASE)
+    disc_m = re.search(r'\|\s*(?:Discount)\s*\|\s*([^|\r\n]*[\d,]+(?:\.\d{2})?)', raw_text, re.IGNORECASE)
     if disc_m:
         discount = parse_amount(disc_m.group(1)) or 0.0
 
-    paid_m = re.search(r'\|\s*(?:Paid|Amount\s*Paid|Advance\s*Paid|Received)\s*\|\s*[^0-9]*([\d,]+(?:\.\d{2})?)', raw_text, re.IGNORECASE)
+    paid_m = re.search(r'\|\s*(?:Paid|Amount\s*Paid|Advance\s*Paid|Received)\s*\|\s*([^|\r\n]*[\d,]+(?:\.\d{2})?)', raw_text, re.IGNORECASE)
     if paid_m:
         paid_amount = parse_amount(paid_m.group(1)) or 0.0
 
-    bal_match = re.search(r'\|\s*(?:Balance\s*Due|Pending\s*Amount|Amount\s*Due)\s*\|\s*[^0-9]*([\d,]+(?:\.\d{2})?)', raw_text, re.IGNORECASE)
+    bal_match = re.search(r'\|\s*(?:Balance\s*Due|Pending\s*Amount|Amount\s*Due)\s*\|\s*([^|\r\n]*[\d,]+(?:\.\d{2})?)', raw_text, re.IGNORECASE)
     if bal_match:
         pending_amount = parse_amount(bal_match.group(1))
 
@@ -579,6 +581,10 @@ def validate_invoice_extraction(data: Dict[str, Any]) -> Dict[str, Any]:
     data["validation_errors"] = validation_warnings
     data["ai_confidence"] = 95 if not validation_warnings else max(50, 95 - (len(validation_warnings) * 15))
     data["confidence_score"] = data["ai_confidence"]
+    data["math_validation"] = {
+        "is_valid": validation_status == "VALID",
+        "warnings": validation_warnings
+    }
     return data
 
 

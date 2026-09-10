@@ -48,7 +48,7 @@ const TopNavbar = ({ onMenuClick, onNavigate }) => {
       <div className="flex items-center gap-3">
         <button
           onClick={onMenuClick}
-          className="p-2 rounded-xl text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-850 lg:hidden cursor-pointer"
+          className="p-2 rounded-xl text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 lg:hidden cursor-pointer"
         >
           <Menu className="w-5 h-5" />
         </button>
@@ -66,18 +66,24 @@ const TopNavbar = ({ onMenuClick, onNavigate }) => {
 
       {/* Right actions */}
       <div className="flex items-center gap-2 sm:gap-2.5">
-        {/* Light / Dark Mode Global Toggle */}
+        {/* Light / Dark Mode Global Toggle with Persistent Theme Name */}
         <button
           type="button"
           onClick={toggleTheme}
-          className="p-2 rounded-xl text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer border border-transparent hover:border-slate-200 dark:hover:border-slate-700"
-          title={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-          aria-label="Toggle color theme"
+          className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl border text-[11px] sm:text-xs font-semibold transition-all cursor-pointer select-none shadow-2xs bg-slate-100 hover:bg-slate-200/80 text-slate-700 border-slate-200 dark:bg-slate-800/80 dark:hover:bg-slate-800 dark:text-slate-200 dark:border-slate-700"
+          title={isDark ? 'Current: Dark Theme. Click to switch to Light Theme.' : 'Current: Light Theme. Click to switch to Dark Theme.'}
+          aria-label={isDark ? 'Current theme: Dark. Toggle to switch.' : 'Current theme: Light. Toggle to switch.'}
         >
           {isDark ? (
-            <Sun className="w-4 h-4 text-amber-400" />
+            <>
+              <Moon className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+              <span>Dark</span>
+            </>
           ) : (
-            <Moon className="w-4 h-4 text-slate-600" />
+            <>
+              <Sun className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+              <span>Light</span>
+            </>
           )}
         </button>
 
@@ -151,7 +157,7 @@ const TopNavbar = ({ onMenuClick, onNavigate }) => {
                         className={`p-2.5 rounded-xl border transition-colors cursor-pointer flex gap-3 items-start ${
                           !n.read
                             ? 'bg-indigo-50/50 dark:bg-indigo-950/20 border-indigo-100 dark:border-indigo-800/40'
-                            : 'bg-slate-50 dark:bg-slate-800/40 border-slate-200 dark:border-slate-750 hover:bg-slate-100 dark:hover:bg-slate-800'
+                            : 'bg-slate-50 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800'
                         }`}
                       >
                         <div className={`p-1.5 rounded-lg shrink-0 mt-0.5 ${iconColor}`}>

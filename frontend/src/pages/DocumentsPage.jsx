@@ -286,7 +286,7 @@ const DocumentsPage = ({ onNavigate }) => {
                     className={`p-3 rounded-xl border transition-all cursor-pointer ${
                       isSelected
                         ? 'bg-indigo-50/70 border-indigo-300 dark:bg-indigo-950/40 dark:border-indigo-800/80 shadow-xs'
-                        : 'bg-slate-50/50 dark:bg-slate-850/40 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
+                        : 'bg-slate-50/50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
                     }`}
                   >
                     <div className="flex items-start justify-between gap-2">
@@ -360,25 +360,25 @@ const DocumentsPage = ({ onNavigate }) => {
 
               {/* Extracted Key Metadata Cards */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-800">
+                <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800">
                   <span className="text-[10px] text-slate-500 block uppercase font-bold">Invoice #</span>
                   <span className="text-xs font-mono font-bold text-slate-900 dark:text-white truncate block mt-0.5">
                     {extracted.invoice_number || 'N/A'}
                   </span>
                 </div>
-                <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-800">
+                <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800">
                   <span className="text-[10px] text-slate-500 block uppercase font-bold">Total Amount</span>
                   <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 block mt-0.5">
                     {extracted.total_amount ? formatMoney(extracted.total_amount) : 'N/A'}
                   </span>
                 </div>
-                <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-800">
+                <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800">
                   <span className="text-[10px] text-slate-500 block uppercase font-bold">Issue Date</span>
                   <span className="text-xs font-medium text-slate-700 dark:text-slate-200 block mt-0.5">
                     {extracted.issue_date || 'N/A'}
                   </span>
                 </div>
-                <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-800">
+                <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800">
                   <span className="text-[10px] text-slate-500 block uppercase font-bold">Due Date</span>
                   <span className="text-xs font-medium text-slate-700 dark:text-slate-200 block mt-0.5">
                     {extracted.due_date || 'N/A'}

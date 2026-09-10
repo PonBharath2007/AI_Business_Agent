@@ -72,6 +72,11 @@ def run_document_workflow(db: Session, business: Business, document: Document) -
     customer, match_reason = match_existing_customer(db, business.id, extracted)
     if customer:
         extracted["customer_match_status"] = f"Matched ({match_reason})"
+        extracted["customer_match"] = {
+            "matched": True,
+            "customer_id": customer.id,
+            "reason": match_reason
+        }
         log_activity(
             db,
             business_id=business.id,
@@ -94,6 +99,11 @@ def run_document_workflow(db: Session, business: Business, document: Document) -
             db.commit()
             db.refresh(customer)
             extracted["customer_match_status"] = "New profile registered"
+            extracted["customer_match"] = {
+                "matched": True,
+                "customer_id": customer.id,
+                "reason": "New profile registered"
+            }
             log_activity(
                 db,
                 business_id=business.id,
@@ -103,6 +113,11 @@ def run_document_workflow(db: Session, business: Business, document: Document) -
             )
         else:
             extracted["customer_match_status"] = "Customer match requires review"
+            extracted["customer_match"] = {
+                "matched": False,
+                "customer_id": None,
+                "reason": "Customer match requires review"
+            }
 
     # 6. Duplicate Detection Check
     duplicate_inv = db.query(Invoice).filter(

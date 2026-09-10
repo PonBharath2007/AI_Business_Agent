@@ -32,7 +32,7 @@ const SettingsPage = () => {
   const { user } = useAuth();
   const { business, updateProfile, resetDemoData, formatMoney, loading: bizLoading } = useBusiness();
   const { addToast } = useNotifications();
-  const { theme, toggleTheme, isDark } = useTheme();
+  const { theme, setTheme, toggleTheme, isDark } = useTheme();
 
   const [activeTab, setActiveTab] = useState('profile'); // 'profile', 'policies', 'memory', 'demo'
   const [formData, setFormData] = useState({
@@ -264,11 +264,11 @@ const SettingsPage = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <button
                 type="button"
-                onClick={() => theme === 'dark' && toggleTheme()}
+                onClick={() => setTheme('light')}
                 className={`p-4 rounded-xl border flex items-center gap-3 text-left transition-all cursor-pointer ${
                   theme === 'light'
-                    ? 'border-indigo-600 bg-indigo-50/50 text-indigo-950 shadow-xs'
-                    : 'border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/40 text-slate-600 dark:text-slate-400 hover:border-slate-300'
+                    ? 'border-indigo-600 bg-indigo-50/70 dark:bg-indigo-950/40 text-indigo-950 dark:text-indigo-200 shadow-xs ring-1 ring-indigo-500/20'
+                    : 'border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/40 text-slate-600 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-700'
                 }`}
               >
                 <div className="w-9 h-9 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center shrink-0">
@@ -282,11 +282,11 @@ const SettingsPage = () => {
 
               <button
                 type="button"
-                onClick={() => theme === 'light' && toggleTheme()}
+                onClick={() => setTheme('dark')}
                 className={`p-4 rounded-xl border flex items-center gap-3 text-left transition-all cursor-pointer ${
                   theme === 'dark'
-                    ? 'border-indigo-500 bg-indigo-950/30 text-indigo-200 shadow-xs'
-                    : 'border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/40 text-slate-600 dark:text-slate-400 hover:border-slate-300'
+                    ? 'border-indigo-500 bg-indigo-50/70 dark:bg-indigo-950/50 text-indigo-950 dark:text-indigo-200 shadow-xs ring-1 ring-indigo-500/30'
+                    : 'border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/40 text-slate-600 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-700'
                 }`}
               >
                 <div className="w-9 h-9 rounded-xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center shrink-0">
