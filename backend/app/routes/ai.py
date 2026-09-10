@@ -2,7 +2,7 @@ from typing import Dict, Any, List
 from fastapi import APIRouter, Depends, HTTPException, Body
 from sqlalchemy.orm import Session
 from backend.app.database.session import get_db
-from backend.app.models.models import Business, Customer, Invoice, Email, Task
+from backend.app.models.models import Business, Customer, Invoice, Email, Task, Approval
 from backend.app.schemas.schemas import (
     AIChatRequest, AIChatResponse, AIDailyBriefResponse,
     EmailGenerateRequest, EmailSendRequest
@@ -167,7 +167,15 @@ def send_email_direct(
     from backend.app.models.models import CommunicationLog
     from datetime import datetime
 
-    # 1. Create initial dispatch records with status 'pending'
+    # 1. Validate approval if provided
+    app_record = None
+    if req.approval_id:
+        app_record = db.query(Approval).filter(
+            Approval.id == req.approval_id,
+            Approval.business_id == business.id
+        ).first()
+
+    # 2. Create initial dispatch records with status 'pending'
     email_rec = Email(
         business_id=business.id,
         customer_id=req.customer_id,
@@ -200,7 +208,7 @@ def send_email_direct(
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Database error initializing dispatch: {str(db_init_err)}")
 
-    # 2. Execute SMTP email delivery
+    # 3. Execute SMTP email delivery
     logger.info(f"Starting email dispatch... Recipient: {req.recipient_email}")
     delivery_res = send_real_email(
         to_email=req.recipient_email,
@@ -227,11 +235,28 @@ def send_email_direct(
         actual_error = delivery_res.get("error", "SMTP delivery failure")
         logger.warning(f"Email dispatch failed for {req.recipient_email}. Error: {actual_error}. Dispatch status updated to FAILED for email_id={email_rec.id}")
 
-    # 3. Update database record with final status
+    # 4. Update database record with final status and sync Approval status
     try:
         email_rec.status = status_str
         comm_log.status = status_str
         comm_log.sent_at = sent_time
+
+        if app_record:
+            if is_delivered or is_live or is_simulated:
+                app_record.status = "sent"
+            else:
+                app_record.status = "failed"
+
+        # Complete associated task if invoice_id provided
+        if req.invoice_id:
+            task = db.query(Task).filter(
+                Task.business_id == business.id,
+                Task.source_type.in_(["AI Workflow", "AI Document"]),
+                Task.source_id == req.invoice_id
+            ).first()
+            if task:
+                task.status = "Completed"
+
         db.commit()
         db.refresh(email_rec)
         db.refresh(comm_log)
@@ -247,13 +272,18 @@ def send_email_direct(
             actor_type="Business Owner",
             action="Email Dispatched",
             description=f"Sent email ({mode_tag}) '{req.subject}' to {req.recipient_email}.",
+            status="success" if (is_delivered or is_live or is_simulated) else "failed",
             metadata={
+                "approval_id": req.approval_id,
+                "customer_id": req.customer_id,
+                "invoice_id": req.invoice_id,
+                "channel": "Email",
+                "status": "SENT" if (is_delivered or is_live) else ("SIMULATED" if is_simulated else "FAILED"),
                 "email_id": email_rec.id,
                 "communication_id": comm_log.id,
                 "recipient": req.recipient_email,
                 "delivery": delivery_res,
-                "status": status_str,
-                "error": delivery_res.get("error")
+                "error_message": delivery_res.get("error")
             }
         )
 
@@ -268,7 +298,7 @@ def send_email_direct(
         logger.warning(f"Non-critical error creating activity/notification: {notif_err}")
 
     return {
-        "success": is_delivered or is_live,
+        "success": is_delivered or is_live or is_simulated,
         "status": status_str,
         "message": "Email sent successfully" if (is_delivered or is_live) else (delivery_res.get("message") or "Email delivery failed"),
         "email_id": email_rec.id,

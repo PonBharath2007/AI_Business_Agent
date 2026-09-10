@@ -237,6 +237,29 @@ class ApprovalOut(ApprovalBase):
     class Config:
         from_attributes = True
 
+class ApprovalExecutionContextResponse(BaseModel):
+    approval_id: int
+    customer_id: Optional[int] = None
+    customer_name: Optional[str] = None
+    customer_email: Optional[str] = None
+    customer_phone: Optional[str] = None
+    invoice_id: Optional[int] = None
+    invoice_number: Optional[str] = None
+    invoice_total: Optional[float] = None
+    paid_amount: Optional[float] = None
+    pending_amount: Optional[float] = None
+    due_date: Optional[str] = None
+    payment_status: Optional[str] = None
+    communication_channel: str = "email" # "email" or "sms"
+    approved_action: str = "send_payment_reminder"
+    subject: Optional[str] = None
+    generated_message: Optional[str] = None
+    language: Optional[str] = "en"
+    fallback: bool = False
+    fallback_reason: Optional[str] = None
+    no_contact: bool = False
+
+
 # ----------------- ACTIVITY & AUDIT SCHEMAS -----------------
 class ActivityOut(BaseModel):
     id: int
@@ -265,6 +288,7 @@ class EmailSendRequest(BaseModel):
     subject: str
     body: str
     customer_id: Optional[int] = None
+    invoice_id: Optional[int] = None
     approval_id: Optional[int] = None
 
 class EmailOut(BaseModel):
@@ -575,6 +599,8 @@ class SMSSendRequest(BaseModel):
     language: Optional[str] = "en"
     purpose: Optional[str] = "payment_reminder"
     ai_generated: Optional[bool] = True
+    approval_id: Optional[int] = None
+    invoice_id: Optional[int] = None
 
 class SMSSendResponse(BaseModel):
     success: bool

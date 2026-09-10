@@ -152,6 +152,37 @@ const ActivityLogPage = () => {
                     <p className="text-xs text-slate-700 dark:text-slate-200 mt-2 leading-relaxed">
                       {act.description}
                     </p>
+
+                    {/* Dispatched Logs Metadata Relationship Chips */}
+                    {act.metadata_json && (act.metadata_json.approval_id || act.metadata_json.channel) && (
+                      <div className="mt-3 pt-2.5 border-t border-slate-200 dark:border-[#26262c] flex flex-wrap items-center gap-2 text-[11px]">
+                        {act.metadata_json.approval_id && (
+                          <span className="px-2 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 font-bold border border-indigo-200 dark:border-indigo-500/30">
+                            Approval #{act.metadata_json.approval_id}
+                          </span>
+                        )}
+                        {act.metadata_json.channel && (
+                          <span className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-[#202026] text-slate-700 dark:text-slate-300 font-semibold border border-slate-200 dark:border-[#2e2e36]">
+                            Channel: {act.metadata_json.channel}
+                          </span>
+                        )}
+                        {act.metadata_json.invoice_id && (
+                          <span className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-[#202026] text-slate-700 dark:text-slate-300 font-semibold border border-slate-200 dark:border-[#2e2e36]">
+                            Invoice ID: {act.metadata_json.invoice_id}
+                          </span>
+                        )}
+                        {act.metadata_json.status && (
+                          <Badge variant={act.metadata_json.status === 'SENT' ? 'success' : (act.metadata_json.status === 'FAILED' ? 'danger' : 'warning')}>
+                            {act.metadata_json.status}
+                          </Badge>
+                        )}
+                        {act.metadata_json.error_message && (
+                          <span className="text-rose-600 dark:text-rose-400 font-medium">
+                            Error: {act.metadata_json.error_message}
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               );

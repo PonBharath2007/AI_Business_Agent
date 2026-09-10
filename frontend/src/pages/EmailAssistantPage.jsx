@@ -28,11 +28,12 @@ import Badge from '../components/common/Badge';
 import Modal from '../components/common/Modal';
 import EmptyState from '../components/common/EmptyState';
 
-const EmailAssistantPage = ({ onNavigate }) => {
+const EmailAssistantPage = ({ onNavigate, navParams = {} }) => {
   const { business, formatMoney } = useBusiness();
   const { addToast } = useNotifications();
 
   const [activeTab, setActiveTab] = useState('studio'); // 'studio' or 'history'
+  const [approvalContext, setApprovalContext] = useState(null);
   const [customers, setCustomers] = useState([]);
   const [invoices, setInvoices] = useState([]);
   const [customerInvoices, setCustomerInvoices] = useState([]);
@@ -62,7 +63,7 @@ const EmailAssistantPage = ({ onNavigate }) => {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [viewingEmail, setViewingEmail] = useState(null);
 
-  const fetchCustomerInvoices = useCallback(async (customerId) => {
+  const fetchCustomerInvoices = useCallback(async (customerId, targetInvoiceId = null) => {
     if (!customerId) {
       setCustomerInvoices([]);
       setSelectedInvoice(null);
@@ -85,7 +86,17 @@ const EmailAssistantPage = ({ onNavigate }) => {
       setCustomerInvoices(invList);
 
       if (invList.length > 0) {
-        const autoSelected = (recId && invList.find((i) => i.id === recId)) || invList[0];
+        let autoSelected = null;
+        if (targetInvoiceId) {
+          autoSelected = invList.find((i) => String(i.id) === String(targetInvoiceId));
+        }
+        if (!autoSelected && recId) {
+          autoSelected = invList.find((i) => i.id === recId);
+        }
+        if (!autoSelected) {
+          autoSelected = invList[0];
+        }
+
         setSelectedInvoice(autoSelected);
         setSelectedInvoiceId(String(autoSelected.id));
         if (autoSelected.customer_email) {
@@ -118,7 +129,7 @@ const EmailAssistantPage = ({ onNavigate }) => {
       const custData = custRes.data || [];
       setCustomers(custData);
 
-      if (custData.length > 0 && !selectedCustomerId) {
+      if (custData.length > 0 && !selectedCustomerId && !navParams?.customer_id && !navParams?.customerId) {
         const initialCid = String(custData[0].id);
         setSelectedCustomerId(initialCid);
         if (custData[0].email) {
@@ -129,7 +140,48 @@ const EmailAssistantPage = ({ onNavigate }) => {
     } catch (err) {
       console.error('Error fetching customers:', err);
     }
-  }, [fetchCustomerInvoices, selectedCustomerId]);
+  }, [fetchCustomerInvoices, selectedCustomerId, navParams]);
+
+  // Handle incoming approval navigation context
+  useEffect(() => {
+    if (navParams && (navParams.approval_id || navParams.customer_id || navParams.customerId)) {
+      const cid = String(navParams.customer_id || navParams.customerId || '');
+      const invId = navParams.invoice_id || navParams.invoiceId || null;
+
+      if (navParams.approval_id) {
+        setApprovalContext({
+          approval_id: navParams.approval_id,
+          customer_id: cid,
+          customer_name: navParams.customer_name,
+          invoice_id: invId,
+          invoice_number: navParams.invoice_number,
+          invoice_total: navParams.invoice_total,
+          pending_amount: navParams.pending_amount,
+          due_date: navParams.due_date,
+          payment_status: navParams.payment_status,
+          approved_action: navParams.approved_action
+        });
+      }
+
+      if (cid) {
+        setSelectedCustomerId(cid);
+        fetchCustomerInvoices(cid, invId);
+      }
+
+      if (navParams.subject) {
+        setSubject(navParams.subject);
+      }
+      if (navParams.generated_message || navParams.body) {
+        setBody(navParams.generated_message || navParams.body);
+      }
+      if (navParams.customer_email || navParams.recipient_email) {
+        setRecipientEmail(navParams.customer_email || navParams.recipient_email);
+      }
+      if (navParams.language) {
+        setLanguage(navParams.language);
+      }
+    }
+  }, [navParams, fetchCustomerInvoices]);
 
   const fetchHistory = useCallback(async () => {
     setHistoryLoading(true);
@@ -160,6 +212,11 @@ const EmailAssistantPage = ({ onNavigate }) => {
     setSelectedInvoiceId('');
     setCustomerInvoices([]);
     setInvoiceMessage('');
+
+    // Clear approval context if customer is manually switched
+    if (approvalContext && String(approvalContext.customer_id) !== String(cid)) {
+      setApprovalContext(null);
+    }
 
     if (!cid) {
       setRecipientEmail('');
@@ -275,14 +332,21 @@ const EmailAssistantPage = ({ onNavigate }) => {
         addToast('info', 'Queued for Approval', 'Email draft submitted to Approval Center.');
         onNavigate('approvals');
       } else {
+        const approvalIdToSend = approvalContext?.approval_id || navParams?.approval_id;
+        const invoiceIdToSend = inv ? inv.id : (selectedInvoiceId ? parseInt(selectedInvoiceId) : null);
         const res = await api.post('/ai/send-email', {
           recipient_email: recipientEmail,
           subject: subject,
           body: body,
-          customer_id: cust ? cust.id : null
+          customer_id: cust ? cust.id : null,
+          invoice_id: invoiceIdToSend,
+          approval_id: approvalIdToSend ? parseInt(approvalIdToSend) : null
         });
         if (res.data?.success || res.data?.status === 'sent') {
           addToast('success', 'Email Delivered', res.data?.message || `Email successfully dispatched to ${recipientEmail}.`);
+          if (approvalContext) {
+            setApprovalContext(null);
+          }
         } else if (res.data?.status === 'simulated') {
           addToast('warning', 'Simulated Mode', res.data?.message || `Email recorded locally for ${recipientEmail}.`);
         } else {
@@ -401,7 +465,44 @@ const EmailAssistantPage = ({ onNavigate }) => {
       </div>
 
       {activeTab === 'studio' ? (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div className="space-y-6">
+          {/* Approved Action Banner */}
+          {approvalContext && (
+            <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/30 border-2 border-emerald-500/40 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-600/30 flex items-center justify-center shrink-0">
+                  <CheckCircle2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-xs font-black uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
+                      Approved Action
+                    </span>
+                    <span className="px-2 py-0.5 rounded-md bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300 text-[10px] font-bold uppercase border border-emerald-300 dark:border-emerald-700/50">
+                      Approved in Approval Centre
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-700 dark:text-slate-300 mt-0.5">
+                    Approval <strong>#{approvalContext.approval_id}</strong> is pre-loaded for <strong>{approvalContext.customer_name || 'Customer'}</strong>. Review or edit below, then click <strong>Send Email</strong>.
+                  </p>
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-2 text-xs">
+                {approvalContext.invoice_number && (
+                  <span className="px-2.5 py-1 rounded-lg bg-white dark:bg-[#18181d] border border-emerald-200 dark:border-emerald-800 text-slate-800 dark:text-slate-200 font-semibold">
+                    Invoice: {approvalContext.invoice_number}
+                  </span>
+                )}
+                {approvalContext.pending_amount !== undefined && (
+                  <span className="px-2.5 py-1 rounded-lg bg-white dark:bg-[#18181d] border border-emerald-200 dark:border-emerald-800 text-rose-600 dark:text-rose-400 font-bold">
+                    Pending: {formatMoney(approvalContext.pending_amount)}
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Left Form Controls (5 cols) */}
           <div className="lg:col-span-5 bg-white dark:bg-[#141417] rounded-2xl p-5 border border-slate-200 dark:border-[#26262c] shadow-xs space-y-4">
             <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-[#26262c]">
@@ -801,6 +902,7 @@ const EmailAssistantPage = ({ onNavigate }) => {
               </div>
             </div>
           </div>
+        </div>
         </div>
       ) : (
         /* History & Dispatched Logs View */

@@ -34,11 +34,12 @@ import Badge from '../components/common/Badge';
 import Modal from '../components/common/Modal';
 import EmptyState from '../components/common/EmptyState';
 
-const MessageCenterPage = ({ onNavigate, preSelectedCustomerId = null }) => {
+const MessageCenterPage = ({ onNavigate, navParams = {}, preSelectedCustomerId = null }) => {
   const { business, formatMoney } = useBusiness();
   const { addToast } = useNotifications();
 
   const [activeTab, setActiveTab] = useState('studio'); // 'studio' or 'history'
+  const [approvalContext, setApprovalContext] = useState(null);
   const [customers, setCustomers] = useState([]);
   const [invoices, setInvoices] = useState([]);
   const [customerInvoices, setCustomerInvoices] = useState([]);
@@ -69,7 +70,7 @@ const MessageCenterPage = ({ onNavigate, preSelectedCustomerId = null }) => {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [viewingMessage, setViewingMessage] = useState(null);
 
-  const fetchCustomerInvoices = useCallback(async (customerId) => {
+  const fetchCustomerInvoices = useCallback(async (customerId, targetInvoiceId = null) => {
     if (!customerId) {
       setCustomerInvoices([]);
       setSelectedInvoice(null);
@@ -92,7 +93,17 @@ const MessageCenterPage = ({ onNavigate, preSelectedCustomerId = null }) => {
       setCustomerInvoices(invList);
 
       if (invList.length > 0) {
-        const autoSelected = (recId && invList.find((i) => i.id === recId)) || invList[0];
+        let autoSelected = null;
+        if (targetInvoiceId) {
+          autoSelected = invList.find((i) => String(i.id) === String(targetInvoiceId));
+        }
+        if (!autoSelected && recId) {
+          autoSelected = invList.find((i) => i.id === recId);
+        }
+        if (!autoSelected) {
+          autoSelected = invList[0];
+        }
+
         setSelectedInvoice(autoSelected);
         setSelectedInvoiceId(String(autoSelected.id));
         if (res.data?.customer?.phone) {
@@ -126,7 +137,7 @@ const MessageCenterPage = ({ onNavigate, preSelectedCustomerId = null }) => {
       const custData = custRes.data || [];
       setCustomers(custData);
 
-      if (custData.length > 0 && !selectedCustomerId) {
+      if (custData.length > 0 && !selectedCustomerId && !navParams?.customer_id && !navParams?.customerId) {
         // Default to first customer with a phone number or first customer
         const withPhone = custData.find((c) => c.phone && c.phone.trim().length > 3) || custData[0];
         const initialCid = String(withPhone.id);
@@ -135,15 +146,52 @@ const MessageCenterPage = ({ onNavigate, preSelectedCustomerId = null }) => {
         fetchCustomerInvoices(initialCid);
       } else if (selectedCustomerId) {
         const found = custData.find((c) => String(c.id) === String(selectedCustomerId));
-        if (found) {
+        if (found && !recipientPhone) {
           setRecipientPhone(found.phone || '');
         }
-        fetchCustomerInvoices(selectedCustomerId);
       }
     } catch (err) {
-      console.error('Error fetching customers/invoices:', err);
+      console.error('Error fetching customers:', err);
     }
-  }, [fetchCustomerInvoices, selectedCustomerId]);
+  }, [fetchCustomerInvoices, selectedCustomerId, navParams, recipientPhone]);
+
+  // Handle incoming approval navigation context
+  useEffect(() => {
+    if (navParams && (navParams.approval_id || navParams.customer_id || navParams.customerId)) {
+      const cid = String(navParams.customer_id || navParams.customerId || '');
+      const invId = navParams.invoice_id || navParams.invoiceId || null;
+
+      if (navParams.approval_id) {
+        setApprovalContext({
+          approval_id: navParams.approval_id,
+          customer_id: cid,
+          customer_name: navParams.customer_name,
+          invoice_id: invId,
+          invoice_number: navParams.invoice_number,
+          invoice_total: navParams.invoice_total,
+          pending_amount: navParams.pending_amount,
+          due_date: navParams.due_date,
+          payment_status: navParams.payment_status,
+          approved_action: navParams.approved_action
+        });
+      }
+
+      if (cid) {
+        setSelectedCustomerId(cid);
+        fetchCustomerInvoices(cid, invId);
+      }
+
+      if (navParams.generated_message || navParams.body || navParams.message) {
+        setMessageBody(navParams.generated_message || navParams.body || navParams.message);
+      }
+      if (navParams.customer_phone || navParams.recipient_phone) {
+        setRecipientPhone(navParams.customer_phone || navParams.recipient_phone);
+      }
+      if (navParams.language) {
+        setLanguage(navParams.language);
+      }
+    }
+  }, [navParams, fetchCustomerInvoices]);
 
   const fetchHistory = useCallback(async () => {
     setHistoryLoading(true);
@@ -180,6 +228,10 @@ const MessageCenterPage = ({ onNavigate, preSelectedCustomerId = null }) => {
     setSelectedInvoiceId('');
     setCustomerInvoices([]);
     setInvoiceMessage('');
+
+    if (approvalContext && String(approvalContext.customer_id) !== String(cid)) {
+      setApprovalContext(null);
+    }
 
     if (!cid) {
       setRecipientPhone('');
@@ -281,12 +333,16 @@ const MessageCenterPage = ({ onNavigate, preSelectedCustomerId = null }) => {
 
     setSending(true);
     try {
+      const approvalIdToSend = approvalContext?.approval_id || navParams?.approval_id;
+      const invoiceIdToSend = selectedInvoice?.id || (selectedInvoiceId ? parseInt(selectedInvoiceId) : undefined);
       const res = await api.post('/sms/send', {
         customer_id: selectedCustomerId ? parseInt(selectedCustomerId) : undefined,
         phone_number: cleanPhone,
         message: messageBody,
         language: language,
-        purpose: templateType
+        purpose: templateType,
+        approval_id: approvalIdToSend ? parseInt(approvalIdToSend) : undefined,
+        invoice_id: invoiceIdToSend
       });
 
       setQueuedInfo({
@@ -297,6 +353,9 @@ const MessageCenterPage = ({ onNavigate, preSelectedCustomerId = null }) => {
       });
 
       addToast('success', 'SMS Queued Successfully', 'SMS added to queue. Waiting for Android gateway.');
+      if (approvalContext) {
+        setApprovalContext(null);
+      }
 
       // Refresh history in background
       fetchHistory();
@@ -397,7 +456,44 @@ const MessageCenterPage = ({ onNavigate, preSelectedCustomerId = null }) => {
 
       {activeTab === 'studio' ? (
         /* ======================== TAB 1: COMPOSER STUDIO ======================== */
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div className="space-y-6">
+          {/* Approved Action Banner */}
+          {approvalContext && (
+            <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/30 border-2 border-emerald-500/40 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-600/30 flex items-center justify-center shrink-0">
+                  <CheckCircle2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-xs font-black uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
+                      Approved Action
+                    </span>
+                    <span className="px-2 py-0.5 rounded-md bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300 text-[10px] font-bold uppercase border border-emerald-300 dark:border-emerald-700/50">
+                      Approved in Approval Centre
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-700 dark:text-slate-300 mt-0.5">
+                    Approval <strong>#{approvalContext.approval_id}</strong> is pre-loaded for <strong>{approvalContext.customer_name || 'Customer'}</strong>. Review or edit below, then click <strong>Send Message</strong>.
+                  </p>
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-2 text-xs">
+                {approvalContext.invoice_number && (
+                  <span className="px-2.5 py-1 rounded-lg bg-white dark:bg-[#18181d] border border-emerald-200 dark:border-emerald-800 text-slate-800 dark:text-slate-200 font-semibold">
+                    Invoice: {approvalContext.invoice_number}
+                  </span>
+                )}
+                {approvalContext.pending_amount !== undefined && (
+                  <span className="px-2.5 py-1 rounded-lg bg-white dark:bg-[#18181d] border border-emerald-200 dark:border-emerald-800 text-rose-600 dark:text-rose-400 font-bold">
+                    Pending: {formatMoney(approvalContext.pending_amount)}
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Left Column: Quick Customer Directory & Context (4 cols) */}
           <div className="lg:col-span-4 space-y-4">
             {/* Quick Customer Picker */}
@@ -890,6 +986,7 @@ const MessageCenterPage = ({ onNavigate, preSelectedCustomerId = null }) => {
               </div>
             </div>
           </div>
+        </div>
         </div>
       ) : (
         /* ======================== TAB 2: MESSAGE HISTORY ======================== */

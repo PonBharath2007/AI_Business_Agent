@@ -36,9 +36,19 @@ const PageFallback = () => (
 const AppContent = () => {
   const { user, token, loading: authLoading } = useAuth();
   const [authView, setAuthView] = useState('login'); // 'login' or 'register'
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const [activeTab, setActiveTab] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('tab') || 'dashboard';
+  });
   const [pendingApprovalsCount, setPendingApprovalsCount] = useState(0);
-  const [navParams, setNavParams] = useState({});
+  const [navParams, setNavParams] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    const p = {};
+    for (const [key, val] of params.entries()) {
+      p[key] = val;
+    }
+    return p;
+  });
 
   // Periodic check for pending approvals badge (only when authenticated, decoupled from activeTab)
   useEffect(() => {
@@ -70,6 +80,22 @@ const AppContent = () => {
   const handleNavigate = (tab, params = {}) => {
     setNavParams(params || {});
     setActiveTab(tab);
+    try {
+      const url = new URL(window.location.href);
+      // Clear old search params when tab changes
+      url.search = '';
+      url.searchParams.set('tab', tab);
+      if (params && typeof params === 'object') {
+        Object.entries(params).forEach(([k, v]) => {
+          if (v !== undefined && v !== null && typeof v !== 'object') {
+            url.searchParams.set(k, String(v));
+          }
+        });
+      }
+      window.history.replaceState({}, '', url.toString());
+    } catch (e) {
+      // ignore
+    }
   };
 
   if (authLoading) {
@@ -112,12 +138,13 @@ const AppContent = () => {
       case 'approvals':
         return <ApprovalsPage onNavigate={handleNavigate} />;
       case 'email_assistant':
-        return <EmailAssistantPage onNavigate={handleNavigate} />;
+        return <EmailAssistantPage onNavigate={handleNavigate} navParams={navParams} />;
       case 'message_center':
         return (
           <MessageCenterPage
             onNavigate={handleNavigate}
-            preSelectedCustomerId={navParams.customerId || null}
+            navParams={navParams}
+            preSelectedCustomerId={navParams.customerId || navParams.customer_id || null}
           />
         );
       case 'analytics':

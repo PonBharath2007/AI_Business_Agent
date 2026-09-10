@@ -57,24 +57,60 @@ const ApprovalsPage = ({ onNavigate }) => {
     try {
       const payload = editedData || approval.action_data;
       const res = await api.post(`/approvals/${approval.id}/approve`, payload);
-      const delivery = res.data.delivery || res.data.execution_result?.delivery;
-      const isSent = res.data.success === true || res.data.dispatch_status === 'sent' || delivery?.delivered || delivery?.mode === 'live';
-      const isSimulated = res.data.dispatch_status === 'simulated' || delivery?.mode === 'simulated';
-      const isFailed = res.data.dispatch_status === 'failed' || delivery?.mode === 'failed' || (res.data.success === false && !isSimulated);
 
-      if (isSent) {
-        addToast('success', 'Action Approved & Dispatched', res.data.message || 'Live email dispatched to recipient.');
-      } else if (isSimulated) {
-        addToast('warning', 'Action Approved (Simulated)', res.data.message || 'Recorded in system database.');
-      } else if (isFailed) {
-        addToast('error', 'Execution Error', res.data.message || 'Action executed but email delivery failed.');
-      } else {
-        addToast('success', 'Action Approved & Executed', res.data.message || 'Workflow executed successfully.');
-      }
       if (editingApproval) setEditingApproval(null);
-      fetchApprovals();
+
+      // Handle no communication contact available
+      if (res.data?.no_contact) {
+        addToast(
+          'warning',
+          'No Communication Contact',
+          res.data.message || 'No communication contact available for this customer. Follow-up task created.'
+        );
+        fetchApprovals();
+        return;
+      }
+
+      // Handle non-communication tasks (e.g. dispatch_task)
+      if (approval.action_type === 'dispatch_task') {
+        addToast('success', 'Task Created', res.data.message || 'Task created successfully.');
+        fetchApprovals();
+        return;
+      }
+
+      const context = res.data?.context || {};
+      const channel = res.data?.channel || context.communication_channel || 'email';
+      const fallback = Boolean(res.data?.fallback);
+      const fallbackReason = res.data?.fallback_reason;
+
+      // Show fallback notification if channel was adjusted
+      if (fallback && fallbackReason) {
+        addToast('warning', 'Channel Fallback', fallbackReason);
+      } else {
+        const toastMsg = channel === 'sms'
+          ? 'Action approved. Message is ready to review.'
+          : 'Action approved. Email is ready to review.';
+        addToast('success', 'Action Approved', res.data?.message || toastMsg);
+      }
+
+      // Automatically route user to Email Sender or Message Center
+      if (channel === 'sms') {
+        onNavigate('message_center', {
+          ...context,
+          approval_id: approval.id,
+          customerId: context.customer_id
+        });
+      } else {
+        onNavigate('email_assistant', {
+          ...context,
+          approval_id: approval.id,
+          customerId: context.customer_id
+        });
+      }
     } catch (err) {
-      addToast('error', 'Execution Error', 'Failed to approve and execute action.');
+      console.error('Approval execution error:', err);
+      const errMsg = err.response?.data?.detail || 'Failed to approve and prepare action.';
+      addToast('error', 'Execution Error', errMsg);
     } finally {
       setActionLoadingId(null);
     }
@@ -171,7 +207,7 @@ const ApprovalsPage = ({ onNavigate }) => {
           approvals.map((app) => {
             const data = app.action_data || {};
             const isPending = app.status === 'pending';
-            const isApproved = app.status === 'approved';
+            const isApproved = ['approved', 'communication_ready', 'sent', 'executed'].includes(app.status);
             const isRejected = app.status === 'rejected';
             const isSms = app.action_type === 'send_sms' || data.channel === 'sms';
             const lang = data.language || 'en';
@@ -188,7 +224,7 @@ const ApprovalsPage = ({ onNavigate }) => {
                     : 'border-slate-200 dark:border-[#26262c] bg-slate-50 dark:bg-[#141417] opacity-80'
                 }`}
               >
-                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-slate-200 dark:border-[#26262c]">
+                <div className="flex flex-col lg:flex-row lg:flex-wrap lg:items-center justify-between gap-4 pb-4 border-b border-slate-200 dark:border-[#26262c]">
                   <div className="flex items-start gap-3.5">
                     <div className="w-10 h-10 rounded-2xl bg-indigo-50 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-500/30 flex items-center justify-center shrink-0">
                       {isSms ? <MessageSquare className="w-5 h-5" /> : <Sparkles className="w-5 h-5" />}
@@ -202,9 +238,9 @@ const ApprovalsPage = ({ onNavigate }) => {
                           {langTag}
                         </span>
                         <Badge
-                          variant={isPending ? 'warning' : (isApproved ? 'success' : 'danger')}
+                          variant={isPending ? 'warning' : (app.status === 'rejected' ? 'danger' : 'success')}
                         >
-                          {app.status.toUpperCase()}
+                          {app.status === 'communication_ready' ? 'READY TO REVIEW' : app.status.toUpperCase()}
                         </Badge>
                       </div>
                       <h3 className="text-base font-bold text-slate-900 dark:text-white mt-1">
@@ -290,7 +326,7 @@ const ApprovalsPage = ({ onNavigate }) => {
                         icon={CheckCircle2}
                         className="text-xs font-bold"
                       >
-                        Approve & Execute Action
+                        {actionLoadingId === app.id ? 'Approving and preparing action...' : 'Approve & Execute'}
                       </Button>
                     </div>
                   </div>
@@ -298,9 +334,25 @@ const ApprovalsPage = ({ onNavigate }) => {
 
                 {/* Execution timestamp for already approved */}
                 {isApproved && (
-                  <div className="mt-4 pt-3 border-t border-slate-200 dark:border-slate-800 text-xs text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
-                    <Check className="w-4 h-4" />
-                    <span>Approved & Dispatched on {new Date(app.approved_at || app.requested_at).toLocaleString()}</span>
+                  <div className="mt-4 pt-3 border-t border-slate-200 dark:border-slate-800 text-xs text-emerald-600 dark:text-emerald-400 flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-1.5">
+                      <Check className="w-4 h-4" />
+                      <span>
+                        {app.status === 'communication_ready'
+                          ? `Approved on ${new Date(app.approved_at || app.requested_at).toLocaleString()} – Prepared for Review`
+                          : `Approved & Sent on ${new Date(app.approved_at || app.requested_at).toLocaleString()}`}
+                      </span>
+                    </div>
+                    {app.status === 'communication_ready' && (
+                      <Button
+                        onClick={() => handleApprove(app)}
+                        variant="secondary"
+                        size="xs"
+                        className="text-xs"
+                      >
+                        Open {isSms ? 'Message Center' : 'Email Sender'} →
+                      </Button>
+                    )}
                   </div>
                 )}
               </div>
@@ -368,7 +420,7 @@ const ApprovalsPage = ({ onNavigate }) => {
                 loading={actionLoadingId === editingApproval.id}
                 icon={CheckCircle2}
               >
-                Approve with Edits & Execute
+                {actionLoadingId === editingApproval.id ? 'Approving and preparing action...' : 'Approve with Edits & Execute'}
               </Button>
             </div>
           </div>

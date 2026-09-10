@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text
 
 from backend.app.database.session import get_db
-from backend.app.models.models import Business, Customer, User, SMSMessage, CommunicationLog
+from backend.app.models.models import Business, Customer, User, SMSMessage, CommunicationLog, Approval, Task
 from backend.app.schemas.schemas import (
     SMSSendRequest, SMSSendResponse, SMSPendingItem,
     SMSMessageOut, SMSSentReport, SMSFailedReport, SMSDeliveredReport
@@ -168,21 +168,46 @@ def send_sms_endpoint(
     )
     db.add(comm_log)
 
+    # 6. Update Approval if approval_id provided
+    app_record = None
+    if req.approval_id:
+        app_record = db.query(Approval).filter(
+            Approval.id == req.approval_id,
+            Approval.business_id == business.id
+        ).first()
+        if app_record:
+            app_record.status = "sent"
+
+    # 7. Complete associated task if invoice_id provided
+    if req.invoice_id:
+        task = db.query(Task).filter(
+            Task.business_id == business.id,
+            Task.source_type.in_(["AI Workflow", "AI Document"]),
+            Task.source_id == req.invoice_id
+        ).first()
+        if task:
+            task.status = "Completed"
+
     db.commit()
     db.refresh(sms)
     db.refresh(comm_log)
 
-    # 6. Log activity and notification
+    # 8. Log activity and notification
     try:
         log_activity(
             db,
             business_id=business.id,
             actor_type="AI Agent" if req.ai_generated else "Business Owner",
-            action="SMS Queued",
+            action="SMS Communication Dispatched",
             description=f"Queued SMS to {normalized_phone} ({customer_name}). Waiting for Android SMS Gateway dispatch.",
+            status="success",
             metadata={
-                "sms_id": sms.id,
+                "approval_id": req.approval_id,
                 "customer_id": req.customer_id,
+                "invoice_id": req.invoice_id,
+                "channel": "SMS",
+                "status": "SENT",
+                "sms_id": sms.id,
                 "phone": normalized_phone,
                 "language": req.language
             }
