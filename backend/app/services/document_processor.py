@@ -85,20 +85,33 @@ def preprocess_image_for_ocr(img: Image.Image) -> Image.Image:
 
 
 def ocr_pil_image(img: Image.Image) -> str:
-    """Performs OCR on a PIL image using Tesseract if configured."""
+    """Performs OCR on a PIL image using Tesseract if configured, falling back to Windows native OCR (winocr)."""
     global _pytesseract
     if not _pytesseract:
         _pytesseract = _configure_tesseract()
-    if not _pytesseract:
-        return ""
+    
+    # 1. Try Tesseract if available
+    if _pytesseract:
+        try:
+            processed = preprocess_image_for_ocr(img)
+            text = _pytesseract.image_to_string(processed, config="--psm 6 -l eng")
+            if text and text.strip():
+                return text.strip()
+        except Exception as e:
+            logger.warning(f"Tesseract image extraction warning: {e}")
 
+    # 2. Fallback to Windows native OCR (winocr)
     try:
-        processed = preprocess_image_for_ocr(img)
-        text = _pytesseract.image_to_string(processed, config="--psm 6 -l eng")
-        return text.strip() if text else ""
+        import winocr
+        # Convert to RGB or RGBA for winocr
+        ocr_im = img.convert("RGBA") if img.mode != "RGBA" else img
+        res = winocr.recognize_pil_sync(ocr_im)
+        if res and isinstance(res, dict) and res.get("text"):
+            return res["text"].strip()
     except Exception as e:
-        logger.warning(f"OCR image extraction error: {e}")
-        return ""
+        logger.warning(f"Windows native OCR extraction warning: {e}")
+
+    return ""
 
 
 def validate_invoice_file(file_path: str) -> Dict[str, Any]:
@@ -215,8 +228,13 @@ def extract_text_from_pdf(file_path: str) -> Dict[str, Any]:
             try:
                 fitz_page = fitz_doc[idx]
                 f_text = fitz_page.get_text("text").strip()
-                if len(f_text) > len(page_text):
-                    page_text = f_text
+                if f_text and f_text != page_text:
+                    if not page_text:
+                        page_text = f_text
+                    elif f_text not in page_text and page_text not in f_text:
+                        page_text = f"{page_text}\n{f_text}"
+                    elif len(f_text) > len(page_text):
+                        page_text = f_text
 
                 if not page_tables_md and hasattr(fitz_page, "find_tables"):
                     tabs = fitz_page.find_tables()
@@ -230,8 +248,8 @@ def extract_text_from_pdf(file_path: str) -> Dict[str, Any]:
             except Exception as fe:
                 logger.warning(f"PyMuPDF text extraction failed on page {page_num}: {fe}")
 
-        # 3. Scanned page detection
-        if len(page_text) < 40 and fitz_doc and idx < len(fitz_doc):
+        # 3. Scanned or low-text page detection (< 50 characters)
+        if len(page_text) < 50 and fitz_doc and idx < len(fitz_doc):
             scanned_pages_count += 1
             try:
                 fitz_page = fitz_doc[idx]
@@ -239,7 +257,7 @@ def extract_text_from_pdf(file_path: str) -> Dict[str, Any]:
                 img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
                 ocr_result = ocr_pil_image(img)
                 if ocr_result:
-                    page_text = f"[Scanned Page OCR]\n{ocr_result}"
+                    page_text = f"{page_text}\n[Scanned Page OCR]\n{ocr_result}".strip()
             except Exception as e:
                 logger.warning(f"Page {page_num} render/OCR failed: {e}")
 

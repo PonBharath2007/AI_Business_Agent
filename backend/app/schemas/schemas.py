@@ -173,6 +173,8 @@ class InvoiceOut(InvoiceBase):
     business_id: int
     created_at: datetime
     updated_at: datetime
+    total_amount: Optional[float] = None
+    payment_status: Optional[str] = None
     customer_name: Optional[str] = None
     customer_email: Optional[str] = None
     customer_phone: Optional[str] = None

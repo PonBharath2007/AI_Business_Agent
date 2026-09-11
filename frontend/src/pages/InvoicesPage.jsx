@@ -203,7 +203,7 @@ const InvoicesPage = ({ onNavigate }) => {
       <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white dark:bg-slate-900 p-3 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs">
         {/* Status Filter Tabs */}
         <div className="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto">
-          {['all', 'overdue', 'pending', 'paid'].map((status) => (
+          {['all', 'overdue', 'partially_paid', 'pending', 'paid'].map((status) => (
             <button
               key={status}
               onClick={() => setStatusFilter(status)}
@@ -213,7 +213,7 @@ const InvoicesPage = ({ onNavigate }) => {
                   : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
               }`}
             >
-              {status}
+              {status.replace('_', ' ')}
             </button>
           ))}
         </div>
@@ -239,8 +239,9 @@ const InvoicesPage = ({ onNavigate }) => {
               <tr className="bg-slate-50 dark:bg-slate-800/80 text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800">
                 <th className="p-3.5 font-bold uppercase tracking-wider">Invoice #</th>
                 <th className="p-3.5 font-bold uppercase tracking-wider">Customer</th>
-                <th className="p-3.5 font-bold uppercase tracking-wider">Amount</th>
-                <th className="p-3.5 font-bold uppercase tracking-wider">Issue Date</th>
+                <th className="p-3.5 font-bold uppercase tracking-wider">Total</th>
+                <th className="p-3.5 font-bold uppercase tracking-wider">Paid</th>
+                <th className="p-3.5 font-bold uppercase tracking-wider">Pending</th>
                 <th className="p-3.5 font-bold uppercase tracking-wider">Due Date</th>
                 <th className="p-3.5 font-bold uppercase tracking-wider">Status</th>
                 <th className="p-3.5 font-bold uppercase tracking-wider text-right">Actions</th>
@@ -249,7 +250,7 @@ const InvoicesPage = ({ onNavigate }) => {
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
               {loading ? (
                 <tr>
-                  <td colSpan={7} className="text-center py-12 text-slate-400">
+                  <td colSpan={8} className="text-center py-12 text-slate-400">
                     <div className="flex flex-col items-center gap-2">
                       <div className="w-6 h-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
                       <span>Loading invoices...</span>
@@ -258,11 +259,11 @@ const InvoicesPage = ({ onNavigate }) => {
                 </tr>
               ) : !filteredInvoices.length ? (
                 <tr>
-                  <td colSpan={7} className="p-8">
+                  <td colSpan={8} className="p-8">
                     <EmptyState
                       icon={Receipt}
                       title="No invoices found"
-                      description={statusFilter !== 'all' ? `No ${statusFilter} invoices found.` : "Upload a PDF document or click 'Create Invoice' above."}
+                      description={statusFilter !== 'all' ? `No ${statusFilter.replace('_', ' ')} invoices found.` : "Upload a PDF document or click 'Create Invoice' above."}
                       actionText="Create Invoice"
                       onAction={() => setCreateModalOpen(true)}
                     />
@@ -271,6 +272,10 @@ const InvoicesPage = ({ onNavigate }) => {
               ) : (
                 paginatedInvoices.map((inv) => {
                   const isOverdue = inv.status === 'overdue';
+                  const tot = inv.total_amount !== undefined ? inv.total_amount : (inv.amount || 0);
+                  const paid = inv.paid_amount || 0;
+                  const pending = inv.pending_amount !== undefined ? inv.pending_amount : Math.max(0, tot - paid);
+
                   return (
                     <tr
                       key={inv.id}
@@ -290,9 +295,14 @@ const InvoicesPage = ({ onNavigate }) => {
                         <div className="text-[10px] text-slate-400">{inv.customer_email}</div>
                       </td>
                       <td className="p-3.5 font-bold text-slate-900 dark:text-slate-100">
-                        {formatMoney(inv.amount)}
+                        {formatMoney(tot)}
                       </td>
-                      <td className="p-3.5 text-slate-500 dark:text-slate-400">{inv.issue_date}</td>
+                      <td className="p-3.5 font-semibold text-emerald-600 dark:text-emerald-400">
+                        {formatMoney(paid)}
+                      </td>
+                      <td className="p-3.5 font-semibold text-rose-600 dark:text-rose-400">
+                        {formatMoney(pending)}
+                      </td>
                       <td className="p-3.5">
                         <span className={isOverdue ? 'text-rose-600 dark:text-rose-400 font-semibold' : 'text-slate-600 dark:text-slate-300'}>
                           {inv.due_date}
@@ -300,11 +310,11 @@ const InvoicesPage = ({ onNavigate }) => {
                       </td>
                       <td className="p-3.5">
                         <Badge variant={inv.status}>
-                          {inv.status}
+                          {inv.status?.replace('_', ' ')}
                         </Badge>
                       </td>
                       <td className="p-3.5 text-right space-x-1" onClick={(e) => e.stopPropagation()}>
-                        {inv.status !== 'paid' && (
+                        {inv.status !== 'paid' && pending > 0 && (
                           <Button
                             onClick={() => handleGenerateReminder(inv)}
                             variant={isOverdue ? 'danger' : 'secondary'}
@@ -494,24 +504,55 @@ const InvoicesPage = ({ onNavigate }) => {
           title={`Invoice Details – ${viewInvoice.invoice_number}`}
         >
           <div className="space-y-4">
+            {/* Customer & Schedule Details */}
             <div className="grid grid-cols-2 gap-4 p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 text-xs">
               <div>
-                <span className="text-slate-500 font-semibold block">Customer:</span>
+                <span className="text-slate-500 font-semibold block uppercase text-[10px]">Customer</span>
                 <span className="text-slate-900 dark:text-white font-bold text-sm">{viewInvoice.customer_name}</span>
-                <span className="text-slate-500 block">{viewInvoice.customer_email}</span>
+                <span className="text-slate-500 block">{viewInvoice.customer_email || 'No email provided'}</span>
+                {viewInvoice.customer_phone && (
+                  <span className="text-slate-500 block">{viewInvoice.customer_phone}</span>
+                )}
               </div>
               <div>
-                <span className="text-slate-500 font-semibold block">Total Amount:</span>
-                <span className="text-emerald-600 dark:text-emerald-400 font-bold text-base">{formatMoney(viewInvoice.amount)}</span>
-                <Badge variant={viewInvoice.status} className="mt-1">{viewInvoice.status}</Badge>
+                <span className="text-slate-500 font-semibold block uppercase text-[10px]">Schedule</span>
+                <div className="mt-0.5 space-y-1">
+                  <div className="text-slate-700 dark:text-slate-300">Issue Date: <strong>{viewInvoice.issue_date}</strong></div>
+                  <div className="text-rose-600 dark:text-rose-400">Payment Due: <strong>{viewInvoice.due_date}</strong></div>
+                </div>
               </div>
-              <div>
-                <span className="text-slate-500 font-semibold block">Issue Date:</span>
-                <span className="text-slate-700 dark:text-slate-300">{viewInvoice.issue_date}</span>
+            </div>
+
+            {/* PAYMENT DETAILS (Section 13) */}
+            <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-800 space-y-3">
+              <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-700/60 pb-2">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
+                  Payment Details
+                </span>
+                <Badge variant={viewInvoice.status}>
+                  {viewInvoice.payment_status || viewInvoice.status?.replace('_', ' ')}
+                </Badge>
               </div>
-              <div>
-                <span className="text-slate-500 font-semibold block">Payment Due:</span>
-                <span className="text-rose-600 dark:text-rose-400 font-semibold">{viewInvoice.due_date}</span>
+
+              <div className="grid grid-cols-3 gap-3 text-center">
+                <div className="p-2.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
+                  <span className="text-[10px] text-slate-500 block font-semibold uppercase">Total Amount</span>
+                  <span className="text-sm font-bold text-slate-900 dark:text-white mt-0.5 block">
+                    {formatMoney(viewInvoice.total_amount ?? viewInvoice.amount)}
+                  </span>
+                </div>
+                <div className="p-2.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
+                  <span className="text-[10px] text-slate-500 block font-semibold uppercase">Paid Amount</span>
+                  <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400 mt-0.5 block">
+                    {formatMoney(viewInvoice.paid_amount || 0)}
+                  </span>
+                </div>
+                <div className="p-2.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
+                  <span className="text-[10px] text-slate-500 block font-semibold uppercase">Pending Amount</span>
+                  <span className="text-sm font-bold text-rose-600 dark:text-rose-400 mt-0.5 block">
+                    {formatMoney(viewInvoice.pending_amount !== undefined ? viewInvoice.pending_amount : Math.max(0, (viewInvoice.total_amount ?? viewInvoice.amount) - (viewInvoice.paid_amount || 0)))}
+                  </span>
+                </div>
               </div>
             </div>
 

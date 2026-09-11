@@ -43,13 +43,16 @@ def parse_amount(amount_str: Any) -> float:
     if not amount_str:
         return 0.0
     
-    # Clean currency symbols like $, ₹, €, £ and commas
-    cleaned = str(amount_str)
-    cleaned = re.sub(r'[^\d.]', '', cleaned)
-    try:
-        return float(cleaned) if cleaned else 0.0
-    except ValueError:
-        return 0.0
+    cleaned = str(amount_str).strip()
+    # Extract the primary numeric sequence with optional commas and decimal places
+    m = re.search(r'[\d,]+(?:\.\d{1,2})?', cleaned)
+    if m:
+        num_str = m.group(0).replace(',', '')
+        try:
+            return float(num_str)
+        except ValueError:
+            pass
+    return 0.0
 
 def format_currency(amount: float, currency: str = "USD") -> str:
     currency = currency or "USD"

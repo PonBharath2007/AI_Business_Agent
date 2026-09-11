@@ -65,7 +65,17 @@ def run_document_workflow(db: Session, business: Business, document: Document) -
     currency = extracted.get("currency") or business.currency or "USD"
     issue_date_val = parse_date(extracted.get("issue_date")) or date.today()
     due_date_val = parse_date(extracted.get("due_date")) or (issue_date_val + timedelta(days=14))
-    status = extracted.get("payment_status", "pending")
+    db_status = extracted.get("status")
+    if not db_status:
+        if paid_amount >= total_amount and total_amount > 0:
+            db_status = "paid"
+        elif paid_amount > 0 and pending_amount > 0:
+            db_status = "partially_paid"
+        elif due_date_val < date.today():
+            db_status = "overdue"
+        else:
+            db_status = "pending"
+    status = db_status
     line_items = extracted.get("line_items") or []
 
     # 5. Customer Matching Engine (ID -> Email -> Phone -> Normalized Name)

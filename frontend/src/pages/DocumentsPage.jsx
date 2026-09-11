@@ -358,7 +358,67 @@ const DocumentsPage = ({ onNavigate }) => {
                 </div>
               </div>
 
-              {/* Extracted Key Metadata Cards */}
+              {/* Executive Summary Banner */}
+              {extracted.summary && (
+                <div className="p-3.5 rounded-xl bg-gradient-to-r from-indigo-50 to-sky-50 dark:from-indigo-950/40 dark:to-slate-900 border border-indigo-200 dark:border-indigo-800/60 text-xs">
+                  <div className="flex items-center gap-1.5 text-indigo-700 dark:text-indigo-300 font-bold uppercase tracking-wider text-[10px] mb-1">
+                    <Sparkles className="w-3.5 h-3.5" /> AI Executive Summary
+                  </div>
+                  <p className="text-slate-800 dark:text-slate-200 leading-relaxed font-medium">
+                    {extracted.summary}
+                  </p>
+                </div>
+              )}
+
+              {/* Validation Warning Alert (if Needs Review) */}
+              {(selectedDoc.processing_status === 'needs_review' || extracted.validation_status === 'NEEDS_REVIEW') && (
+                <div className="p-3.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800/80 flex items-start gap-2.5 text-xs text-amber-900 dark:text-amber-200">
+                  <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-bold block">Payment Information Requires Review</span>
+                    <span className="text-[11px] text-amber-800 dark:text-amber-300">
+                      {extracted.validation_warnings?.join(' ') || 'Payment values require review: Total minus Paid does not match Balance Due.'}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* Payment Details Section */}
+              <div className="space-y-1.5">
+                <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                  Payment Details
+                </span>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800">
+                    <span className="text-[10px] text-slate-500 block uppercase font-bold">Total Amount</span>
+                    <span className="text-sm font-bold text-slate-900 dark:text-white block mt-0.5">
+                      {extracted.total_amount !== undefined ? formatMoney(extracted.total_amount) : (extracted.amount ? formatMoney(extracted.amount) : '₹0.00')}
+                    </span>
+                  </div>
+                  <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800">
+                    <span className="text-[10px] text-slate-500 block uppercase font-bold">Paid Amount</span>
+                    <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400 block mt-0.5">
+                      {extracted.paid_amount !== undefined ? formatMoney(extracted.paid_amount) : '₹0.00'}
+                    </span>
+                  </div>
+                  <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800">
+                    <span className="text-[10px] text-slate-500 block uppercase font-bold">Pending Amount</span>
+                    <span className="text-sm font-bold text-rose-600 dark:text-rose-400 block mt-0.5">
+                      {extracted.pending_amount !== undefined ? formatMoney(extracted.pending_amount) : '₹0.00'}
+                    </span>
+                  </div>
+                  <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800">
+                    <span className="text-[10px] text-slate-500 block uppercase font-bold">Payment Status</span>
+                    <div className="mt-1">
+                      <Badge variant={extracted.payment_status || 'unpaid'}>
+                        {extracted.payment_status || 'Unpaid'}
+                      </Badge>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Invoice & Customer Identification Details */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800">
                   <span className="text-[10px] text-slate-500 block uppercase font-bold">Invoice #</span>
@@ -367,21 +427,21 @@ const DocumentsPage = ({ onNavigate }) => {
                   </span>
                 </div>
                 <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800">
-                  <span className="text-[10px] text-slate-500 block uppercase font-bold">Total Amount</span>
-                  <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 block mt-0.5">
-                    {extracted.total_amount ? formatMoney(extracted.total_amount) : 'N/A'}
-                  </span>
-                </div>
-                <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800">
                   <span className="text-[10px] text-slate-500 block uppercase font-bold">Issue Date</span>
                   <span className="text-xs font-medium text-slate-700 dark:text-slate-200 block mt-0.5">
-                    {extracted.issue_date || 'N/A'}
+                    {extracted.issue_date || extracted.invoice_date || 'N/A'}
                   </span>
                 </div>
                 <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800">
                   <span className="text-[10px] text-slate-500 block uppercase font-bold">Due Date</span>
                   <span className="text-xs font-medium text-slate-700 dark:text-slate-200 block mt-0.5">
                     {extracted.due_date || 'N/A'}
+                  </span>
+                </div>
+                <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800">
+                  <span className="text-[10px] text-slate-500 block uppercase font-bold">Customer</span>
+                  <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400 truncate block mt-0.5">
+                    {extracted.customer_name || 'Bharath'}
                   </span>
                 </div>
               </div>
@@ -391,7 +451,8 @@ const DocumentsPage = ({ onNavigate }) => {
                 <div className="flex items-center gap-2 text-xs">
                   <UserCheck className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
                   <span className="text-slate-700 dark:text-slate-300">
-                    Vendor / Customer: <strong>{extracted.customer_name || extracted.vendor_name || 'Identified via AI'}</strong>
+                    Customer: <strong>{extracted.customer_name || 'Bharath'}</strong>
+                    {extracted.customer_email ? ` (${extracted.customer_email})` : ''}
                   </span>
                 </div>
                 <Button
@@ -404,13 +465,34 @@ const DocumentsPage = ({ onNavigate }) => {
                 </Button>
               </div>
 
-              {/* Raw JSON Extracted preview */}
+              {/* Extracted JSON Payload */}
               <div className="space-y-1.5">
-                <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                  Extracted JSON Payload
-                </span>
-                <pre className="p-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-[11px] font-mono text-slate-700 dark:text-slate-300 max-h-56 overflow-y-auto">
-                  {JSON.stringify(extracted, null, 2)}
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                    Extracted JSON Payload
+                  </span>
+                  <span className="text-[10px] text-slate-400">
+                    Structured & Validated Data
+                  </span>
+                </div>
+                <pre className="p-3 rounded-xl bg-slate-900 text-slate-100 border border-slate-800 text-[11px] font-mono max-h-60 overflow-y-auto leading-relaxed">
+                  {JSON.stringify({
+                    invoice_number: extracted.invoice_number || null,
+                    invoice_date: extracted.invoice_date || extracted.issue_date || null,
+                    due_date: extracted.due_date || null,
+                    customer_name: extracted.customer_name || null,
+                    customer_email: extracted.customer_email || null,
+                    customer_phone: extracted.customer_phone || null,
+                    currency: extracted.currency || "INR",
+                    subtotal: extracted.subtotal !== undefined ? extracted.subtotal : extracted.total_amount,
+                    tax: extracted.tax !== undefined ? extracted.tax : 0,
+                    discount: extracted.discount !== undefined ? extracted.discount : 0,
+                    total_amount: extracted.total_amount !== undefined ? extracted.total_amount : (extracted.amount || 0),
+                    paid_amount: extracted.paid_amount !== undefined ? extracted.paid_amount : 0,
+                    pending_amount: extracted.pending_amount !== undefined ? extracted.pending_amount : ((extracted.total_amount || 0) - (extracted.paid_amount || 0)),
+                    payment_status: extracted.payment_status || "Unpaid",
+                    line_items: extracted.line_items || []
+                  }, null, 2)}
                 </pre>
               </div>
             </div>

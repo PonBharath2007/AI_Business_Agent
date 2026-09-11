@@ -33,7 +33,13 @@ def _format_invoice(inv: Invoice) -> dict:
     if inv_status != "paid" and paid_amt > 0 and pending_amt > 0:
         inv_status = "partially_paid"
 
-    priority = "High" if inv_status == "overdue" or total_amt > 10000 else "Medium"
+    status_title = "Unpaid"
+    if inv_status == "paid":
+        status_title = "Paid"
+    elif inv_status == "partially_paid":
+        status_title = "Partially Paid"
+    elif inv_status == "overdue":
+        status_title = "Overdue"
 
     return {
         "id": inv.id,
@@ -41,6 +47,7 @@ def _format_invoice(inv: Invoice) -> dict:
         "customer_id": inv.customer_id,
         "invoice_number": inv.invoice_number,
         "amount": total_amt,
+        "total_amount": total_amt,
         "paid_amount": paid_amt,
         "pending_amount": pending_amt,
         "subtotal": float(inv.subtotal or 0.0),
@@ -50,6 +57,7 @@ def _format_invoice(inv: Invoice) -> dict:
         "issue_date": inv.issue_date,
         "due_date": inv.due_date,
         "status": inv_status,
+        "payment_status": status_title,
         "document_id": inv.document_id,
         "notes": inv.notes,
         "line_items": inv.line_items or [],
