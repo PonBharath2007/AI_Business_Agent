@@ -190,6 +190,9 @@ const MessageCenterPage = ({ onNavigate, navParams = {}, preSelectedCustomerId =
       if (navParams.language) {
         setLanguage(navParams.language);
       }
+      if (navParams.tone) {
+        setTone(navParams.tone);
+      }
     }
   }, [navParams, fetchCustomerInvoices]);
 

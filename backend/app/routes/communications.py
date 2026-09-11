@@ -9,6 +9,7 @@ from backend.app.schemas.schemas import (
     CommunicationSendRequest, CommunicationLogOut, CallInitiateRequest
 )
 from backend.app.auth.deps import get_current_business
+from backend.app.ai.document_intelligence import is_valid_customer_name
 from backend.app.ai.email_generator import generate_customer_communication
 from backend.app.services.email_delivery import send_real_email
 from backend.app.services.sms_delivery import build_tel_device_uri
@@ -48,7 +49,7 @@ def generate_communication_endpoint(
     import time
     t_req_start = time.perf_counter()
 
-    customer_name = "Customer"
+    customer_name = ""
     customer_email = ""
     customer_phone = ""
     invoice_number = None
@@ -60,17 +61,23 @@ def generate_communication_endpoint(
         inv = db.query(Invoice).filter(Invoice.id == req.invoice_id, Invoice.business_id == business.id).first()
         if inv:
             invoice_number = inv.invoice_number
-            amount = float(inv.amount) if inv.amount is not None else 0.0
+            amount = float(inv.pending_amount if (inv.pending_amount is not None and float(inv.pending_amount) > 0) else (inv.amount or 0.0))
             currency = inv.currency or business.currency or "USD"
             due_date_str = inv.due_date.strftime("%B %d, %Y") if inv.due_date else None
+            ext_name = inv.document.extracted_data.get("customer_name") if (inv.document and inv.document.extracted_data) else None
+            if is_valid_customer_name(ext_name):
+                customer_name = ext_name.strip()
+            elif inv.customer and is_valid_customer_name(inv.customer.name):
+                customer_name = inv.customer.name.strip()
+
             if inv.customer:
-                customer_name = inv.customer.name
                 customer_email = inv.customer.email or ""
                 customer_phone = inv.customer.phone or ""
     elif req.customer_id:
         cust = db.query(Customer).filter(Customer.id == req.customer_id, Customer.business_id == business.id).first()
         if cust:
-            customer_name = cust.name
+            if is_valid_customer_name(cust.name):
+                customer_name = cust.name.strip()
             customer_email = cust.email or ""
             customer_phone = cust.phone or ""
         # Intelligently attach most relevant open or pending invoice for this customer

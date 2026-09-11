@@ -168,17 +168,20 @@ const EmailAssistantPage = ({ onNavigate, navParams = {} }) => {
         fetchCustomerInvoices(cid, invId);
       }
 
-      if (navParams.subject) {
-        setSubject(navParams.subject);
+      if (navParams.generated_subject || navParams.subject) {
+        setSubject(navParams.generated_subject || navParams.subject);
       }
-      if (navParams.generated_message || navParams.body) {
-        setBody(navParams.generated_message || navParams.body);
+      if (navParams.generated_email_body || navParams.body || navParams.generated_message) {
+        setBody(navParams.generated_email_body || navParams.body || navParams.generated_message);
       }
       if (navParams.customer_email || navParams.recipient_email) {
         setRecipientEmail(navParams.customer_email || navParams.recipient_email);
       }
       if (navParams.language) {
         setLanguage(navParams.language);
+      }
+      if (navParams.tone) {
+        setTone(navParams.tone);
       }
     }
   }, [navParams, fetchCustomerInvoices]);

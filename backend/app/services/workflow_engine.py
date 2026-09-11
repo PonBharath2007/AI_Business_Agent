@@ -7,8 +7,8 @@ from backend.app.models.models import (
     WorkflowRule, WorkflowExecution
 )
 from backend.app.schemas.schemas import InvoiceCreate
-from backend.app.ai.document_intelligence import analyze_document_with_ai, match_existing_customer
-from backend.app.ai.email_generator import generate_business_email
+from backend.app.ai.document_intelligence import analyze_document_with_ai, match_existing_customer, is_valid_customer_name
+from backend.app.ai.email_generator import generate_business_email, generate_customer_communication
 from backend.app.services.policy_engine import evaluate_invoice_against_policies
 from backend.app.services.activity_service import log_activity
 from backend.app.services.notification_service import create_notification
@@ -30,9 +30,16 @@ def run_document_workflow(db: Session, business: Business, document: Document) -
     execution_steps.append({"step": "Processing Started", "time": datetime.utcnow().isoformat(), "status": "processing"})
 
     # 2. Complete Extraction (Passes file_path for multimodal Gemini or multi-page deterministic parsing)
+    raw_ocr = document.ocr_text
+    if (not raw_ocr or len(raw_ocr.strip()) < 5) and document.file_path and os.path.exists(document.file_path):
+        from backend.app.services.document_processor import process_uploaded_document
+        proc_res = process_uploaded_document(document.file_path)
+        raw_ocr = proc_res.get("raw_text", "")
+        document.ocr_text = raw_ocr
+
     extracted = analyze_document_with_ai(
         file_name=document.file_name,
-        raw_text=document.ocr_text or "",
+        raw_text=raw_ocr or "",
         file_path=document.file_path
     )
 
@@ -51,10 +58,10 @@ def run_document_workflow(db: Session, business: Business, document: Document) -
     final_status = "needs_review" if is_needs_review else "completed"
 
     # Extract real structured fields
-    customer_name = extracted.get("customer_name") or "Unspecified Customer"
+    raw_extracted_name = extracted.get("customer_name")
     customer_email = extracted.get("customer_email") or ""
     customer_phone = extracted.get("customer_phone") or ""
-    customer_company = extracted.get("customer_company") or customer_name
+    customer_company = extracted.get("customer_company") or raw_extracted_name or ""
     invoice_number = extracted.get("invoice_number") or f"INV-{int(datetime.utcnow().timestamp())}"
     total_amount = float(extracted.get("total_amount") or extracted.get("amount") or 0.0)
     paid_amount = float(extracted.get("paid_amount") or 0.0)
@@ -80,6 +87,27 @@ def run_document_workflow(db: Session, business: Business, document: Document) -
 
     # 5. Customer Matching Engine (ID -> Email -> Phone -> Normalized Name)
     customer, match_reason = match_existing_customer(db, business.id, extracted)
+
+    # 6. Duplicate Detection Check
+    duplicate_inv = db.query(Invoice).filter(
+        Invoice.business_id == business.id,
+        Invoice.invoice_number == invoice_number
+    ).first()
+    is_duplicate = bool(duplicate_inv and duplicate_inv.document_id != document.id)
+
+    # Customer Name Source Priority:
+    # 1. Invoice extracted customer_name
+    # 2. Matched customer record customer_name
+    # 3. Existing customer record associated with invoice
+    if is_valid_customer_name(raw_extracted_name):
+        customer_name = raw_extracted_name.strip()
+    elif customer and is_valid_customer_name(customer.name):
+        customer_name = customer.name.strip()
+    elif duplicate_inv and duplicate_inv.customer and is_valid_customer_name(duplicate_inv.customer.name):
+        customer_name = duplicate_inv.customer.name.strip()
+    else:
+        customer_name = ""
+
     if customer:
         extracted["customer_match_status"] = f"Matched ({match_reason})"
         extracted["customer_match"] = {
@@ -87,6 +115,10 @@ def run_document_workflow(db: Session, business: Business, document: Document) -
             "customer_id": customer.id,
             "reason": match_reason
         }
+        if not customer_email and customer.email:
+            customer_email = customer.email
+        if not customer_phone and customer.phone:
+            customer_phone = customer.phone
         log_activity(
             db,
             business_id=business.id,
@@ -95,14 +127,14 @@ def run_document_workflow(db: Session, business: Business, document: Document) -
             description=f"Matched invoice {invoice_number} to customer '{customer.name}' ({match_reason})."
         )
     else:
-        # Avoid creating fake or generic customers
-        if customer_name and customer_name.lower() not in ["unspecified customer", "customer", "unknown", "buyer", "client"]:
+        # Avoid creating fake, header, or generic customers
+        if is_valid_customer_name(customer_name):
             customer = Customer(
                 business_id=business.id,
                 name=customer_name,
                 email=customer_email or None,
                 phone=customer_phone or None,
-                company=customer_company,
+                company=customer_company if is_valid_customer_name(customer_company) else customer_name,
                 status="active"
             )
             db.add(customer)
@@ -128,13 +160,6 @@ def run_document_workflow(db: Session, business: Business, document: Document) -
                 "customer_id": None,
                 "reason": "Customer match requires review"
             }
-
-    # 6. Duplicate Detection Check
-    duplicate_inv = db.query(Invoice).filter(
-        Invoice.business_id == business.id,
-        Invoice.invoice_number == invoice_number
-    ).first()
-    is_duplicate = bool(duplicate_inv and duplicate_inv.document_id != document.id)
 
     # 7. Invoice Creation or Update with all financial fields
     if not duplicate_inv:
@@ -263,19 +288,42 @@ def run_document_workflow(db: Session, business: Business, document: Document) -
             tone="urgent" if (status == "overdue" or due_date_val < date.today()) else "professional"
         )
 
+        # Generate Message/SMS Draft as well so both communication channels have tailored content ready
+        sms_draft = generate_customer_communication(
+            customer_name=customer_name,
+            customer_email=customer_email,
+            customer_phone=customer_phone or (customer.phone if customer else ""),
+            invoice_number=invoice_number,
+            amount=pending_amount,
+            currency=currency,
+            due_date=due_date_val.strftime("%B %d, %Y"),
+            business_name=business.name,
+            template_type="payment_reminder",
+            tone="urgent" if (status == "overdue" or due_date_val < date.today()) else "professional",
+            channel="sms"
+        )
+
         approval_action_data = {
             "customer_id": customer.id if customer else None,
             "customer_name": customer_name,
             "customer_email": customer_email,
+            "customer_phone": customer_phone or (customer.phone if customer else ""),
             "invoice_id": invoice.id,
             "invoice_number": invoice_number,
             "amount": pending_amount,
             "total_amount": total_amount,
+            "paid_amount": paid_amount,
+            "pending_amount": pending_amount,
             "currency": currency,
             "due_date": due_date_val.isoformat(),
             "subject": email_draft["subject"],
             "body": email_draft["body"],
+            "message": sms_draft.get("body", ""),
+            "generated_subject": email_draft["subject"],
+            "generated_email_body": email_draft["body"],
+            "generated_message": sms_draft.get("body", ""),
             "recipient_email": customer_email,
+            "recipient_phone": customer_phone or (customer.phone if customer else ""),
             "policy_triggers": policy_eval.get("policy_triggers", [])
         }
 

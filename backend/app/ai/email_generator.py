@@ -1,8 +1,10 @@
+import re
 from typing import Dict, Any, Optional, Tuple
 from datetime import datetime
 import time
 import threading
 from backend.app.ai.gemini_client import gemini_client
+from backend.app.ai.document_intelligence import is_valid_customer_name
 from backend.app.utils.helpers import format_currency
 from backend.app.utils.logger import logger
 
@@ -10,6 +12,28 @@ from backend.app.utils.logger import logger
 _comm_cache: Dict[str, Tuple[float, Dict[str, Any]]] = {}
 _comm_cache_lock = threading.Lock()
 CACHE_TTL_SECONDS = 60
+
+def sanitize_greeting(raw_body: str, customer_name: Optional[str] = None, language: str = "en") -> str:
+    """
+    Enforces greeting rules:
+    - Never uses 'Invoice Details', 'Customer', or 'Invoice'.
+    - If valid customer name exists: 'Dear <Name>,' or Tamil 'வணக்கம் <Name>,'.
+    - If no valid name exists: neutral 'Hello,' or Tamil 'வணக்கம்,'.
+    """
+    text = (raw_body or "").strip()
+    cname_clean = (customer_name or "").strip()
+    if not is_valid_customer_name(cname_clean):
+        cname_clean = ""
+
+    if cname_clean:
+        text = re.sub(r'Dear\s+(?:Invoice\s+Details|Customer|Invoice),?', f'Dear {cname_clean},', text, flags=re.IGNORECASE)
+        text = re.sub(r'வணக்கம்\s+(?:Invoice\s+Details|Customer|Invoice),?', f'வணக்கம் {cname_clean},', text, flags=re.IGNORECASE)
+    else:
+        text = re.sub(r'Dear\s+(?:Invoice\s+Details|Customer|Invoice),?', 'Hello,', text, flags=re.IGNORECASE)
+        text = re.sub(r'Dear\s*,', 'Hello,', text)
+        text = re.sub(r'வணக்கம்\s+(?:Invoice\s+Details|Customer|Invoice),?', 'வணக்கம்,', text, flags=re.IGNORECASE)
+        text = re.sub(r'வணக்கம்\s*,', 'வணக்கம்,', text)
+    return text
 
 def generate_customer_communication(
     customer_name: str,
@@ -44,8 +68,15 @@ def generate_customer_communication(
         "en_ta": "Bilingual (BOTH English and Tamil in the SAME message - English first, followed by Tamil translation below)"
     }.get(language, "English only")
 
-    # 1. Check in-memory cache for exact repeat requests
-    cache_key = f"{channel}:{language}:{template_type}:{tone}:{customer_name}:{customer_phone or ''}:{invoice_number or ''}:{formatted_amount}:{due_date or ''}:{business_name}:{(custom_instructions or '').strip()}"
+    # 1. Sanitize customer name according to enterprise rules
+    cname_clean = (customer_name or "").strip()
+    if not is_valid_customer_name(cname_clean):
+        cname_clean = ""
+
+    _sanitize_greeting = lambda b: sanitize_greeting(b, cname_clean, language)
+
+    # Check in-memory cache for exact repeat requests
+    cache_key = f"{channel}:{language}:{template_type}:{tone}:{cname_clean}:{customer_phone or ''}:{invoice_number or ''}:{formatted_amount}:{due_date or ''}:{business_name}:{(custom_instructions or '').strip()}"
     with _comm_cache_lock:
         cached_entry = _comm_cache.get(cache_key)
         if cached_entry:
@@ -62,33 +93,58 @@ def generate_customer_communication(
     max_tokens = 250 if channel == "sms" else 550
 
     if channel == "sms":
+        greeting_instruction = (
+            f"The recipient's actual customer name is '{cname_clean}'. The message greeting MUST address them by their actual name: 'Dear {cname_clean},' (or Tamil 'வணக்கம் {cname_clean},')."
+            if cname_clean else
+            "The recipient's name is not available. The message MUST use the neutral greeting: 'Hello,' (or Tamil 'வணக்கம்,')."
+        )
         prompt = f"""
 Write a personalized, concise business SMS message.
 
-Recipient: {customer_name} ({customer_phone or 'Customer'})
+Recipient Name: {cname_clean or 'Not available'}
+Recipient Contact: {customer_phone or 'N/A'}
 Business: {business_name}
 Goal: {template_type} (Invoice: {invoice_number or 'N/A'}, Amount: {formatted_amount}, Due: {due_date or 'Recent'})
 Tone: {tone}
 {f"Special Note: {custom_instructions}" if custom_instructions else ""}
 
 Language requirement: {lang_desc}.
-Strict rules:
-1. Max length: under 250 characters. Punchy, clear, polite.
-2. If Tamil ('ta'): strictly valid Tamil (தமிழ்) Unicode.
-3. If Bilingual ('en_ta'): English part first, then newline, then Tamil part.
-4. Output strictly valid JSON: {{"body": "SMS message text here"}}
+
+MANDATORY GREETING & RECIPIENT RULES:
+1. {greeting_instruction}
+2. The recipient name must come ONLY from the provided structured data.
+3. NEVER use field names, object names, UI labels, or placeholder text (such as 'Invoice Details', 'Invoice', 'Customer', 'Client') as a recipient name.
+4. NEVER generate "Dear Invoice Details".
+5. {"NEVER generate 'Dear Customer' because the actual customer name is available." if cname_clean else "NEVER generate 'Dear Invoice Details'."}
+6. NEVER invent or hallucinate a person's name.
+7. Max length: under 250 characters. Punchy, clear, polite.
+8. Output strictly valid JSON: {{"body": "SMS message text here"}}
 """
     else:
+        greeting_instruction = (
+            f"The customer's actual name is '{cname_clean}'. The email greeting MUST use the customer's real name: 'Dear {cname_clean},' (or Tamil 'வணக்கம் {cname_clean},')."
+            if cname_clean else
+            "The customer's name is not available. The email greeting MUST use the neutral greeting: 'Hello,' (or Tamil 'வணக்கம்,')."
+        )
         prompt = f"""
 Write a professional business email.
 
 Channel: EMAIL
 Language: {lang_desc}
-Customer: {customer_name} ({customer_email or 'Client'})
+Customer Name: {cname_clean or 'Not available'}
+Customer Email: {customer_email or 'N/A'}
 Business: {business_name}
 Goal: {template_type} (Invoice: {invoice_number or 'N/A'}, Amount: {formatted_amount}, Due: {due_date or 'Recent'})
 Tone: {tone}
 {f"Instructions: {custom_instructions}" if custom_instructions else ""}
+
+MANDATORY GREETING & RECIPIENT RULES:
+1. {greeting_instruction}
+2. The customer name must come ONLY from the provided structured data.
+3. NEVER use field names, object names, UI labels, or placeholder text (such as 'Invoice Details', 'Invoice', 'Customer', 'Client', 'Details') as a person's name.
+4. NEVER generate "Dear Invoice Details".
+5. {"NEVER generate 'Dear Customer' because the actual customer name is available." if cname_clean else "NEVER generate 'Dear Invoice Details'."}
+6. NEVER invent or hallucinate a person's name.
 
 Output strictly valid JSON with:
 {{"subject": "Appropriate subject line", "body": "Complete email body with greeting and sign-off"}}
@@ -99,14 +155,18 @@ Output strictly valid JSON with:
 
     ai_json = gemini_client.generate_json(
         prompt,
-        system_instruction="You generate courteous, highly professional enterprise customer communications in English, Tamil, or Bilingual. Output strictly JSON.",
+        system_instruction=(
+            "You generate courteous, highly professional enterprise customer communications in English, Tamil, or Bilingual. "
+            "Strictly adhere to greeting rules: address the customer by their actual name ('Dear <Name>,') when provided, "
+            "or use 'Hello,' if no name is available. NEVER use 'Invoice Details', 'Customer', or field labels as a person's name. Output strictly JSON."
+        ),
         max_output_tokens=max_tokens
     )
 
     t_api = time.perf_counter() - t_api_start
 
     steps = [
-        f"Retrieved profile for '{customer_name}'",
+        f"Retrieved profile for '{cname_clean or 'Customer'}'",
         f"Configured language mode: {lang_desc}",
         f"Loaded invoice context ({invoice_number or 'General correspondence'}, {formatted_amount})" if invoice_number else "Applied general business context",
         f"Applied tone profile: {tone.capitalize()}",
@@ -122,7 +182,7 @@ Output strictly valid JSON with:
 
         result = {
             "subject": subj,
-            "body": ai_json["body"].strip(),
+            "body": _sanitize_greeting(ai_json["body"]),
             "recipient_email": customer_email or "",
             "recipient_phone": customer_phone or "",
             "language": language,
@@ -144,6 +204,7 @@ Output strictly valid JSON with:
     # =========================================================================
     # HIGH-QUALITY LOCAL MULTILINGUAL TEMPLATES (TAMIL, ENGLISH, BILINGUAL)
     # =========================================================================
+    customer_name = cname_clean
     inv_str = invoice_number or "Invoice"
     due_str = due_date or "recent date"
     instruction_snippet = f"\n\nNote: {custom_instructions.strip()}" if custom_instructions and custom_instructions.strip() else ""
@@ -575,7 +636,7 @@ Output strictly valid JSON with:
     fallback_time_ms = round((time.perf_counter() - t_start) * 1000, 2)
     return {
         "subject": subj,
-        "body": body,
+        "body": _sanitize_greeting(body),
         "recipient_email": customer_email or "",
         "recipient_phone": customer_phone or "",
         "language": language,

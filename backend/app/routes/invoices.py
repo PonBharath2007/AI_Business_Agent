@@ -8,6 +8,7 @@ from backend.app.models.models import Invoice, Customer, Business, Approval, Tas
 from backend.app.schemas.schemas import InvoiceCreate, InvoiceUpdate, InvoiceOut
 from backend.app.auth.deps import get_current_business
 from backend.app.services.invoice_service import create_invoice_record, check_and_update_overdue_statuses
+from backend.app.ai.document_intelligence import is_valid_customer_name
 from backend.app.ai.email_generator import generate_business_email
 from backend.app.services.activity_service import log_activity
 from backend.app.utils.helpers import format_currency
@@ -168,8 +169,12 @@ def generate_invoice_reminder(
         raise HTTPException(status_code=404, detail="Invoice not found")
 
     cust = inv.customer
-    c_name = cust.name if cust else "Customer"
-    c_email = cust.email if cust else "customer@example.com"
+    c_name = ""
+    if cust and is_valid_customer_name(cust.name):
+        c_name = cust.name.strip()
+    elif inv.document and inv.document.extracted_data and is_valid_customer_name(inv.document.extracted_data.get("customer_name")):
+        c_name = inv.document.extracted_data.get("customer_name").strip()
+    c_email = cust.email if cust and cust.email else ""
 
     email_draft = generate_business_email(
         customer_name=c_name,

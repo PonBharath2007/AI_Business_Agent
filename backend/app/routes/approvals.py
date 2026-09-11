@@ -1,3 +1,4 @@
+import re
 from datetime import datetime
 from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, Query, Body, status
@@ -12,26 +13,55 @@ from backend.app.schemas.schemas import (
 from backend.app.auth.deps import get_current_business
 from backend.app.services.approval_service import execute_approval_action, reject_approval_action
 from backend.app.services.activity_service import log_activity
+from backend.app.ai.document_intelligence import is_valid_customer_name
+from backend.app.ai.email_generator import generate_customer_communication
 from backend.app.utils.logger import logger
 
 router = APIRouter(prefix="/api/approvals", tags=["Approvals"])
 
 
 def resolve_approval_execution_context(db: Session, app: Approval, business_id: int) -> Dict[str, Any]:
+    # Validate approval belongs to current business/user
+    if app.business_id != business_id:
+        raise HTTPException(status_code=403, detail="Access denied for this approval.")
+
     data = app.action_data or {}
 
-    # 1. Resolve Customer
+    # 1. Resolve Invoice (scoped to business_id)
+    inv = None
+    if data.get("invoice_id"):
+        inv = db.query(Invoice).filter(
+            Invoice.id == data["invoice_id"],
+            Invoice.business_id == business_id
+        ).first()
+
+    if not inv and data.get("invoice_number"):
+        inv = db.query(Invoice).filter(
+            Invoice.invoice_number == data["invoice_number"],
+            Invoice.business_id == business_id
+        ).first()
+
+    # 2. Resolve Customer (scoped to business_id)
     cust = None
     if data.get("customer_id"):
         cust = db.query(Customer).filter(
             Customer.id == data["customer_id"],
             Customer.business_id == business_id
         ).first()
+
+    # If customer was not found by ID, resolve from invoice association
+    if not cust and inv and inv.customer_id:
+        cust = db.query(Customer).filter(
+            Customer.id == inv.customer_id,
+            Customer.business_id == business_id
+        ).first()
+
     if not cust and data.get("customer_email"):
         cust = db.query(Customer).filter(
             Customer.email == data["customer_email"],
             Customer.business_id == business_id
         ).first()
+
     if not cust and (data.get("customer_phone") or data.get("recipient_phone")):
         phone_lookup = data.get("customer_phone") or data.get("recipient_phone")
         cust = db.query(Customer).filter(
@@ -39,26 +69,11 @@ def resolve_approval_execution_context(db: Session, app: Approval, business_id: 
             Customer.business_id == business_id
         ).first()
 
-    # 2. Resolve Invoice
-    inv = None
-    if data.get("invoice_id"):
-        inv = db.query(Invoice).filter(
-            Invoice.id == data["invoice_id"],
-            Invoice.business_id == business_id
-        ).first()
-        # Verify invoice belongs to this customer if customer exists
-        if inv and cust and inv.customer_id != cust.id:
-            inv = None
+    # Backend Validation: Never display another customer's invoice
+    if inv and cust and inv.customer_id and inv.customer_id != cust.id:
+        inv = None
 
-    if not inv and data.get("invoice_number"):
-        inv = db.query(Invoice).filter(
-            Invoice.invoice_number == data["invoice_number"],
-            Invoice.business_id == business_id
-        ).first()
-        if inv and cust and inv.customer_id != cust.id:
-            inv = None
-
-    # Fallback to customer's recommended invoice if missing
+    # Fallback to customer's recommended invoice if missing and cust exists
     if not inv and cust:
         customer_invoices = db.query(Invoice).filter(
             Invoice.customer_id == cust.id,
@@ -66,7 +81,6 @@ def resolve_approval_execution_context(db: Session, app: Approval, business_id: 
         ).order_by(Invoice.due_date.asc()).all()
 
         if customer_invoices:
-            # 1. Pending or partially paid
             pending_or_partial = [i for i in customer_invoices if (i.status or "").lower() in ["pending", "partially_paid"]]
             overdue_invs = [i for i in customer_invoices if (i.status or "").lower() == "overdue"]
             if pending_or_partial:
@@ -76,63 +90,95 @@ def resolve_approval_execution_context(db: Session, app: Approval, business_id: 
             else:
                 inv = customer_invoices[-1]
 
-    # 3. Extract Customer & Contact Details
+    # 3. Customer Name Source Priority:
+    # Priority:
+    # 1. Invoice extracted customer_name
+    # 2. Matched customer record customer_name
+    # 3. Existing customer record associated with invoice
+    ext_cname = None
+    if inv and inv.document and inv.document.extracted_data:
+        ext_cname = inv.document.extracted_data.get("customer_name")
+    if not ext_cname:
+        ext_cname = data.get("customer_name")
+
+    cust_name = ""
+    if is_valid_customer_name(ext_cname):
+        cust_name = ext_cname.strip()
+    elif cust and is_valid_customer_name(cust.name):
+        cust_name = cust.name.strip()
+    elif inv and inv.customer and is_valid_customer_name(inv.customer.name):
+        cust_name = inv.customer.name.strip()
+    else:
+        cust_name = ""
+
+    # 4. Extract Contact Details
     cust_id = cust.id if cust else data.get("customer_id")
-    cust_name = cust.name if cust else (data.get("customer_name") or "Valued Customer")
     cust_email = (cust.email.strip() if cust and cust.email else None) or (data.get("recipient_email") or data.get("customer_email") or "").strip()
     cust_phone = (cust.phone.strip() if cust and cust.phone else None) or (data.get("recipient_phone") or data.get("customer_phone") or data.get("phone") or "").strip()
 
     has_email = bool(cust_email and "@" in cust_email)
-    has_phone = bool(cust_phone and len(cust_phone) > 3)
+    phone_digits = re.sub(r'\D', '', cust_phone) if cust_phone else ""
+    has_phone = bool(len(phone_digits) >= 7)
     no_contact = not has_email and not has_phone
 
-    # 4. Determine Action Type & Target Channel
-    is_sms_action = app.action_type == "send_sms" or data.get("channel") == "sms"
-    requested_channel = "sms" if is_sms_action else "email"
-
-    fallback = False
-    fallback_reason = None
-    final_channel = requested_channel
-
-    if requested_channel == "email":
-        if has_email:
-            final_channel = "email"
-        elif has_phone:
-            final_channel = "sms"
-            fallback = True
-            fallback_reason = "Email is not available for this customer. SMS is available."
-        else:
-            final_channel = "email"
-            fallback_reason = "No communication contact available for this customer."
-    elif requested_channel == "sms":
-        if has_phone:
-            final_channel = "sms"
-        elif has_email:
-            final_channel = "email"
-            fallback = True
-            fallback_reason = "Phone is not available for this customer. Email is available."
-        else:
-            final_channel = "sms"
-            fallback_reason = "No communication contact available for this customer."
-
     # 5. Extract Invoice Financials
-    inv_id = inv.id if inv else None
+    inv_id = inv.id if inv else data.get("invoice_id")
     inv_number = inv.invoice_number if inv else data.get("invoice_number", "N/A")
-    inv_total = float(inv.amount) if (inv and inv.amount is not None) else float(data.get("amount", 0.0))
-    paid_amt = float(inv.paid_amount) if (inv and inv.paid_amount is not None) else 0.0
-    
+    inv_total = float(inv.amount) if (inv and inv.amount is not None) else float(data.get("total_amount") or data.get("amount", 0.0))
+    paid_amt = float(inv.paid_amount) if (inv and inv.paid_amount is not None) else float(data.get("paid_amount", 0.0))
+
     if inv and inv.pending_amount is not None and float(inv.pending_amount) > 0:
         pending_amt = float(inv.pending_amount)
+    elif data.get("pending_amount") is not None and float(data.get("pending_amount")) > 0:
+        pending_amt = float(data.get("pending_amount"))
     else:
         pending_amt = max(0.0, inv_total - paid_amt)
 
     due_date = inv.due_date.isoformat() if (inv and inv.due_date) else data.get("due_date")
-    payment_status = (inv.status or "pending") if inv else "pending"
+    payment_status = (inv.status or "pending") if inv else data.get("payment_status", "pending")
+    currency = (inv.currency if inv and inv.currency else data.get("currency")) or "INR"
 
-    # 6. Extract Subject & Message
-    subject = data.get("subject") or f"Payment Reminder – Invoice {inv_number}"
-    generated_message = data.get("body") or data.get("message") or ""
+    # 6. Extract / Prepare Generated Communications
+    is_sms_action = app.action_type == "send_sms" or data.get("channel") == "sms"
+    default_channel = "sms" if is_sms_action else "email"
     language = data.get("language", "en")
+
+    generated_subject = data.get("generated_subject") or data.get("subject") or f"Payment Reminder – Invoice {inv_number}"
+    generated_email_body = data.get("generated_email_body") or (data.get("body") if not is_sms_action else None)
+    generated_message = data.get("generated_message") or data.get("message") or (data.get("body") if is_sms_action else None)
+
+    # Ensure generated email body exists and has clean greeting
+    if not generated_email_body or "invoice details" in generated_email_body.lower():
+        email_res = generate_customer_communication(
+            customer_name=cust_name,
+            customer_email=cust_email,
+            invoice_number=inv_number,
+            amount=pending_amt,
+            currency=currency,
+            due_date=due_date,
+            template_type="payment_reminder",
+            language=language,
+            channel="email"
+        )
+        generated_email_body = email_res.get("body", "")
+        if not data.get("subject"):
+            generated_subject = email_res.get("subject", generated_subject)
+
+    # Ensure generated message exists and has clean greeting
+    if not generated_message or "invoice details" in generated_message.lower():
+        sms_res = generate_customer_communication(
+            customer_name=cust_name,
+            customer_email=cust_email,
+            customer_phone=cust_phone,
+            invoice_number=inv_number,
+            amount=pending_amt,
+            currency=currency,
+            due_date=due_date,
+            template_type="payment_reminder",
+            language=language,
+            channel="sms"
+        )
+        generated_message = sms_res.get("body", "")
 
     return {
         "approval_id": app.id,
@@ -142,18 +188,24 @@ def resolve_approval_execution_context(db: Session, app: Approval, business_id: 
         "customer_phone": cust_phone if has_phone else None,
         "invoice_id": inv_id,
         "invoice_number": inv_number,
+        "total_amount": inv_total,
         "invoice_total": inv_total,
         "paid_amount": paid_amt,
         "pending_amount": pending_amt,
         "due_date": due_date,
         "payment_status": payment_status,
-        "communication_channel": final_channel,
+        "currency": currency,
+        "communication_channel": default_channel,
         "approved_action": app.action_type,
-        "subject": subject,
+        "generated_subject": generated_subject,
+        "subject": generated_subject,
+        "generated_email_body": generated_email_body,
         "generated_message": generated_message,
         "language": language,
-        "fallback": fallback,
-        "fallback_reason": fallback_reason,
+        "has_email": has_email,
+        "has_phone": has_phone,
+        "fallback": False,
+        "fallback_reason": None,
         "no_contact": no_contact
     }
 
@@ -299,7 +351,7 @@ def approve_action(
             followup_task = Task(
                 business_id=business.id,
                 title=task_title,
-                description=f"Action '{app.action_type}' for customer '{context['customer_name']}' could not be prepared: neither email nor phone is on file. Please contact the customer to update their profile.",
+                description=f"Action '{app.action_type}' for customer '{context['customer_name'] or 'customer'}' could not be prepared: neither email nor phone is on file. Please contact the customer to update their profile.",
                 priority="High",
                 status="Pending",
                 source_type="AI Workflow",
@@ -313,23 +365,14 @@ def approve_action(
                 business_id=business.id,
                 actor_type="AI Agent",
                 action="Follow-up Task Created",
-                description=f"Task '{task_title}' created for {context['customer_name']} (Approval #{app.id}).",
+                description=f"Task '{task_title}' created for {context['customer_name'] or 'customer'} (Approval #{app.id}).",
                 status="warning",
                 metadata={"approval_id": app.id, "customer_id": context.get("customer_id")}
             )
             db.commit()
 
-        return {
-            "success": False,
-            "no_contact": True,
-            "message": "No communication contact available for this customer. A follow-up task has been created for your staff.",
-            "approval_id": app.id,
-            "status": app.status,
-            "context": context
-        }
-
-    # 4. Mark approval as approved & communication_ready
-    app.status = "communication_ready"
+    # 4. Mark approval as approved (state: APPROVED, NOT marked as SENT until actually dispatched)
+    app.status = "approved"
     app.approved_at = datetime.utcnow()
     db.commit()
     db.refresh(app)
@@ -342,24 +385,22 @@ def approve_action(
         business_id=business.id,
         actor_type="Business Owner",
         action="Approval Signed Off",
-        description=f"Approved action '{app.action_type}' for {context['customer_name']}. Ready for final owner review in {context['communication_channel'].upper()}.",
+        description=f"Approved action '{app.action_type}' for {context['customer_name'] or 'customer'}. Ready for communication method selection.",
         status="success",
         metadata={
             "approval_id": app.id,
             "customer_id": context.get("customer_id"),
             "invoice_id": context.get("invoice_id"),
             "channel": context["communication_channel"],
-            "status": "COMMUNICATION_READY"
+            "status": "APPROVED"
         }
     )
 
-    channel_name = "Email" if context["communication_channel"] == "email" else "Message"
     return {
         "success": True,
+        "no_contact": context.get("no_contact", False),
         "channel": context["communication_channel"],
-        "fallback": context["fallback"],
-        "fallback_reason": context["fallback_reason"],
-        "message": f"Action approved. {channel_name} is ready to review.",
+        "message": "Action approved successfully. Please choose a communication method.",
         "approval_id": app.id,
         "status": app.status,
         "context": context

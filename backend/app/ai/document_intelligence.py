@@ -114,7 +114,45 @@ def extract_amount_by_labels(raw_text: str, labels: List[str]) -> Optional[float
             if val is not None and val >= 0:
                 return val
 
-    return None
+INVALID_CUSTOMER_NAME_PATTERNS = {
+    "invoice details", "invoice detail", "invoice", "invoice no", "invoice number",
+    "bill to", "billed to", "customer", "customer name", "customer details",
+    "client", "client name", "client details", "buyer", "details", "subtotal",
+    "total", "grand total", "tax invoice", "unspecified customer", "valued customer",
+    "unknown", "n/a", "none", "null", "description", "date", "phone", "address",
+    "email", "gstin", "amount", "balance", "balance due", "payment", "status",
+    "invoice to", "payment details", "item", "items", "qty", "quantity", "price"
+}
+
+def is_valid_customer_name(name: Optional[str]) -> bool:
+    """
+    Validates that a string is a genuine customer/person/company name and not
+    a document section header, UI label, or placeholder like 'Invoice Details'.
+    """
+    if not name or not isinstance(name, str):
+        return False
+    cleaned = name.strip()
+    # Strip common leading/trailing punctuation and markdown table pipes
+    cleaned = re.sub(r'^[#:\-\*\s\|\/\\_~]+', '', cleaned).strip()
+    cleaned = re.sub(r'[#:\-\*\s\|\/\\_~]+$', '', cleaned).strip()
+    if len(cleaned) < 2:
+        return False
+    lower = cleaned.lower()
+    if lower in INVALID_CUSTOMER_NAME_PATTERNS:
+        return False
+    if "invoice details" in lower or "invoice detail" in lower:
+        return False
+    if "invoice no" in lower or "invoice #" in lower or "invoice date" in lower:
+        return False
+    for pat in [
+        "invoice", "tax invoice", "bill to", "billed to", "customer name", "customer details",
+        "client name", "client details", "invoice:", "details"
+    ]:
+        if lower == pat or lower.startswith(pat + ":") or lower.startswith(pat + " -") or lower == pat.replace(" ", ""):
+            return False
+    if not re.search(r'[A-Za-z]', cleaned):
+        return False
+    return True
 
 
 def analyze_document_with_ai(
@@ -170,7 +208,7 @@ Extract into this exact JSON schema:
   "invoice_date": "YYYY-MM-DD or null",
   "due_date": "YYYY-MM-DD or null",
   "customer_id": "Customer identifier or null",
-  "customer_name": "Full customer/client name from Bill To / Buyer / M/s, or null",
+  "customer_name": "Exact full customer or client name (individual or company) from Bill To / Buyer / Customer Name. STRICT: NEVER extract field names or headers like 'Invoice Details', 'Invoice', 'Bill To', or 'Customer' as the name. Return null if unavailable.",
   "customer_email": "Customer email or null",
   "customer_phone": "Customer phone or null",
   "billing_address": "Customer billing address or null",
@@ -412,22 +450,51 @@ def deterministic_invoice_parser(file_name: str, raw_text: str) -> Dict[str, Any
     if cid_m:
         customer_id = cid_m.group(1).strip()
 
-    bill_to_table_match = re.search(r'\|\s*Bill\s*To\s*\|\s*([^|\r\n]+)', raw_text, re.IGNORECASE)
-    if bill_to_table_match:
-        cand = bill_to_table_match.group(1).strip()
-        first_token = cand.split('\n')[0].strip()
-        if first_token and first_token.lower() not in ["name", "customer", "client", "address"]:
-            # If multiple lines in bill to cell, extract first line as name
-            name_part = re.split(r'[\r\n]+|ponbharath|\+|phone|email', first_token, flags=re.IGNORECASE)[0].strip()
-            if name_part:
-                customer_name = name_part
+    # Parse Markdown tables for side-by-side or stacked "Bill To" structures
+    table_lines = [l.strip() for l in raw_text.split('\n') if l.strip()]
+    for idx, line in enumerate(table_lines):
+        if line.startswith('|') and re.search(r'\|\s*Bill\s*To\b', line, re.IGNORECASE):
+            cells = [c.strip() for c in line.split('|')[1:-1]]
+            bill_col_idx = -1
+            for c_idx, c in enumerate(cells):
+                if re.search(r'\bBill\s*To\b', c, re.IGNORECASE):
+                    bill_col_idx = c_idx
+                    break
+            if bill_col_idx >= 0:
+                # Look at body rows in this table
+                for next_line in table_lines[idx+1:idx+4]:
+                    if next_line.startswith('|') and not re.match(r'^\|[\s\-:|]+\|$', next_line):
+                        next_cells = [c.strip() for c in next_line.split('|')[1:-1]]
+                        if len(next_cells) > bill_col_idx:
+                            val_cell = next_cells[bill_col_idx].strip()
+                            # Extract email from cell if available
+                            cell_emails = re.findall(r'[\w\.-]+@[\w\.-]+\.\w+', val_cell)
+                            if cell_emails and not customer_email:
+                                customer_email = cell_emails[0]
+                            # Extract phone from cell if available
+                            cell_phones = re.findall(r'(\+91[\s\-]?\d{5}[\s\-]?\d{5}|\+?\d{1,3}[\s\-]?\d{3}[\s\-]?\d{3}[\s\-]?\d{4})', val_cell)
+                            if cell_phones and not customer_phone:
+                                customer_phone = cell_phones[0].strip()
+                            # Extract name: text before email or phone
+                            cand_name = re.split(r'[\r\n]+|[\w\.-]+@[\w\.-]+\.\w+|\+?\d[\d\s-]{8,}', val_cell)[0].strip()
+                            cand_name = re.sub(r'^[#:\-\*\s\|\/\\_~]+', '', cand_name).strip()
+                            cand_name = re.sub(r'[#:\-\*\s\|\/\\_~]+$', '', cand_name).strip()
+                            if is_valid_customer_name(cand_name):
+                                customer_name = cand_name
+                                break
+                if customer_name:
+                    break
 
+    # Fallback to key-value regexes if table didn't yield a valid name
     if not customer_name:
-        bill_to_text_match = re.search(r'(?:Bill\s*To|Billed\s*To|Customer\s*Name|Customer|Client\s*Name|Client|Invoice\s*To|Buyer|M/s)[:\s\n]+([^\n\r,]+)', raw_text, re.IGNORECASE)
-        if bill_to_text_match:
-            cand = bill_to_text_match.group(1).strip()
-            if cand and cand.lower() not in ["phone", "address", "gstin", "email", "invoice details"]:
-                customer_name = cand
+        for m in re.finditer(r'(?:Bill\s*To|Billed\s*To|Customer\s*Name|Customer|Client\s*Name|Client|Invoice\s*To|Buyer|M/s)[:\s\n]+([^\n\r,\|]+)', raw_text, re.IGNORECASE):
+            cand = m.group(1).strip()
+            cand_clean = re.split(r'[\r\n]+|[\w\.-]+@[\w\.-]+\.\w+|\+?\d[\d\s-]{8,}', cand, flags=re.IGNORECASE)[0].strip()
+            cand_clean = re.sub(r'^[#:\-\*\s\|\/\\_~]+', '', cand_clean).strip()
+            cand_clean = re.sub(r'[#:\-\*\s\|\/\\_~]+$', '', cand_clean).strip()
+            if is_valid_customer_name(cand_clean):
+                customer_name = cand_clean
+                break
 
     phone_match = re.search(r'(?:Phone|Mobile|Tel)[:\s|]*(\+?[\d\s-]{10,16})', raw_text, re.IGNORECASE)
     if phone_match:
@@ -700,7 +767,7 @@ def normalize_extracted_document(data: Dict[str, Any], file_name: str, raw_text:
         "issue_date": issue_date_val.isoformat(),
         "due_date": due_date_val.isoformat(),
         "customer_id": data.get("customer_id"),
-        "customer_name": data.get("customer_name"),
+        "customer_name": data.get("customer_name") if is_valid_customer_name(data.get("customer_name")) else None,
         "customer_email": data.get("customer_email"),
         "customer_phone": data.get("customer_phone"),
         "billing_address": data.get("billing_address"),
@@ -868,7 +935,7 @@ def match_existing_customer(db: Session, business_id: int, extracted: Dict[str, 
 
     # 4. Normalized customer name
     cust_name = (extracted.get("customer_name") or "").strip()
-    if cust_name and len(cust_name) >= 3 and cust_name.lower() not in ["unspecified customer", "customer", "unknown", "bill to", "buyer", "client"]:
+    if cust_name and is_valid_customer_name(cust_name) and len(cust_name) >= 3:
         clean_name = re.sub(r'[^\w\s]', '', cust_name).lower().strip()
         for c in db.query(Customer).filter(Customer.business_id == business_id).all():
             c_clean = re.sub(r'[^\w\s]', '', c.name or '').lower().strip()

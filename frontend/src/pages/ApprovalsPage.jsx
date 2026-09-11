@@ -21,6 +21,7 @@ import Button from '../components/common/Button';
 import Badge from '../components/common/Badge';
 import Modal from '../components/common/Modal';
 import EmptyState from '../components/common/EmptyState';
+import CommunicationSelectionModal from '../components/approvals/CommunicationSelectionModal';
 
 const ApprovalsPage = ({ onNavigate }) => {
   const { business, formatMoney } = useBusiness();
@@ -36,6 +37,9 @@ const ApprovalsPage = ({ onNavigate }) => {
   const [editSubject, setEditSubject] = useState('');
   const [editBody, setEditBody] = useState('');
   const [editRecipient, setEditRecipient] = useState('');
+
+  // Communication method selection modal state
+  const [selectedCommContext, setSelectedCommContext] = useState(null);
 
   const fetchApprovals = useCallback(async () => {
     try {
@@ -60,17 +64,6 @@ const ApprovalsPage = ({ onNavigate }) => {
 
       if (editingApproval) setEditingApproval(null);
 
-      // Handle no communication contact available
-      if (res.data?.no_contact) {
-        addToast(
-          'warning',
-          'No Communication Contact',
-          res.data.message || 'No communication contact available for this customer. Follow-up task created.'
-        );
-        fetchApprovals();
-        return;
-      }
-
       // Handle non-communication tasks (e.g. dispatch_task)
       if (approval.action_type === 'dispatch_task') {
         addToast('success', 'Task Created', res.data.message || 'Task created successfully.');
@@ -78,35 +71,17 @@ const ApprovalsPage = ({ onNavigate }) => {
         return;
       }
 
+      // Handle communication tasks
+      fetchApprovals();
       const context = res.data?.context || {};
-      const channel = res.data?.channel || context.communication_channel || 'email';
-      const fallback = Boolean(res.data?.fallback);
-      const fallbackReason = res.data?.fallback_reason;
 
-      // Show fallback notification if channel was adjusted
-      if (fallback && fallbackReason) {
-        addToast('warning', 'Channel Fallback', fallbackReason);
-      } else {
-        const toastMsg = channel === 'sms'
-          ? 'Action approved. Message is ready to review.'
-          : 'Action approved. Email is ready to review.';
-        addToast('success', 'Action Approved', res.data?.message || toastMsg);
-      }
+      addToast('success', 'Action Approved', res.data?.message || 'Action approved. Choose a communication method.');
 
-      // Automatically route user to Email Sender or Message Center
-      if (channel === 'sms') {
-        onNavigate('message_center', {
-          ...context,
-          approval_id: approval.id,
-          customerId: context.customer_id
-        });
-      } else {
-        onNavigate('email_assistant', {
-          ...context,
-          approval_id: approval.id,
-          customerId: context.customer_id
-        });
-      }
+      // Open the communication method selection modal
+      setSelectedCommContext({
+        ...context,
+        approval_id: approval.id,
+      });
     } catch (err) {
       console.error('Approval execution error:', err);
       const errMsg = err.response?.data?.detail || 'Failed to approve and prepare action.';
@@ -114,6 +89,68 @@ const ApprovalsPage = ({ onNavigate }) => {
     } finally {
       setActionLoadingId(null);
     }
+  };
+
+  const handleSelectEmail = (context) => {
+    setSelectedCommContext(null);
+    onNavigate('email_assistant', {
+      ...context,
+      approval_id: context.approval_id,
+      customer_id: context.customer_id,
+      customerId: context.customer_id,
+      customer_name: context.customer_name,
+      customer_email: context.customer_email,
+      recipient_email: context.customer_email,
+      invoice_id: context.invoice_id,
+      invoiceId: context.invoice_id,
+      invoice_number: context.invoice_number,
+      invoice_total: context.invoice_total,
+      total_amount: context.total_amount,
+      amount: context.pending_amount !== undefined ? context.pending_amount : context.total_amount,
+      pending_amount: context.pending_amount,
+      paid_amount: context.paid_amount,
+      due_date: context.due_date,
+      payment_status: context.payment_status,
+      currency: context.currency,
+      subject: context.generated_subject || context.subject,
+      generated_subject: context.generated_subject,
+      body: context.generated_email_body || context.body,
+      generated_email_body: context.generated_email_body,
+      language: context.language,
+      tone: context.tone || 'professional',
+      approved_action: context.approved_action
+    });
+  };
+
+  const handleSelectMessage = (context) => {
+    setSelectedCommContext(null);
+    onNavigate('message_center', {
+      ...context,
+      approval_id: context.approval_id,
+      customer_id: context.customer_id,
+      customerId: context.customer_id,
+      customer_name: context.customer_name,
+      customer_phone: context.customer_phone,
+      recipient_phone: context.customer_phone,
+      invoice_id: context.invoice_id,
+      invoiceId: context.invoice_id,
+      invoice_number: context.invoice_number,
+      invoice_total: context.invoice_total,
+      total_amount: context.total_amount,
+      amount: context.pending_amount !== undefined ? context.pending_amount : context.total_amount,
+      pending_amount: context.pending_amount,
+      paid_amount: context.paid_amount,
+      due_date: context.due_date,
+      payment_status: context.payment_status,
+      currency: context.currency,
+      message: context.generated_message || context.body,
+      generated_message: context.generated_message,
+      body: context.generated_message || context.body,
+      language: context.language,
+      tone: context.tone || 'professional',
+      channel: 'sms',
+      approved_action: context.approved_action
+    });
   };
 
   const handleReject = async (approvalId) => {
@@ -338,19 +375,19 @@ const ApprovalsPage = ({ onNavigate }) => {
                     <div className="flex items-center gap-1.5">
                       <Check className="w-4 h-4" />
                       <span>
-                        {app.status === 'communication_ready'
-                          ? `Approved on ${new Date(app.approved_at || app.requested_at).toLocaleString()} – Prepared for Review`
-                          : `Approved & Sent on ${new Date(app.approved_at || app.requested_at).toLocaleString()}`}
+                        {app.status === 'sent'
+                          ? `Approved & Sent on ${new Date(app.approved_at || app.requested_at).toLocaleString()}`
+                          : `Approved on ${new Date(app.approved_at || app.requested_at).toLocaleString()} – Ready for Communication`}
                       </span>
                     </div>
-                    {app.status === 'communication_ready' && (
+                    {app.status !== 'sent' && (
                       <Button
                         onClick={() => handleApprove(app)}
                         variant="secondary"
                         size="xs"
                         className="text-xs"
                       >
-                        Open {isSms ? 'Message Center' : 'Email Sender'} →
+                        Choose Communication Method →
                       </Button>
                     )}
                   </div>
@@ -426,6 +463,15 @@ const ApprovalsPage = ({ onNavigate }) => {
           </div>
         </Modal>
       )}
+
+      {/* Choose Communication Method Modal */}
+      <CommunicationSelectionModal
+        isOpen={Boolean(selectedCommContext)}
+        onClose={() => setSelectedCommContext(null)}
+        context={selectedCommContext}
+        onSelectEmail={handleSelectEmail}
+        onSelectMessage={handleSelectMessage}
+      />
     </div>
   );
 };
