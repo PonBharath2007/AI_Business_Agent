@@ -91,68 +91,6 @@ const ApprovalsPage = ({ onNavigate }) => {
     }
   };
 
-  const handleSelectEmail = (context) => {
-    setSelectedCommContext(null);
-    onNavigate('email_assistant', {
-      ...context,
-      approval_id: context.approval_id,
-      customer_id: context.customer_id,
-      customerId: context.customer_id,
-      customer_name: context.customer_name,
-      customer_email: context.customer_email,
-      recipient_email: context.customer_email,
-      invoice_id: context.invoice_id,
-      invoiceId: context.invoice_id,
-      invoice_number: context.invoice_number,
-      invoice_total: context.invoice_total,
-      total_amount: context.total_amount,
-      amount: context.pending_amount !== undefined ? context.pending_amount : context.total_amount,
-      pending_amount: context.pending_amount,
-      paid_amount: context.paid_amount,
-      due_date: context.due_date,
-      payment_status: context.payment_status,
-      currency: context.currency,
-      subject: context.generated_subject || context.subject,
-      generated_subject: context.generated_subject,
-      body: context.generated_email_body || context.body,
-      generated_email_body: context.generated_email_body,
-      language: context.language,
-      tone: context.tone || 'professional',
-      approved_action: context.approved_action
-    });
-  };
-
-  const handleSelectMessage = (context) => {
-    setSelectedCommContext(null);
-    onNavigate('message_center', {
-      ...context,
-      approval_id: context.approval_id,
-      customer_id: context.customer_id,
-      customerId: context.customer_id,
-      customer_name: context.customer_name,
-      customer_phone: context.customer_phone,
-      recipient_phone: context.customer_phone,
-      invoice_id: context.invoice_id,
-      invoiceId: context.invoice_id,
-      invoice_number: context.invoice_number,
-      invoice_total: context.invoice_total,
-      total_amount: context.total_amount,
-      amount: context.pending_amount !== undefined ? context.pending_amount : context.total_amount,
-      pending_amount: context.pending_amount,
-      paid_amount: context.paid_amount,
-      due_date: context.due_date,
-      payment_status: context.payment_status,
-      currency: context.currency,
-      message: context.generated_message || context.body,
-      generated_message: context.generated_message,
-      body: context.generated_message || context.body,
-      language: context.language,
-      tone: context.tone || 'professional',
-      channel: 'sms',
-      approved_action: context.approved_action
-    });
-  };
-
   const handleReject = async (approvalId) => {
     const reason = prompt('Reason for declining this AI action (optional):');
     if (reason === null) return; // cancelled prompt
@@ -467,10 +405,13 @@ const ApprovalsPage = ({ onNavigate }) => {
       {/* Choose Communication Method Modal */}
       <CommunicationSelectionModal
         isOpen={Boolean(selectedCommContext)}
-        onClose={() => setSelectedCommContext(null)}
+        onClose={(refreshNeeded) => {
+          setSelectedCommContext(null);
+          if (refreshNeeded) {
+            fetchApprovals();
+          }
+        }}
         context={selectedCommContext}
-        onSelectEmail={handleSelectEmail}
-        onSelectMessage={handleSelectMessage}
       />
     </div>
   );
