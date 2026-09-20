@@ -36,7 +36,7 @@ const RegisterPage = ({ onSwitchToLogin }) => {
     password: '',
     confirmPassword: '',
     business_name: '',
-    currency: 'USD'
+    currency: 'INR'
   });
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
@@ -152,14 +152,11 @@ const RegisterPage = ({ onSwitchToLogin }) => {
             <div>
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Currency</label>
               <select
-                value={formData.currency}
-                onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
-                className="w-full bg-slate-50 dark:bg-[#18181d] border border-slate-300 dark:border-[#2e2e36] rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 focus:bg-white dark:focus:bg-[#18181d]"
+                value="INR"
+                disabled
+                className="w-full bg-slate-100 dark:bg-[#18181d] border border-slate-300 dark:border-[#2e2e36] rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white cursor-not-allowed opacity-90"
               >
-                <option value="USD">USD ($)</option>
-                <option value="INR">INR (₹)</option>
-                <option value="EUR">EUR (€)</option>
-                <option value="GBP">GBP (£)</option>
+                <option value="INR">INR (₹) - Indian Rupee</option>
               </select>
             </div>
           </div>

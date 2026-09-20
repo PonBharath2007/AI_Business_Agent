@@ -322,7 +322,7 @@ const EmailAssistantPage = ({ onNavigate, navParams = {} }) => {
             invoice_id: inv ? inv.id : null,
             invoice_number: inv ? inv.invoice_number : 'INV-GENERAL',
             amount: inv ? parseFloat(inv.amount) : 0,
-            currency: business.currency || 'USD',
+            currency: 'INR',
             subject: subject,
             body: body,
             recipient_email: recipientEmail

@@ -69,7 +69,7 @@ def run_document_workflow(db: Session, business: Business, document: Document) -
     subtotal = float(extracted.get("subtotal") or total_amount)
     tax_amount = float(extracted.get("tax") or extracted.get("tax_amount") or 0.0)
     discount_amount = float(extracted.get("discount") or extracted.get("discount_amount") or 0.0)
-    currency = extracted.get("currency") or business.currency or "USD"
+    currency = extracted.get("currency") or business.currency or "INR"
     issue_date_val = parse_date(extracted.get("issue_date")) or date.today()
     due_date_val = parse_date(extracted.get("due_date")) or (issue_date_val + timedelta(days=14))
     db_status = extracted.get("status")

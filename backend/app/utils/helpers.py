@@ -54,13 +54,44 @@ def parse_amount(amount_str: Any) -> float:
             pass
     return 0.0
 
-def format_currency(amount: float, currency: str = "USD") -> str:
-    currency = currency or "USD"
-    symbol = "$"
-    if currency == "INR" or "₹" in currency:
-        symbol = "₹"
-    elif currency == "EUR" or "€" in currency:
-        symbol = "€"
-    elif currency == "GBP" or "£" in currency:
-        symbol = "£"
-    return f"{symbol}{amount:,.2f}"
+def format_inr(amount: float) -> str:
+    try:
+        val = float(amount or 0.0)
+    except (ValueError, TypeError):
+        val = 0.0
+
+    is_neg = val < 0
+    val = abs(val)
+
+    if val % 1 == 0:
+        s = f"{int(val)}"
+        dec = ""
+    else:
+        s = f"{int(val)}"
+        dec = f".{int(round((val - int(val)) * 100)):02d}"
+
+    if len(s) <= 3:
+        res = s
+    else:
+        last3 = s[-3:]
+        remaining = s[:-3]
+        groups = []
+        while len(remaining) > 2:
+            groups.append(remaining[-2:])
+            remaining = remaining[:-2]
+        if remaining:
+            groups.append(remaining)
+        groups.reverse()
+        res = ",".join(groups) + "," + last3
+
+    sign = "-" if is_neg else ""
+    return f"{sign}₹{res}{dec}"
+
+
+def format_currency(amount: float, currency: str = "INR") -> str:
+    """
+    Central currency formatter for OpsNova AI.
+    The entire application strictly supports INR (₹) using Indian number grouping.
+    """
+    return format_inr(amount)
+

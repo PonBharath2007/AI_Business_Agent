@@ -31,7 +31,7 @@ Date: 2026-07-01
 Due Date: 2026-07-20
 
 Description: Enterprise Cloud Architecture & Digital Operations
-Amount Due: $55,000.00
+Amount Due: ₹55,000.00
 Terms: Net 15 days. Unpaid balance subject to 1.5% monthly late fee.
 """
     file_bytes = sample_text.encode("utf-8")

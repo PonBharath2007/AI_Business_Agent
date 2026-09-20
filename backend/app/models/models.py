@@ -12,8 +12,8 @@ class Business(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(255), nullable=False)
     category = Column(String(100), default="General Services")
-    currency = Column(String(10), default="USD")
-    timezone = Column(String(50), default="America/New_York")
+    currency = Column(String(10), default="INR")
+    timezone = Column(String(50), default="Asia/Kolkata")
     payment_terms = Column(String(255), default="Standard 30-day payment terms")
     email = Column(String(255), nullable=True)
     phone = Column(String(50), nullable=True)
@@ -38,6 +38,10 @@ class Business(Base):
     workflow_executions = relationship("WorkflowExecution", back_populates="business", cascade="all, delete-orphan")
     communications = relationship("CommunicationLog", back_populates="business", cascade="all, delete-orphan")
     sms_messages = relationship("SMSMessage", back_populates="business", cascade="all, delete-orphan")
+
+    def __init__(self, **kwargs):
+        kwargs.setdefault("currency", "INR")
+        super().__init__(**kwargs)
 
 
 class User(Base):
@@ -113,7 +117,7 @@ class Invoice(Base):
     subtotal = Column(Numeric(12, 2), nullable=True, default=0.00)
     tax_amount = Column(Numeric(12, 2), nullable=True, default=0.00)
     discount_amount = Column(Numeric(12, 2), nullable=True, default=0.00)
-    currency = Column(String(10), default="USD")
+    currency = Column(String(10), default="INR")
     issue_date = Column(Date, nullable=False)
     due_date = Column(Date, nullable=False, index=True)
     status = Column(String(50), default="pending", index=True) # paid, partially_paid, pending, overdue
@@ -126,6 +130,10 @@ class Invoice(Base):
     business = relationship("Business", back_populates="invoices")
     customer = relationship("Customer", back_populates="invoices")
     document = relationship("Document", back_populates="invoices", foreign_keys=[document_id])
+
+    def __init__(self, **kwargs):
+        kwargs.setdefault("currency", "INR")
+        super().__init__(**kwargs)
 
 
 class Task(Base):

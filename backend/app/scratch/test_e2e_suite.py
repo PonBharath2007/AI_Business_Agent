@@ -111,7 +111,7 @@ def run_comprehensive_verification():
     print(f"[PASS] 13. AI Workflow Rules & Execution API: {len(rules)} rules, execution response = '{exec_res.json()['message']}'")
 
     # 14. Email AI Transformation
-    transform_res = client.post("/api/ai/transform-email", json={"text": "Please pay your invoice of $5,000 as soon as possible.", "action": "make_urgent"}, headers=headers)
+    transform_res = client.post("/api/ai/transform-email", json={"text": "Please pay your invoice of ₹5,000 as soon as possible.", "action": "make_urgent"}, headers=headers)
     assert transform_res.status_code == 200
     print("[PASS] 14. AI Email Transformation API: Transformed text generated successfully.")
 

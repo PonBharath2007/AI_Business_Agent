@@ -62,7 +62,7 @@ def generate_email_endpoint(
     invoice_number = None
     amount = None
     due_date_str = None
-    currency = business.currency or "USD"
+    currency = business.currency or "INR"
 
     if req.customer_id:
         cust = db.query(Customer).filter(Customer.id == req.customer_id, Customer.business_id == business.id).first()
@@ -76,7 +76,7 @@ def generate_email_endpoint(
         if inv:
             invoice_number = inv.invoice_number
             amount = float(inv.pending_amount if (inv.pending_amount is not None and float(inv.pending_amount) > 0) else (inv.amount or 0.0))
-            currency = inv.currency or business.currency or "USD"
+            currency = inv.currency or business.currency or "INR"
             due_date_str = inv.due_date.strftime("%B %d, %Y") if inv.due_date else None
             ext_name = inv.document.extracted_data.get("customer_name") if (inv.document and inv.document.extracted_data) else None
             if is_valid_customer_name(ext_name):

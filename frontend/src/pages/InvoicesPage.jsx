@@ -362,6 +362,9 @@ const InvoicesPage = ({ onNavigate }) => {
                   <div className="text-rose-600 dark:text-rose-400">
                     Payment Due: <strong>{viewInvoice.due_date}</strong>
                   </div>
+                  <div className="text-slate-700 dark:text-slate-300">
+                    Currency: <strong className="text-indigo-600 dark:text-indigo-400">INR (₹)</strong>
+                  </div>
                   {viewInvoice.document_id && (
                     <div className="pt-1">
                       <button
@@ -419,7 +422,7 @@ const InvoicesPage = ({ onNavigate }) => {
               </div>
             )}
 
-            {/* PAYMENT DETAILS (Section 13) */}
+            {/* PAYMENT DETAILS */}
             <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-800 space-y-3">
               <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-700/60 pb-2">
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
@@ -428,6 +431,28 @@ const InvoicesPage = ({ onNavigate }) => {
                 <Badge variant={viewInvoice.status}>
                   {viewInvoice.payment_status || viewInvoice.status?.replace('_', ' ')}
                 </Badge>
+              </div>
+
+              {/* Subtotal, Tax, Discount */}
+              <div className="grid grid-cols-3 gap-2 text-center text-xs border-b border-slate-200 dark:border-slate-700/60 pb-2">
+                <div>
+                  <span className="text-[10px] text-slate-500 block uppercase">Subtotal</span>
+                  <span className="font-semibold text-slate-800 dark:text-slate-200">
+                    {formatMoney(viewInvoice.subtotal || viewInvoice.total_amount || viewInvoice.amount)}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-500 block uppercase">Tax / GST</span>
+                  <span className="font-semibold text-slate-800 dark:text-slate-200">
+                    {formatMoney(viewInvoice.tax_amount || 0)}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-500 block uppercase">Discount</span>
+                  <span className="font-semibold text-slate-800 dark:text-slate-200">
+                    {formatMoney(viewInvoice.discount_amount || 0)}
+                  </span>
+                </div>
               </div>
 
               <div className="grid grid-cols-3 gap-3 text-center">

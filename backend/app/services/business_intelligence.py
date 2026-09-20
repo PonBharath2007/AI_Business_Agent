@@ -63,7 +63,7 @@ def calculate_business_health_score(db: Session, business: Business) -> Dict[str
         return {
             "overall_score": 100,
             "rating": "Fresh Account – Clean State",
-            "currency": business.currency or "USD",
+            "currency": "INR",
             "categories": [
                 {
                     "name": "Payment Health",
@@ -196,14 +196,14 @@ def calculate_business_health_score(db: Session, business: Business) -> Dict[str
     return {
         "overall_score": overall,
         "rating": rating,
-        "currency": business.currency or "USD",
+        "currency": "INR",
         "categories": categories,
         "ai_recommendations": recs
     }
 
 
 def calculate_cash_flow_forecast(db: Session, business: Business) -> Dict[str, Any]:
-    currency = business.currency or "USD"
+    currency = business.currency or "INR"
     aging = calculate_payment_aging(db, business.id)
 
     invoices = db.query(Invoice).filter(Invoice.business_id == business.id).all()
@@ -237,7 +237,7 @@ def calculate_cash_flow_forecast(db: Session, business: Business) -> Dict[str, A
 
 
 def analyze_root_cause_for_delays(db: Session, business: Business, user_query: str = "Why are payments getting delayed?") -> Dict[str, Any]:
-    currency = business.currency or "USD"
+    currency = business.currency or "INR"
     invoices = db.query(Invoice).filter(Invoice.business_id == business.id).all()
     overdue_invoices = [i for i in invoices if i.status == "overdue"]
     total_invoices = max(1, len(invoices))
@@ -297,7 +297,7 @@ def analyze_root_cause_for_delays(db: Session, business: Business, user_query: s
     plan = [
         "1. Dispatch the 2 pending reminder drafts in Approval Center today.",
         "2. Establish standard 3-day proactive pre-due courtesy alerts in Business Policies.",
-        "3. Offer a 3-5% early payment discount on invoices above ₹50,000 / $5,000."
+        "3. Offer a 3-5% early payment discount on invoices above ₹50,000."
     ]
 
     return {
@@ -310,7 +310,7 @@ def analyze_root_cause_for_delays(db: Session, business: Business, user_query: s
 
 
 def run_what_if_simulation(db: Session, business: Business, req_data: Dict[str, Any]) -> Dict[str, Any]:
-    currency = business.currency or "USD"
+    currency = business.currency or "INR"
     scenario = req_data.get("scenario", "payment_delay")
     days_delay = int(req_data.get("param_days_delay", 30))
     discount_pct = float(req_data.get("param_discount_pct", 5.0))
@@ -391,7 +391,7 @@ def run_what_if_simulation(db: Session, business: Business, req_data: Dict[str, 
 
 def get_active_exceptions(db: Session, business: Business) -> List[Dict[str, Any]]:
     today = date.today()
-    currency = business.currency or "USD"
+    currency = business.currency or "INR"
     exceptions = []
 
     # 1. Critical Overdue Invoices
@@ -515,7 +515,7 @@ def get_active_exceptions(db: Session, business: Business) -> List[Dict[str, Any
 
 
 def get_customer_360(db: Session, business: Business, customer_id: int) -> Dict[str, Any]:
-    currency = business.currency or "USD"
+    currency = business.currency or "INR"
     customer = db.query(Customer).filter(
         Customer.id == customer_id,
         Customer.business_id == business.id

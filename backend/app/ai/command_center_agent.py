@@ -108,7 +108,7 @@ def tool_prepare_all_overdue_reminders(db: Session, business: Business, language
                 customer_phone=c_phone,
                 invoice_number=inv.invoice_number,
                 amount=float(inv.amount or 0),
-                currency=inv.currency or business.currency or "USD",
+                currency=inv.currency or business.currency or "INR",
                 due_date=str(inv.due_date),
                 business_name=business.name,
                 business_signature=business.email_signature,
@@ -168,7 +168,7 @@ def tool_prepare_all_overdue_reminders(db: Session, business: Business, language
 
 def process_command_center_query(db: Session, business: Business, user_message: str, history: List[Dict[str, str]] = None) -> Dict[str, Any]:
     msg_lower = user_message.lower().strip()
-    currency = business.currency or "USD"
+    currency = business.currency or "INR"
     today = date.today()
 
     # Detect language requirement from user request

@@ -37,7 +37,7 @@ def seed_database(db: Session, reset: bool = False):
     biz = Business(
         name="Summit Digital Agency",
         category="Full-Service Digital & Cloud Consulting",
-        currency="USD",
+        currency="INR",
         timezone="America/New_York",
         payment_terms="Standard 30-day payment terms",
         email="contact@summitdigital.example",
@@ -78,7 +78,7 @@ def seed_database(db: Session, reset: bool = False):
         customer_id=c1.id,
         invoice_number="INV-1001",
         amount=5000.00,
-        currency="USD",
+        currency="INR",
         issue_date=today - timedelta(days=38),
         due_date=today - timedelta(days=8),
         status="overdue",
@@ -89,7 +89,7 @@ def seed_database(db: Session, reset: bool = False):
         customer_id=c2.id,
         invoice_number="INV-1002",
         amount=12500.00,
-        currency="USD",
+        currency="INR",
         issue_date=today - timedelta(days=45),
         due_date=today - timedelta(days=15),
         status="overdue",
@@ -100,7 +100,7 @@ def seed_database(db: Session, reset: bool = False):
         customer_id=c3.id,
         invoice_number="INV-1003",
         amount=3200.00,
-        currency="USD",
+        currency="INR",
         issue_date=today - timedelta(days=10),
         due_date=today + timedelta(days=20),
         status="pending",
@@ -111,7 +111,7 @@ def seed_database(db: Session, reset: bool = False):
         customer_id=c4.id,
         invoice_number="INV-1004",
         amount=8400.00,
-        currency="USD",
+        currency="INR",
         issue_date=today - timedelta(days=25),
         due_date=today - timedelta(days=5),
         status="paid",
@@ -127,7 +127,7 @@ def seed_database(db: Session, reset: bool = False):
     t1 = Task(
         business_id=biz.id,
         title="Follow up with ABC Ltd regarding overdue payment INV-1001",
-        description="ABC Ltd payment of $5,000.00 is 8 days overdue. Generated reminder waiting in Approval Center.",
+        description="ABC Ltd payment of ₹5,000.00 is 8 days overdue. Generated reminder waiting in Approval Center.",
         priority="High",
         status="Pending",
         due_date=today,
@@ -148,7 +148,7 @@ def seed_database(db: Session, reset: bool = False):
     t3 = Task(
         business_id=biz.id,
         title="Follow up with TechCorp Global for overdue invoice INV-1002",
-        description="TechCorp Global milestone invoice $12,500.00 is 15 days overdue.",
+        description="TechCorp Global milestone invoice ₹12,500.00 is 15 days overdue.",
         priority="High",
         status="Pending",
         due_date=today,
@@ -194,7 +194,7 @@ def seed_database(db: Session, reset: bool = False):
             "currency": inv1.currency,
             "due_date": inv1.due_date.isoformat(),
             "subject": f"Payment Reminder – Invoice {inv1.invoice_number}",
-            "body": f"Dear {c1.name},\n\nThis is a friendly reminder regarding the outstanding payment for invoice {inv1.invoice_number}.\n\nThe outstanding amount is ${float(inv1.amount):,.2f} and the payment was due on {inv1.due_date.strftime('%B %d, %Y')}.\n\nPlease let us know if the payment has already been processed or if you require any assistance.\n\nRegards,\nOperations Team\n{biz.name}",
+            "body": f"Dear {c1.name},\n\nThis is a friendly reminder regarding the outstanding payment for invoice {inv1.invoice_number}.\n\nThe outstanding amount is ₹{float(inv1.amount):,.2f} and the payment was due on {inv1.due_date.strftime('%B %d, %Y')}.\n\nPlease let us know if the payment has already been processed or if you require any assistance.\n\nRegards,\nOperations Team\n{biz.name}",
             "recipient_email": c1.email
         },
         status="pending",
@@ -214,7 +214,7 @@ def seed_database(db: Session, reset: bool = False):
             "currency": inv2.currency,
             "due_date": inv2.due_date.isoformat(),
             "subject": f"Urgent: Overdue Notice for Invoice {inv2.invoice_number}",
-            "body": f"Dear {c2.name},\n\nWe would like to bring to your attention that invoice {inv2.invoice_number} for ${float(inv2.amount):,.2f} is now 15 days past its due date ({inv2.due_date.strftime('%B %d, %Y')}).\n\nPlease confirm when we can expect settlement of this invoice.\n\nBest regards,\nFinance Team\n{biz.name}",
+            "body": f"Dear {c2.name},\n\nWe would like to bring to your attention that invoice {inv2.invoice_number} for ₹{float(inv2.amount):,.2f} is now 15 days past its due date ({inv2.due_date.strftime('%B %d, %Y')}).\n\nPlease confirm when we can expect settlement of this invoice.\n\nBest regards,\nFinance Team\n{biz.name}",
             "recipient_email": c2.email
         },
         status="pending",
@@ -230,7 +230,7 @@ def seed_database(db: Session, reset: bool = False):
             business_id=biz.id,
             actor_type="AI Agent",
             action="Overdue Detection",
-            description="AI detected overdue invoice INV-1001 ($5,000.00) for ABC Ltd. Created High Priority task.",
+            description="AI detected overdue invoice INV-1001 (₹5,000.00) for ABC Ltd. Created High Priority task.",
             status="warning",
             created_at=datetime.utcnow() - timedelta(hours=3)
         ),
@@ -246,7 +246,7 @@ def seed_database(db: Session, reset: bool = False):
             business_id=biz.id,
             actor_type="Business Owner",
             action="Payment Received",
-            description="Recorded full payment of $8,400.00 for invoice INV-1004 from Nexus Retailers.",
+            description="Recorded full payment of ₹8,400.00 for invoice INV-1004 from Nexus Retailers.",
             status="success",
             created_at=datetime.utcnow() - timedelta(days=1)
         ),
@@ -267,7 +267,7 @@ def seed_database(db: Session, reset: bool = False):
         Notification(
             business_id=biz.id,
             title="🔴 2 Overdue Invoices Need Attention",
-            message="ABC Ltd and TechCorp Global have overdue payments totaling $17,500.00.",
+            message="ABC Ltd and TechCorp Global have overdue payments totaling ₹17,500.00.",
             priority="High",
             read=False,
             action_url="/invoices"
@@ -315,9 +315,9 @@ def _ensure_policies_and_memory(db: Session, biz: Business):
         )
         p2 = BusinessPolicy(
             business_id=biz.id,
-            policy_name="Large Amount Owner Approval Required (> ₹50,000 / $5,000)",
+            policy_name="Large Amount Owner Approval Required (> ₹50,000)",
             policy_type="approval_threshold",
-            threshold_value=50000.00 if biz.currency == "INR" else 5000.00,
+            threshold_value=50000.00,
             condition_operator="gt",
             action_required="require_approval",
             is_active=True,

@@ -113,7 +113,7 @@ export const AuthProvider = ({ children }) => {
       email: email.trim().toLowerCase(),
       password,
       business_name: business_name ? business_name.trim() : 'My Business',
-      currency: currency || 'USD'
+      currency: currency || 'INR'
     });
 
     const authToken = res.data.access_token;

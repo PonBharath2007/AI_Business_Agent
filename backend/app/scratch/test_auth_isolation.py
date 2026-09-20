@@ -32,15 +32,15 @@ def test_auth_and_isolation():
     reg_a = client.post("/api/auth/register", json={
         "name": "Alice Walker",
         "email": "alice@alphasolutions.com",
-        "password": "Password123!",
-        "business_name": "Alpha Solutions LLC",
-        "currency": "USD"
+        "password": "IsolationPassword123!",
+        "business_name": "Isolation Tenant Alpha",
+        "currency": "INR"
     })
     assert reg_a.status_code == 200, f"Register A failed: {reg_a.text}"
     token_a = reg_a.json()["access_token"]
     user_a = reg_a.json()["user"]
     assert user_a["email"] == "alice@alphasolutions.com"
-    assert user_a["business_name"] == "Alpha Solutions LLC"
+    assert user_a["business_name"] == "Isolation Tenant Alpha"
     headers_a = {"Authorization": f"Bearer {token_a}"}
     print("[PASS] 3. Registered User A ('alice@alphasolutions.com') with business 'Alpha Solutions LLC'.")
 

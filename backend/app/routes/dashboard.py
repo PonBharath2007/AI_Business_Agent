@@ -143,7 +143,7 @@ def get_dashboard_summary(
         "pending_approvals_count": pending_approvals_count,
         "ai_actions_count": ai_actions_count,
         "completed_tasks_count": completed_tasks_count,
-        "currency": business.currency or "USD"
+        "currency": "INR"
     }
 
 
@@ -162,7 +162,7 @@ def _generate_today_brief_and_actions(
         if now_ts - cached_ts < CACHE_TTL_SECONDS:
             return cached_brief, cached_actions
 
-    currency = business.currency or "USD"
+    currency = "INR"
     today_dt = datetime(today.year, today.month, today.day, 0, 0, 0)
 
     # Invoices processed today
@@ -385,14 +385,14 @@ def get_full_dashboard(
         "overdue_invoices": summary["overdue_invoices_count"],
         "overdue_invoices_amount": summary["overdue_invoices_amount"],
         "monthly_income": summary["monthly_income"],
-        "currency": summary["currency"],
+        "currency": "INR",
         "today_brief": brief_text,
         "recommended_actions": recommended_actions,
         # Backwards-compatible fields
         "business": {
             "id": business.id,
             "name": business.name,
-            "currency": business.currency,
+            "currency": "INR",
             "category": business.category
         },
         "summary": summary,

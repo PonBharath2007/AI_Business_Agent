@@ -38,8 +38,8 @@ const SettingsPage = () => {
   const [formData, setFormData] = useState({
     name: '',
     category: '',
-    currency: 'USD',
-    timezone: 'America/New_York',
+    currency: 'INR',
+    timezone: 'Asia/Kolkata',
     payment_terms: 'Standard 30-day payment terms',
     email: '',
     phone: '',
@@ -88,8 +88,8 @@ const SettingsPage = () => {
       setFormData({
         name: business.name || '',
         category: business.category || '',
-        currency: business.currency || 'USD',
-        timezone: business.timezone || 'America/New_York',
+        currency: 'INR',
+        timezone: business.timezone || 'Asia/Kolkata',
         payment_terms: business.payment_terms || 'Standard 30-day payment terms',
         email: business.email || '',
         phone: business.phone || '',
@@ -331,14 +331,11 @@ const SettingsPage = () => {
               <div>
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Currency</label>
                 <select
-                  value={formData.currency}
-                  onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
-                  className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
+                  value="INR"
+                  disabled
+                  className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-900 dark:text-white cursor-not-allowed opacity-90"
                 >
                   <option value="INR">INR (₹) – Indian Rupee</option>
-                  <option value="USD">USD ($) – US Dollar</option>
-                  <option value="EUR">EUR (€) – Euro</option>
-                  <option value="GBP">GBP (£) – British Pound</option>
                 </select>
               </div>
               <div>
@@ -510,7 +507,7 @@ const SettingsPage = () => {
             </select>
           </div>
           <div>
-            <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Threshold Value ({business?.currency || 'USD'})</label>
+            <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Threshold Value (₹)</label>
             <input
               type="number"
               value={newPolicy.threshold_value}

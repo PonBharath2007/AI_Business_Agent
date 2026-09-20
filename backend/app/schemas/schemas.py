@@ -12,7 +12,7 @@ class UserRegister(BaseModel):
     email: EmailStr
     password: str
     business_name: Optional[str] = "My Business"
-    currency: Optional[str] = "USD"
+    currency: Optional[str] = "INR"
 
 class UserForgotPassword(BaseModel):
     email: EmailStr
@@ -48,8 +48,8 @@ class Token(BaseModel):
 class BusinessBase(BaseModel):
     name: str
     category: Optional[str] = "General Services"
-    currency: Optional[str] = "USD"
-    timezone: Optional[str] = "America/New_York"
+    currency: Optional[str] = "INR"
+    timezone: Optional[str] = "Asia/Kolkata"
     payment_terms: Optional[str] = "Standard 30-day payment terms"
     email: Optional[str] = None
     phone: Optional[str] = None
@@ -141,7 +141,7 @@ class InvoiceBase(BaseModel):
     subtotal: Optional[float] = 0.0
     tax_amount: Optional[float] = 0.0
     discount_amount: Optional[float] = 0.0
-    currency: Optional[str] = "USD"
+    currency: Optional[str] = "INR"
     issue_date: date
     due_date: date
     status: Optional[str] = "pending" # paid, partially_paid, pending, overdue
@@ -253,7 +253,7 @@ class ApprovalExecutionContextResponse(BaseModel):
     pending_amount: Optional[float] = None
     due_date: Optional[str] = None
     payment_status: Optional[str] = None
-    currency: Optional[str] = "USD"
+    currency: Optional[str] = "INR"
     communication_channel: str = "email"
     approved_action: str = "send_payment_reminder"
     generated_subject: Optional[str] = None

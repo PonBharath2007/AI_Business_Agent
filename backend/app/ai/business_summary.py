@@ -7,7 +7,7 @@ from backend.app.ai.gemini_client import gemini_client
 
 def generate_daily_brief(db: Session, business: Business) -> Dict[str, Any]:
     today = date.today()
-    currency = business.currency or "USD"
+    currency = business.currency or "INR"
 
     # Query live stats from database
     overdue_invoices = db.query(Invoice).filter(

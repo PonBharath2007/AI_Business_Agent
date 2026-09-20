@@ -37,7 +37,7 @@ def register_user(user_in: UserRegister, db: Session = Depends(get_db)):
     # Create or associate business
     biz = Business(
         name=user_in.business_name or "My Business",
-        currency=user_in.currency or "USD",
+        currency=user_in.currency or "INR",
         category="Small Business Services",
         email=user_in.email.lower()
     )
@@ -86,8 +86,8 @@ def login_user(login_in: UserLogin, db: Session = Depends(get_db)):
         biz = Business(
             name=biz_name,
             category="Small Business Services",
-            currency="USD",
-            timezone="America/New_York",
+            currency="INR",
+            timezone="Asia/Kolkata",
             payment_terms="Standard 30-day payment terms",
             email=email_clean
         )

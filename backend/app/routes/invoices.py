@@ -56,7 +56,7 @@ def _format_invoice(inv: Invoice) -> dict:
         "subtotal": float(inv.subtotal or 0.0),
         "tax_amount": float(inv.tax_amount or 0.0),
         "discount_amount": float(inv.discount_amount or 0.0),
-        "currency": inv.currency or "USD",
+        "currency": "INR",
         "issue_date": inv.issue_date,
         "due_date": inv.due_date,
         "status": inv_status,

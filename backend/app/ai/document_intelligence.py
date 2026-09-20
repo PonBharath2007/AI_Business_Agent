@@ -13,6 +13,7 @@ from backend.app.utils.logger import logger
 TOTAL_LABELS = [
     r'grand\s*total',
     r'invoice\s*total',
+    r'total\s*amount\s*due',
     r'total\s*amount',
     r'net\s*payable',
     r'net\s*total',
@@ -215,7 +216,7 @@ Extract into this exact JSON schema:
   "seller_name": "Vendor / Seller / Issuer business name, or null",
   "seller_address": "Vendor / Seller address or null",
   "tax_number": "GSTIN / VAT / Tax ID or null",
-  "currency": "INR" | "USD" | "EUR" | "GBP",
+  "currency": "INR",
   "subtotal": 0.0,
   "tax": 0.0,
   "discount": 0.0,
@@ -549,14 +550,8 @@ def deterministic_invoice_parser(file_name: str, raw_text: str) -> Dict[str, Any
     if not due_date:
         due_date = issue_date + timedelta(days=14)
 
-    # 7. Currency Detection
-    currency = "USD"
-    if any(sym in raw_text for sym in ["₹", "INR", "Rs", "GSTIN", "Coimbatore", "Tamil Nadu", "+91"]) or re.search(r'\b(GST|CGST|SGST|IGST)\b', raw_text):
-        currency = "INR"
-    elif "€" in raw_text or "eur" in text_lower:
-        currency = "EUR"
-    elif "£" in raw_text or "gbp" in text_lower:
-        currency = "GBP"
+    # 7. Currency Detection (Strictly INR only)
+    currency = "INR"
 
     # 8. Financial Totals Extraction (All formats A, B, C, D)
     grand_total = extract_amount_by_labels(raw_text, TOTAL_LABELS)
@@ -757,8 +752,8 @@ def normalize_extracted_document(data: Dict[str, Any], file_name: str, raw_text:
                 "line_total": l_tot
             })
 
-    # Currency
-    curr = data.get("currency") or ("INR" if ("₹" in raw_text or "inr" in raw_text.lower() or "+91" in raw_text) else "USD")
+    # Currency (Application supports INR only)
+    curr = data.get("currency") or "INR"
 
     return {
         "document_type": data.get("document_type") or "invoice",
@@ -868,8 +863,8 @@ def validate_invoice_extraction(data: Dict[str, Any]) -> Dict[str, Any]:
     # Generate Executive Summary & Recommended Action AFTER validation
     inv_num = data.get("invoice_number") or "Unnumbered Document"
     cust_disp = data.get("customer_name") or "Unspecified Customer"
-    curr = data.get("currency") or "INR"
-    curr_sym = "₹" if curr == "INR" else ("$" if curr == "USD" else curr)
+    curr = "INR"
+    curr_sym = "₹"
     due_date_str = data.get("due_date", "")
     payment_status_title = data.get("payment_status", "Unpaid")
     is_overdue = data.get("is_overdue", False)

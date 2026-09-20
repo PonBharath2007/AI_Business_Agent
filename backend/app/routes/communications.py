@@ -55,14 +55,14 @@ def generate_communication_endpoint(
     invoice_number = None
     amount = None
     due_date_str = None
-    currency = business.currency or "USD"
+    currency = "INR"
 
     if req.invoice_id:
         inv = db.query(Invoice).filter(Invoice.id == req.invoice_id, Invoice.business_id == business.id).first()
         if inv:
             invoice_number = inv.invoice_number
             amount = float(inv.pending_amount if (inv.pending_amount is not None and float(inv.pending_amount) > 0) else (inv.amount or 0.0))
-            currency = inv.currency or business.currency or "USD"
+            currency = "INR"
             due_date_str = inv.due_date.strftime("%B %d, %Y") if inv.due_date else None
             ext_name = inv.document.extracted_data.get("customer_name") if (inv.document and inv.document.extracted_data) else None
             if is_valid_customer_name(ext_name):
@@ -89,7 +89,7 @@ def generate_communication_endpoint(
         if open_inv:
             invoice_number = open_inv.invoice_number
             amount = float(open_inv.amount) if open_inv.amount is not None else 0.0
-            currency = open_inv.currency or business.currency or "USD"
+            currency = "INR"
             due_date_str = open_inv.due_date.strftime("%B %d, %Y") if open_inv.due_date else None
 
     if req.phone_number and req.phone_number.strip():

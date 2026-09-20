@@ -33,7 +33,7 @@ def run_google_auth_test_suite():
         "email": "alex.mercer@innovate.io",
         "password": "SecurePassword123!",
         "business_name": "Mercer Innovations",
-        "currency": "USD"
+        "currency": "INR"
     }
     reg_res = client.post("/api/auth/register", json=reg_payload)
     assert reg_res.status_code == 200, f"Registration failed: {reg_res.text}"

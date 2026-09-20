@@ -7,10 +7,21 @@ const BusinessContext = createContext(null);
 const DEFAULT_BUSINESS = {
   name: 'My Business',
   category: 'Small Business Services',
-  currency: 'USD',
-  timezone: 'America/New_York',
+  currency: 'INR',
+  timezone: 'Asia/Kolkata',
   payment_terms: 'Standard 30-day payment terms',
   email: ''
+};
+
+export const formatINR = (amount) => {
+  const num = typeof amount === 'number' ? amount : parseFloat(amount || 0);
+  if (isNaN(num)) return '₹0';
+  const isInt = num % 1 === 0;
+  const formatted = num.toLocaleString('en-IN', {
+    maximumFractionDigits: 2,
+    minimumFractionDigits: isInt ? 0 : 2
+  });
+  return `₹${formatted}`;
 };
 
 export const BusinessProvider = ({ children }) => {
@@ -26,7 +37,12 @@ export const BusinessProvider = ({ children }) => {
     }
     try {
       const res = await api.get('/settings/profile');
-      if (res.data) setBusiness(res.data);
+      if (res.data) {
+        setBusiness({
+          ...res.data,
+          currency: 'INR'
+        });
+      }
     } catch (err) {
       console.warn('Could not fetch profile:', err);
     }
@@ -58,8 +74,14 @@ export const BusinessProvider = ({ children }) => {
   const updateProfile = async (data) => {
     setLoading(true);
     try {
-      const res = await api.put('/settings/profile', data);
-      setBusiness(res.data);
+      const res = await api.put('/settings/profile', {
+        ...data,
+        currency: 'INR'
+      });
+      setBusiness({
+        ...res.data,
+        currency: 'INR'
+      });
       return res.data;
     } finally {
       setLoading(false);
@@ -79,9 +101,7 @@ export const BusinessProvider = ({ children }) => {
   };
 
   const formatMoney = (amount) => {
-    const sym = business.currency === 'INR' || business.currency === '₹' ? '₹' : (business.currency === 'EUR' ? '€' : (business.currency === 'GBP' ? '£' : '$'));
-    const num = typeof amount === 'number' ? amount : parseFloat(amount || 0);
-    return `${sym}${num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    return formatINR(amount);
   };
 
   return (

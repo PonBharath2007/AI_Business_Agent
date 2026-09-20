@@ -278,7 +278,7 @@ def get_real_income_analytics(
             ai_insight = cached_text
 
     if not ai_insight:
-        currency = business.currency or "USD"
+        currency = "INR"
         # Deterministic accurate baseline
         default_insight = (
             f"For {month_display}, OpsNova AI recorded {format_currency(monthly_income, currency)} in collected income. "
@@ -290,15 +290,15 @@ def get_real_income_analytics(
             try:
                 ai_prompt = (
                     f"You are OpsNova AI, an AI Business Operations Agent. Write a concise 2-sentence executive operational insight "
-                    f"for business '{business.name}' based STRICTLY on these real database financial figures:\n"
+                    f"for business '{business.name}' based STRICTLY on these real database financial figures in Indian Rupee (INR / ₹):\n"
                     f"- Current Month: {month_display}\n"
-                    f"- Collected Income This Month: {currency} {monthly_income:,.2f}\n"
-                    f"- Income Collected On {target_date.strftime('%d %b %Y')}: {currency} {daily_income:,.2f}\n"
-                    f"- Total Pending Receivables: {currency} {total_pending:,.2f}\n"
-                    f"- Overdue Receivables: {currency} {total_overdue:,.2f}\n"
+                    f"- Collected Income This Month: {format_currency(monthly_income, 'INR')}\n"
+                    f"- Income Collected On {target_date.strftime('%d %b %Y')}: {format_currency(daily_income, 'INR')}\n"
+                    f"- Total Pending Receivables: {format_currency(total_pending, 'INR')}\n"
+                    f"- Overdue Receivables: {format_currency(total_overdue, 'INR')}\n"
                     f"- Paid Invoices: {status_counts['paid']}\n"
                     f"- Outstanding Invoices: {len(outstanding_items)}\n"
-                    f"CRITICAL RULES: Mention only the actual numbers provided. Do not invent predictions or imaginary revenues. "
+                    f"CRITICAL RULES: Mention only the actual numbers provided with Indian Rupee (₹) symbol. Do not invent predictions or imaginary revenues. "
                     f"Keep it professional and action-oriented."
                 )
                 generated = gemini_client.generate_text(ai_prompt, max_output_tokens=150)
@@ -317,7 +317,7 @@ def get_real_income_analytics(
         "selected_date_formatted": target_date.strftime("%d %b %Y"),
         "selected_month": f"{target_year:04d}-{target_month:02d}",
         "selected_month_formatted": month_display,
-        "currency": business.currency or "USD",
+        "currency": "INR",
         "daily_income": daily_income,
         "daily_payments_count": daily_payments_count,
         "monthly_income": monthly_income,
@@ -352,7 +352,7 @@ def get_analytics_overview(
 ):
     """Preserves backwards compatibility for existing components."""
     summary = get_dashboard_summary(db, business)
-    currency = business.currency or "USD"
+    currency = "INR"
 
     income_data = get_real_income_analytics(db, business)
 
@@ -450,28 +450,28 @@ def export_analytics_report(
     if report_type == "daily_income":
         lines.append("Invoice Number,Customer,Total Amount,Paid Amount,Payment Date,Status")
         for item in reports["daily_income"]:
-            lines.append(f'"{item["invoice_number"]}","{item["customer_name"]}",{item["total_amount"]},{item["paid_amount"]},"{item["payment_date"]}","{item["status"]}"')
+            lines.append(f'"{item["invoice_number"]}","{item["customer_name"]}","{format_currency(item["total_amount"])}","{format_currency(item["paid_amount"])}","{item["payment_date"]}","{item["status"]}"')
         if not reports["daily_income"]:
             lines.append("No income recorded for this period,,,,")
 
     elif report_type == "monthly_income":
         lines.append("Invoice Number,Customer,Total Amount,Paid Amount,Payment Date,Status")
         for item in reports["monthly_income"]:
-            lines.append(f'"{item["invoice_number"]}","{item["customer_name"]}",{item["total_amount"]},{item["paid_amount"]},"{item["payment_date"]}","{item["status"]}"')
+            lines.append(f'"{item["invoice_number"]}","{item["customer_name"]}","{format_currency(item["total_amount"])}","{format_currency(item["paid_amount"])}","{item["payment_date"]}","{item["status"]}"')
         if not reports["monthly_income"]:
             lines.append("No income recorded for this period,,,,")
 
     elif report_type == "outstanding":
         lines.append("Customer,Invoice Number,Total Amount,Paid Amount,Pending Amount,Due Date,Status")
         for item in reports["outstanding"]:
-            lines.append(f'"{item["customer"]}","{item["invoice"]}",{item["total"]},{item["paid"]},{item["pending"]},"{item["due_date"]}","{item["status"]}"')
+            lines.append(f'"{item["customer"]}","{item["invoice"]}","{format_currency(item["total"])}","{format_currency(item["paid"])}","{format_currency(item["pending"])}","{item["due_date"]}","{item["status"]}"')
         if not reports["outstanding"]:
             lines.append("No outstanding invoices found,,,,,,")
 
     elif report_type == "overdue":
         lines.append("Customer,Invoice Number,Pending Amount,Due Date,Days Overdue,Status")
         for item in reports["overdue"]:
-            lines.append(f'"{item["customer"]}","{item["invoice"]}",{item["pending_amount"]},"{item["due_date"]}",{item["days_overdue"]},"{item["status"]}"')
+            lines.append(f'"{item["customer"]}","{item["invoice"]}","{format_currency(item["pending_amount"])}","{item["due_date"]}",{item["days_overdue"]},"{item["status"]}"')
         if not reports["overdue"]:
             lines.append("No overdue invoices found,,,,,")
 

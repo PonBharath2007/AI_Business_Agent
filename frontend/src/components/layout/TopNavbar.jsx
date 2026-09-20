@@ -66,7 +66,7 @@ const TopNavbar = ({ onMenuClick, onNavigate }) => {
             {business?.name || 'My Business'}
           </span>
           <span className="text-[10px] px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-300 font-bold uppercase">
-            {business?.currency || 'USD'}
+            INR (₹)
           </span>
         </div>
       </div>

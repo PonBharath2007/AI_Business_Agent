@@ -121,7 +121,7 @@ def create_invoice_record(db: Session, business_id: int, invoice_in: InvoiceCrea
         subtotal=float(invoice_in.subtotal or 0.0),
         tax_amount=float(invoice_in.tax_amount or 0.0),
         discount_amount=float(invoice_in.discount_amount or 0.0),
-        currency=invoice_in.currency or "USD",
+        currency=invoice_in.currency or "INR",
         issue_date=invoice_in.issue_date,
         due_date=invoice_in.due_date,
         status=inv_status,

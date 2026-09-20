@@ -187,7 +187,7 @@ def get_customer_invoices(
             "subtotal": float(inv.subtotal or 0.0),
             "tax_amount": float(inv.tax_amount or 0.0),
             "discount_amount": float(inv.discount_amount or 0.0),
-            "currency": inv.currency or "USD",
+            "currency": "INR",
             "issue_date": inv.issue_date.isoformat() if inv.issue_date else None,
             "due_date": inv.due_date.isoformat() if inv.due_date else None,
             "status": inv_status,

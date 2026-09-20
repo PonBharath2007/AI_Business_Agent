@@ -146,6 +146,17 @@ def resolve_approval_execution_context(db: Session, app: Approval, business_id: 
     default_channel = "sms" if is_sms_action else "email"
     language = data.get("language", "en")
 
+    fallback = False
+    fallback_reason = None
+    if default_channel == "email" and not has_email and has_phone:
+        default_channel = "sms"
+        fallback = True
+        fallback_reason = "Email is not available for this customer. Falling back to SMS."
+    elif default_channel == "sms" and not has_phone and has_email:
+        default_channel = "email"
+        fallback = True
+        fallback_reason = "Phone number is not available for this customer. Falling back to Email."
+
     generated_subject = data.get("generated_subject") or data.get("subject") or f"Payment Reminder – Invoice {inv_number}"
     generated_email_body = data.get("generated_email_body") or (data.get("body") if not is_sms_action else None)
     generated_message = data.get("generated_message") or data.get("message") or (data.get("body") if is_sms_action else None)
@@ -207,8 +218,8 @@ def resolve_approval_execution_context(db: Session, app: Approval, business_id: 
         "language": language,
         "has_email": has_email,
         "has_phone": has_phone,
-        "fallback": False,
-        "fallback_reason": None,
+        "fallback": fallback,
+        "fallback_reason": fallback_reason,
         "no_contact": no_contact
     }
 
@@ -374,6 +385,16 @@ def approve_action(
             )
             db.commit()
 
+        return {
+            "success": False,
+            "no_contact": True,
+            "channel": context.get("communication_channel"),
+            "message": "No communication contact available for this customer. Follow-up task created for staff.",
+            "approval_id": app.id,
+            "status": app.status,
+            "context": context
+        }
+
     # 4. Mark approval as approved (state: APPROVED, NOT marked as SENT until actually dispatched)
     app.status = "approved"
     app.approved_at = datetime.utcnow()
@@ -403,6 +424,8 @@ def approve_action(
         "success": True,
         "no_contact": context.get("no_contact", False),
         "channel": context["communication_channel"],
+        "fallback": context.get("fallback", False),
+        "fallback_reason": context.get("fallback_reason"),
         "message": "Action approved successfully. Please choose a communication method.",
         "approval_id": app.id,
         "status": app.status,

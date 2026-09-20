@@ -31,8 +31,8 @@ const CommunicationSelectionModal = ({
     ? Number(context.pending_amount)
     : Number(context.invoice_total || context.total_amount || 0);
 
-  const currency = context.currency || 'INR';
-  const currencySymbol = currency === 'INR' || currency === '₹' ? '₹' : (currency === 'USD' || currency === '$' ? '$' : `${currency} `);
+  const currency = 'INR';
+  const currencySymbol = '₹';
   const formattedPending = `${currencySymbol}${pendingAmount.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
 
   // Determine contact availability

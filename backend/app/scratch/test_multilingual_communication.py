@@ -344,7 +344,7 @@ def test_multilingual_communication_suite():
     # ----------------------------------------------------
     print("\n--- TEST 14: Transform Email to Tamil ---")
     transform_res = client.post("/api/ai/transform-email", json={
-        "text": "Your payment of $50,000 is overdue. Please settle it promptly.",
+        "text": "Your payment of ₹50,000 is overdue. Please settle it promptly.",
         "action": "translate",
         "target_language": "Tamil"
     }, headers=headers)

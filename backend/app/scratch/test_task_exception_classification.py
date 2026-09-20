@@ -15,7 +15,7 @@ def run_test():
         # Get or create test business
         biz = db.query(Business).first()
         if not biz:
-            biz = Business(name="Test Biz", email="testbiz@example.com", currency="USD")
+            biz = Business(name="Test Biz", email="testbiz@example.com", currency="INR")
             db.add(biz)
             db.commit()
             db.refresh(biz)

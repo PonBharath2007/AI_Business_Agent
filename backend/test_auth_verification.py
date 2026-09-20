@@ -4,6 +4,8 @@ from pathlib import Path
 from unittest.mock import patch
 
 # Set paths
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8')
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 os.environ["DATABASE_URL"] = "sqlite:///./ai_business_agent.db"
@@ -40,7 +42,7 @@ def run_all_tests():
             "email": "authtest_local@testbusiness.com",
             "password": "Password123!",
             "business_name": "Auth Testing LLC",
-            "currency": "USD"
+            "currency": "INR"
         }
         # Clean up any prior test artifacts
         existing = db.query(User).filter(User.email == reg_payload["email"]).first()

@@ -204,8 +204,8 @@ def get_or_create_google_user(db: Session, google_info: Dict[str, Any]) -> Tuple
     biz = Business(
         name=biz_name,
         category="Small Business Services",
-        currency="USD",
-        timezone="America/New_York",
+        currency="INR",
+        timezone="Asia/Kolkata",
         payment_terms="Standard 30-day payment terms",
         email=email
     )

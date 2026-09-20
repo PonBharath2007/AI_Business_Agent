@@ -1,5 +1,12 @@
 import sys
+import os
 from datetime import date, datetime, timedelta
+
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8')
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
 from backend.app.database.session import SessionLocal
 from backend.app.models.models import Business, Customer, Invoice
 from backend.app.routes.analytics import get_real_income_analytics, _resolve_invoice_payment

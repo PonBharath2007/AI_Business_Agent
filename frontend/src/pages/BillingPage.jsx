@@ -714,8 +714,8 @@ const BillingPage = ({ onNavigate }) => {
                     <tr className="bg-slate-50 dark:bg-slate-800/70 border-b border-slate-200 dark:border-slate-800 text-slate-500 font-bold uppercase tracking-wider text-[10px]">
                       <th className="p-3 w-1/2">Service / Item Description</th>
                       <th className="p-3 w-24">Quantity</th>
-                      <th className="p-3 w-36">Unit Price ({business.currency || 'INR'})</th>
-                      <th className="p-3 w-36 text-right">Total ({business.currency || 'INR'})</th>
+                      <th className="p-3 w-36">Unit Price (₹)</th>
+                      <th className="p-3 w-36 text-right">Total (₹)</th>
                       <th className="p-3 w-12 text-center">Action</th>
                     </tr>
                   </thead>
@@ -783,7 +783,7 @@ const BillingPage = ({ onNavigate }) => {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 pt-1">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Discount ({business.currency || 'INR'})
+                  Discount (₹)
                 </label>
                 <input
                   type="number"
@@ -844,10 +844,10 @@ const BillingPage = ({ onNavigate }) => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Paid Amount ({business.currency || 'INR'}) <span className="text-slate-400 font-normal">(Enter amount already paid)</span>
+                  Paid Amount (₹) <span className="text-slate-400 font-normal">(Enter amount already paid)</span>
                 </label>
                 <div className="relative">
-                  <DollarSign className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-3" />
+                  <span className="font-bold text-xs text-slate-400 absolute left-3 top-2.5 select-none">₹</span>
                   <input
                     type="number"
                     min="0"
@@ -1122,6 +1122,7 @@ const BillingPage = ({ onNavigate }) => {
                 <div className="mt-0.5 space-y-1">
                   <div className="text-slate-700 dark:text-slate-300">Billing Date: <strong>{viewRecord.issue_date}</strong></div>
                   <div className="text-rose-600 dark:text-rose-400">Payment Due: <strong>{viewRecord.due_date}</strong></div>
+                  <div className="text-slate-600 dark:text-slate-400">Currency: <strong className="text-indigo-600 dark:text-indigo-400">INR (₹)</strong></div>
                 </div>
               </div>
             </div>

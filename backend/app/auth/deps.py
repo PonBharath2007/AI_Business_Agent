@@ -79,8 +79,8 @@ def get_current_business(
     business = Business(
         name=business_name,
         category="Small Business Services",
-        currency="USD",
-        timezone="America/New_York",
+        currency="INR",
+        timezone="Asia/Kolkata",
         payment_terms="Standard 30-day payment terms",
         email=current_user.email if current_user else None
     )
