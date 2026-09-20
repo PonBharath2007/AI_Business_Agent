@@ -464,37 +464,6 @@ const DocumentsPage = ({ onNavigate }) => {
                   View Invoices <ArrowRight className="w-3.5 h-3.5 ml-1" />
                 </Button>
               </div>
-
-              {/* Extracted JSON Payload */}
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                    Extracted JSON Payload
-                  </span>
-                  <span className="text-[10px] text-slate-400">
-                    Structured & Validated Data
-                  </span>
-                </div>
-                <pre className="p-3 rounded-xl bg-slate-900 text-slate-100 border border-slate-800 text-[11px] font-mono max-h-60 overflow-y-auto leading-relaxed">
-                  {JSON.stringify({
-                    invoice_number: extracted.invoice_number || null,
-                    invoice_date: extracted.invoice_date || extracted.issue_date || null,
-                    due_date: extracted.due_date || null,
-                    customer_name: extracted.customer_name || null,
-                    customer_email: extracted.customer_email || null,
-                    customer_phone: extracted.customer_phone || null,
-                    currency: extracted.currency || "INR",
-                    subtotal: extracted.subtotal !== undefined ? extracted.subtotal : extracted.total_amount,
-                    tax: extracted.tax !== undefined ? extracted.tax : 0,
-                    discount: extracted.discount !== undefined ? extracted.discount : 0,
-                    total_amount: extracted.total_amount !== undefined ? extracted.total_amount : (extracted.amount || 0),
-                    paid_amount: extracted.paid_amount !== undefined ? extracted.paid_amount : 0,
-                    pending_amount: extracted.pending_amount !== undefined ? extracted.pending_amount : ((extracted.total_amount || 0) - (extracted.paid_amount || 0)),
-                    payment_status: extracted.payment_status || "Unpaid",
-                    line_items: extracted.line_items || []
-                  }, null, 2)}
-                </pre>
-              </div>
             </div>
           )}
         </div>

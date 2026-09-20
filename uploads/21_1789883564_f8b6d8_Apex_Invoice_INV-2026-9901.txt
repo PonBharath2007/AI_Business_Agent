@@ -1,0 +1,31 @@
+TAX INVOICE
+Seller: Apex Tech Solutions
+Seller Address: 45 Cyber Park, Bangalore, India
+GSTIN: 29ABCDE1234F1Z5
+
+Invoice No: INV-2026-9901
+Invoice Date: 2026-08-01
+Due Date: 2026-08-20
+Payment Status: Partially Paid
+
+Bill To: bharath
+Customer ID: 48
+Phone: 9566860154
+Email: ponbharathramesh26@gmail.com
+Billing Address: 12 Temple Street, Coimbatore, Tamil Nadu
+
+| Item | Description | Quantity | Unit Price | Total |
+| 1 | AI Operations Agent License | 1 | 40000.00 | 40000.00 |
+| 2 | Cloud Setup & Integration | 1 | 10000.00 | 10000.00 |
+
+| Metric | Amount |
+| Subtotal | 50000.00 |
+| Total GST | 9000.00 |
+| Discount | 2000.00 |
+| Grand Total | 57000.00 |
+| Paid | 20000.00 |
+| Balance Due | 37000.00 |
+
+Terms & Conditions:
+1. Interest at 18% p.a. will be charged on delayed payments.
+2. Subject to Coimbatore jurisdiction.

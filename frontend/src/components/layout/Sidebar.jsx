@@ -4,6 +4,7 @@ import {
   Bot,
   FileText,
   Receipt,
+  CreditCard,
   Users,
   CheckSquare,
   ShieldCheck,
@@ -17,18 +18,20 @@ import {
   Workflow
 } from 'lucide-react';
 import { useBusiness } from '../../context/BusinessContext';
+import opsnovaLogo from '../../assets/opsnova_logo.jpeg';
 
 const Sidebar = ({ activeTab, setActiveTab, isOpen, setIsOpen, pendingApprovalsCount = 0 }) => {
   const { business } = useBusiness();
 
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'customers', label: 'Customers', icon: Users },
+    { id: 'billing', label: 'Billing', icon: CreditCard },
+    { id: 'invoices', label: 'Invoices', icon: Receipt },
+    { id: 'documents', label: 'Documents & OCR', icon: FileText },
     { id: 'command_center', label: 'Command Center', icon: Bot },
     { id: 'exceptions', label: 'Exception Center', icon: AlertTriangle },
     { id: 'workflows', label: 'AI Workflows', icon: Workflow },
-    { id: 'documents', label: 'Documents & OCR', icon: FileText },
-    { id: 'invoices', label: 'Invoices & Billing', icon: Receipt },
-    { id: 'customers', label: 'Customers', icon: Users },
     { id: 'tasks', label: 'Tasks & Operations', icon: CheckSquare },
     { id: 'approvals', label: 'Approval Center', icon: ShieldCheck, badge: pendingApprovalsCount },
     { id: 'email_assistant', label: 'Email Sender', icon: Mail },
@@ -55,16 +58,18 @@ const Sidebar = ({ activeTab, setActiveTab, isOpen, setIsOpen, pendingApprovalsC
         }`}
       >
         {/* Brand Header */}
-        <div className="h-16 flex items-center gap-3 px-5 border-b border-slate-200 dark:border-[#222227] bg-white dark:bg-[#0f0f12]">
-          <div className="w-8 h-8 rounded-xl bg-indigo-600 flex items-center justify-center shadow-xs">
-            <Sparkles className="w-4 h-4 text-white" />
-          </div>
+        <div className="h-16 flex items-center gap-3 px-4 border-b border-slate-200 dark:border-[#222227] bg-white dark:bg-[#0f0f12]">
+          <img
+            src={opsnovaLogo}
+            alt="OpsNova AI"
+            className="w-9 h-9 rounded-xl object-contain shadow-xs border border-slate-200/60 dark:border-[#282830] shrink-0"
+          />
           <div className="flex flex-col min-w-0">
             <h1 className="text-sm font-bold text-slate-900 dark:text-white tracking-tight truncate leading-none">
-              AI Business Agent
+              OpsNova AI
             </h1>
-            <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium tracking-wide mt-1 truncate">
-              {business?.name || 'Operations Platform'}
+            <span className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold tracking-wider uppercase mt-1 truncate">
+              {business?.name || 'AI Business Operations Agent'}
             </span>
           </div>
         </div>
@@ -117,8 +122,8 @@ const Sidebar = ({ activeTab, setActiveTab, isOpen, setIsOpen, pendingApprovalsC
         <div className="p-3.5 border-t border-slate-200 dark:border-[#222227] bg-slate-50 dark:bg-[#121216]">
           <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
             <div className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-500" />
-              <span className="font-medium">AI Operations Active</span>
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="font-semibold text-slate-700 dark:text-slate-300">OpsNova AI Active</span>
             </div>
             <span className="font-mono text-[10px] text-slate-400">v1.0</span>
           </div>

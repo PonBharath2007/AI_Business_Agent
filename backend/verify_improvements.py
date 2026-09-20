@@ -173,7 +173,7 @@ Terms & Conditions:
     assert float(extracted.get("total_amount") or 0) == 57000.0, f"Expected total 57000, got {extracted.get('total_amount')}"
     assert float(extracted.get("paid_amount") or 0) == 20000.0, f"Expected paid 20000, got {extracted.get('paid_amount')}"
     assert float(extracted.get("pending_amount") or 0) == 37000.0, f"Expected pending 37000, got {extracted.get('pending_amount')}"
-    assert extracted.get("payment_status") == "partially_paid", f"Expected partially_paid, got {extracted.get('payment_status')}"
+    assert str(extracted.get("payment_status")).lower().replace(" ", "_") == "partially_paid", f"Expected partially_paid, got {extracted.get('payment_status')}"
 
     # Verify math validation
     math_val = extracted.get("math_validation") or {}

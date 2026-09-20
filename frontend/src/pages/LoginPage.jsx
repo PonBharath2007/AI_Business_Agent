@@ -5,6 +5,7 @@ import { useNotifications } from '../context/NotificationContext';
 import Button from '../components/common/Button';
 import Modal from '../components/common/Modal';
 import api from '../services/api';
+import opsnovaLogo from '../assets/opsnova_logo.jpeg';
 
 const GoogleIcon = () => (
   <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24">
@@ -152,12 +153,25 @@ const LoginPage = ({ onSwitchToRegister }) => {
 
       <div className="w-full max-w-md bg-white dark:bg-[#141417] rounded-3xl p-8 border border-slate-200 dark:border-[#26262c] shadow-xl dark:shadow-2xl relative z-10 space-y-6">
         {/* Logo and title */}
-        <div className="text-center space-y-2">
-          <div className="inline-flex p-3 rounded-2xl bg-indigo-600 text-white shadow-lg shadow-indigo-600/30 mb-1">
-            <Sparkles className="w-6 h-6 animate-pulse" />
+        <div className="text-center space-y-2.5">
+          <div className="inline-block relative">
+            <img
+              src={opsnovaLogo}
+              alt="OpsNova AI Logo"
+              className="w-20 h-20 rounded-2xl object-contain mx-auto shadow-lg border border-slate-200 dark:border-[#2e2e38] transition-transform hover:scale-105"
+            />
           </div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">AI Business Operations Agent</h1>
-          <p className="text-xs text-slate-500 dark:text-slate-400">An Intelligent Digital Employee for Small Businesses</p>
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
+              Welcome to OpsNova AI
+            </h1>
+            <p className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 tracking-wider uppercase mt-1">
+              AI BUSINESS OPERATIONS AGENT
+            </p>
+            <p className="text-[10px] text-slate-400 dark:text-slate-500 font-medium tracking-widest uppercase mt-0.5">
+              AUTOMATE • ANALYZE • ACCELERATE
+            </p>
+          </div>
         </div>
 
         {/* Email & Password Form */}

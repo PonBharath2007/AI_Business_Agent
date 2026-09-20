@@ -8,7 +8,14 @@ import {
   Sparkles,
   Eye,
   Trash2,
-  RefreshCw
+  RefreshCw,
+  FileText,
+  CreditCard,
+  Building,
+  Mail,
+  Phone,
+  Calendar,
+  ExternalLink
 } from 'lucide-react';
 import api from '../services/api';
 import { useBusiness } from '../context/BusinessContext';
@@ -23,35 +30,14 @@ const InvoicesPage = ({ onNavigate }) => {
   const { addToast } = useNotifications();
 
   const [invoices, setInvoices] = useState([]);
-  const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 10;
 
-  const [createModalOpen, setCreateModalOpen] = useState(false);
   const [viewInvoice, setViewInvoice] = useState(null);
   const [actionLoadingId, setActionLoadingId] = useState(null);
-  const [quickCustomerModalOpen, setQuickCustomerModalOpen] = useState(false);
-  const [quickCustomerSubmitting, setQuickCustomerSubmitting] = useState(false);
-  const [quickCustomer, setQuickCustomer] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    company: ''
-  });
-
-  // New Invoice Form state
-  const [newInvoice, setNewInvoice] = useState({
-    customer_id: '',
-    invoice_number: `INV-${new Date().getFullYear()}${Math.floor(100 + Math.random() * 900)}`,
-    amount: '',
-    issue_date: new Date().toISOString().split('T')[0],
-    due_date: new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
-    status: 'pending',
-    notes: ''
-  });
 
   const fetchInvoices = useCallback(async () => {
     try {
@@ -64,87 +50,26 @@ const InvoicesPage = ({ onNavigate }) => {
     }
   }, [statusFilter]);
 
-  const fetchCustomers = useCallback(async () => {
-    try {
-      const res = await api.get('/customers');
-      setCustomers(res.data || []);
-    } catch (err) {
-      console.error('Error fetching customers:', err);
-    }
-  }, []);
-
   useEffect(() => {
     fetchInvoices();
   }, [fetchInvoices]);
 
   useEffect(() => {
-    fetchCustomers();
-  }, [fetchCustomers]);
-
-  useEffect(() => {
     setCurrentPage(1);
   }, [statusFilter, searchQuery]);
-
-  const handleQuickAddCustomer = async (e) => {
-    e.preventDefault();
-    if (!quickCustomer.name.trim() || !quickCustomer.email.trim()) {
-      addToast('warning', 'Missing Details', 'Please provide a customer name and email.');
-      return;
-    }
-    setQuickCustomerSubmitting(true);
-    try {
-      const payload = {
-        name: quickCustomer.name.trim(),
-        email: quickCustomer.email.trim(),
-        phone: quickCustomer.phone?.trim() || '',
-        company: quickCustomer.company?.trim() || quickCustomer.name.trim(),
-        status: 'active'
-      };
-      const res = await api.post('/customers', payload);
-      addToast('success', 'Customer Added', `Created profile for ${payload.name}.`);
-      setCustomers((prev) => [...prev, res.data]);
-      setNewInvoice((prev) => ({ ...prev, customer_id: String(res.data.id) }));
-      setQuickCustomerModalOpen(false);
-      setQuickCustomer({ name: '', email: '', phone: '', company: '' });
-    } catch (err) {
-      console.error('Quick customer add error:', err);
-      const errMsg = err.response?.data?.detail || 'Failed to add customer.';
-      addToast('error', 'Error', errMsg);
-    } finally {
-      setQuickCustomerSubmitting(false);
-    }
-  };
-
-  const handleCreateInvoice = async (e) => {
-    e.preventDefault();
-    if (!newInvoice.customer_id || !newInvoice.amount) {
-      addToast('warning', 'Missing Fields', 'Please select a customer and enter an amount.');
-      return;
-    }
-
-    try {
-      const payload = {
-        ...newInvoice,
-        customer_id: parseInt(newInvoice.customer_id),
-        amount: parseFloat(newInvoice.amount),
-        currency: business.currency || 'USD'
-      };
-
-      await api.post('/invoices', payload);
-      addToast('success', 'Invoice Created', `Invoice ${newInvoice.invoice_number} generated.`);
-      setCreateModalOpen(false);
-      fetchInvoices();
-    } catch (err) {
-      addToast('error', 'Creation Error', 'Failed to create invoice.');
-    }
-  };
 
   const handleGenerateReminder = async (inv) => {
     setActionLoadingId(inv.id);
     try {
       await api.post(`/invoices/${inv.id}/reminder`);
-      addToast('success', 'AI Reminder Drafted', `Reminder prepared for ${inv.customer_name} (${inv.invoice_number}). Routed to Approval Center.`);
-      onNavigate('approvals');
+      addToast(
+        'success',
+        'AI Reminder Drafted',
+        `Reminder prepared for ${inv.customer_name} (${inv.invoice_number}). Routed to Approval Center.`
+      );
+      if (onNavigate) {
+        onNavigate('approvals');
+      }
     } catch (err) {
       addToast('error', 'Action Error', 'Could not draft reminder.');
     } finally {
@@ -180,22 +105,25 @@ const InvoicesPage = ({ onNavigate }) => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200 dark:border-slate-800">
         <div>
-          <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
-            Invoices & Billing
+          <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight flex items-center gap-2.5">
+            <span className="p-2 rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-400">
+              <Receipt className="w-5 h-5" />
+            </span>
+            Invoices
           </h2>
           <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Track receivables, monitor payment due dates, and generate automated AI payment reminders.
+            Read, view, search, and manage generated and OCR-processed customer invoices.
           </p>
         </div>
 
         <Button
-          onClick={() => setCreateModalOpen(true)}
+          onClick={() => (onNavigate ? onNavigate('billing') : null)}
           variant="primary"
           size="sm"
           icon={Plus}
           className="text-xs self-start sm:self-auto"
         >
-          Create Invoice
+          Create New Billing
         </Button>
       </div>
 
@@ -207,7 +135,7 @@ const InvoicesPage = ({ onNavigate }) => {
             <button
               key={status}
               onClick={() => setStatusFilter(status)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-semibold uppercase tracking-wider transition-colors cursor-pointer ${
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold uppercase tracking-wider transition-colors cursor-pointer whitespace-nowrap ${
                 statusFilter === status
                   ? 'bg-indigo-600 text-white shadow-xs'
                   : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
@@ -263,9 +191,13 @@ const InvoicesPage = ({ onNavigate }) => {
                     <EmptyState
                       icon={Receipt}
                       title="No invoices found"
-                      description={statusFilter !== 'all' ? `No ${statusFilter.replace('_', ' ')} invoices found.` : "Upload a PDF document or click 'Create Invoice' above."}
-                      actionText="Create Invoice"
-                      onAction={() => setCreateModalOpen(true)}
+                      description={
+                        statusFilter !== 'all'
+                          ? `No ${statusFilter.replace('_', ' ')} invoices found.`
+                          : "Create a new billing or upload a document in Documents & OCR."
+                      }
+                      actionText="Create New Billing"
+                      onAction={() => (onNavigate ? onNavigate('billing') : null)}
                     />
                   </td>
                 </tr>
@@ -284,15 +216,18 @@ const InvoicesPage = ({ onNavigate }) => {
                         isOverdue ? 'bg-rose-50/20 dark:bg-rose-950/10' : ''
                       }`}
                     >
-                      <td className="p-3.5 font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                      <td className="p-3.5 font-mono font-bold text-slate-900 dark:text-white flex items-center gap-2">
                         {inv.invoice_number}
-                        {isOverdue && (
-                          <span className="w-2 h-2 rounded-full bg-rose-500" />
+                        {isOverdue && <span className="w-2 h-2 rounded-full bg-rose-500" />}
+                        {inv.document_id && (
+                          <span className="px-1.5 py-0.2 rounded text-[9px] font-medium bg-slate-100 dark:bg-slate-800 text-slate-500">
+                            OCR
+                          </span>
                         )}
                       </td>
                       <td className="p-3.5">
                         <div className="font-semibold text-slate-800 dark:text-slate-200">{inv.customer_name}</div>
-                        <div className="text-[10px] text-slate-400">{inv.customer_email}</div>
+                        <div className="text-[10px] text-slate-400">{inv.customer_email || 'No email provided'}</div>
                       </td>
                       <td className="p-3.5 font-bold text-slate-900 dark:text-slate-100">
                         {formatMoney(tot)}
@@ -310,7 +245,7 @@ const InvoicesPage = ({ onNavigate }) => {
                       </td>
                       <td className="p-3.5">
                         <Badge variant={inv.status}>
-                          {inv.status?.replace('_', ' ')}
+                          {inv.payment_status || inv.status?.replace('_', ' ')}
                         </Badge>
                       </td>
                       <td className="p-3.5 text-right space-x-1" onClick={(e) => e.stopPropagation()}>
@@ -380,123 +315,7 @@ const InvoicesPage = ({ onNavigate }) => {
         )}
       </div>
 
-      {/* Create Invoice Modal */}
-      <Modal
-        isOpen={createModalOpen}
-        onClose={() => setCreateModalOpen(false)}
-        title="Create New Invoice"
-      >
-        <form onSubmit={handleCreateInvoice} className="space-y-4">
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">Select Customer</label>
-              <button
-                type="button"
-                onClick={() => setQuickCustomerModalOpen(true)}
-                className="text-[11px] text-indigo-600 dark:text-indigo-400 hover:underline font-semibold flex items-center gap-1 cursor-pointer"
-              >
-                <Plus className="w-3 h-3" /> New Customer
-              </button>
-            </div>
-            <select
-              value={newInvoice.customer_id}
-              onChange={(e) => setNewInvoice({ ...newInvoice, customer_id: e.target.value })}
-              required
-              className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
-            >
-              <option value="">-- Choose Customer --</option>
-              {customers.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name} ({c.email})
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Invoice Number</label>
-              <input
-                type="text"
-                value={newInvoice.invoice_number}
-                onChange={(e) => setNewInvoice({ ...newInvoice, invoice_number: e.target.value })}
-                required
-                className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Amount ({business.currency})</label>
-              <input
-                type="number"
-                step="0.01"
-                value={newInvoice.amount}
-                onChange={(e) => setNewInvoice({ ...newInvoice, amount: e.target.value })}
-                placeholder="5000.00"
-                required
-                className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Issue Date</label>
-              <input
-                type="date"
-                value={newInvoice.issue_date}
-                onChange={(e) => setNewInvoice({ ...newInvoice, issue_date: e.target.value })}
-                required
-                className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Due Date</label>
-              <input
-                type="date"
-                value={newInvoice.due_date}
-                onChange={(e) => setNewInvoice({ ...newInvoice, due_date: e.target.value })}
-                required
-                className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Status</label>
-            <select
-              value={newInvoice.status}
-              onChange={(e) => setNewInvoice({ ...newInvoice, status: e.target.value })}
-              className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
-            >
-              <option value="pending">Pending</option>
-              <option value="overdue">Overdue</option>
-              <option value="paid">Paid</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Notes / Description</label>
-            <textarea
-              value={newInvoice.notes}
-              onChange={(e) => setNewInvoice({ ...newInvoice, notes: e.target.value })}
-              placeholder="Enterprise consulting retainer..."
-              rows={3}
-              className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
-            />
-          </div>
-
-          <div className="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
-            <Button onClick={() => setCreateModalOpen(false)} variant="secondary" size="sm">
-              Cancel
-            </Button>
-            <Button type="submit" variant="primary" size="sm">
-              Save Invoice
-            </Button>
-          </div>
-        </form>
-      </Modal>
-
-      {/* View Invoice Modal */}
+      {/* Invoice Details View Modal (Section 13) */}
       {viewInvoice && (
         <Modal
           isOpen={Boolean(viewInvoice)}
@@ -504,24 +323,101 @@ const InvoicesPage = ({ onNavigate }) => {
           title={`Invoice Details – ${viewInvoice.invoice_number}`}
         >
           <div className="space-y-4">
-            {/* Customer & Schedule Details */}
-            <div className="grid grid-cols-2 gap-4 p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 text-xs">
+            {/* Customer Details */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 text-xs">
               <div>
-                <span className="text-slate-500 font-semibold block uppercase text-[10px]">Customer</span>
-                <span className="text-slate-900 dark:text-white font-bold text-sm">{viewInvoice.customer_name}</span>
-                <span className="text-slate-500 block">{viewInvoice.customer_email || 'No email provided'}</span>
-                {viewInvoice.customer_phone && (
-                  <span className="text-slate-500 block">{viewInvoice.customer_phone}</span>
-                )}
+                <span className="text-slate-500 font-semibold block uppercase text-[10px]">Customer Details</span>
+                <span className="text-slate-900 dark:text-white font-bold text-sm block mt-0.5">{viewInvoice.customer_name}</span>
+                <div className="space-y-0.5 mt-1 text-slate-600 dark:text-slate-400">
+                  {viewInvoice.customer_email && (
+                    <div className="flex items-center gap-1.5">
+                      <Mail className="w-3 h-3 text-slate-400" />
+                      <span>{viewInvoice.customer_email}</span>
+                    </div>
+                  )}
+                  {viewInvoice.customer_phone && (
+                    <div className="flex items-center gap-1.5">
+                      <Phone className="w-3 h-3 text-slate-400" />
+                      <span>{viewInvoice.customer_phone}</span>
+                    </div>
+                  )}
+                  {viewInvoice.customer_company && (
+                    <div className="flex items-center gap-1.5">
+                      <Building className="w-3 h-3 text-slate-400" />
+                      <span>{viewInvoice.customer_company}</span>
+                    </div>
+                  )}
+                </div>
               </div>
+
               <div>
-                <span className="text-slate-500 font-semibold block uppercase text-[10px]">Schedule</span>
-                <div className="mt-0.5 space-y-1">
-                  <div className="text-slate-700 dark:text-slate-300">Issue Date: <strong>{viewInvoice.issue_date}</strong></div>
-                  <div className="text-rose-600 dark:text-rose-400">Payment Due: <strong>{viewInvoice.due_date}</strong></div>
+                <span className="text-slate-500 font-semibold block uppercase text-[10px]">Invoice Schedule</span>
+                <div className="mt-1 space-y-1 text-xs">
+                  <div className="text-slate-700 dark:text-slate-300">
+                    Invoice Number: <strong className="font-mono text-indigo-600 dark:text-indigo-400">{viewInvoice.invoice_number}</strong>
+                  </div>
+                  <div className="text-slate-700 dark:text-slate-300">
+                    Invoice Date: <strong>{viewInvoice.issue_date}</strong>
+                  </div>
+                  <div className="text-rose-600 dark:text-rose-400">
+                    Payment Due: <strong>{viewInvoice.due_date}</strong>
+                  </div>
+                  {viewInvoice.document_id && (
+                    <div className="pt-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setViewInvoice(null);
+                          if (onNavigate) onNavigate('documents');
+                        }}
+                        className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
+                      >
+                        <FileText className="w-3 h-3" /> View Source Document #{viewInvoice.document_id} &rarr;
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
+
+            {/* Line Items / Services Breakdown */}
+            {viewInvoice.line_items && viewInvoice.line_items.length > 0 && (
+              <div className="space-y-1.5">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                  Billing Items & Services
+                </span>
+                <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden text-xs">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="bg-slate-50 dark:bg-slate-800/80 text-slate-500 font-bold uppercase tracking-wider text-[10px] border-b border-slate-200 dark:border-slate-800">
+                        <th className="p-2.5">Item / Service</th>
+                        <th className="p-2.5 w-16 text-center">Quantity</th>
+                        <th className="p-2.5 w-24">Unit Price</th>
+                        <th className="p-2.5 w-28 text-right">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                      {viewInvoice.line_items.map((it, idx) => (
+                        <tr key={idx}>
+                          <td className="p-2.5 text-slate-900 dark:text-white font-medium">
+                            {it.description || it.name || 'Service item'}
+                          </td>
+                          <td className="p-2.5 text-center text-slate-600 dark:text-slate-300">
+                            {it.quantity || 1}
+                          </td>
+                          <td className="p-2.5 text-slate-600 dark:text-slate-300">
+                            {formatMoney(it.unit_price || 0)}
+                          </td>
+                          <td className="p-2.5 text-right font-semibold text-slate-900 dark:text-white">
+                            {formatMoney(it.total_price || (it.quantity || 1) * (it.unit_price || 0))}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
 
             {/* PAYMENT DETAILS (Section 13) */}
             <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-800 space-y-3">
@@ -548,9 +444,13 @@ const InvoicesPage = ({ onNavigate }) => {
                   </span>
                 </div>
                 <div className="p-2.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
-                  <span className="text-[10px] text-slate-500 block font-semibold uppercase">Pending Amount</span>
+                  <span className="text-[10px] text-slate-500 block font-semibold uppercase">Remaining Amount</span>
                   <span className="text-sm font-bold text-rose-600 dark:text-rose-400 mt-0.5 block">
-                    {formatMoney(viewInvoice.pending_amount !== undefined ? viewInvoice.pending_amount : Math.max(0, (viewInvoice.total_amount ?? viewInvoice.amount) - (viewInvoice.paid_amount || 0)))}
+                    {formatMoney(
+                      viewInvoice.pending_amount !== undefined
+                        ? viewInvoice.pending_amount
+                        : Math.max(0, (viewInvoice.total_amount ?? viewInvoice.amount) - (viewInvoice.paid_amount || 0))
+                    )}
                   </span>
                 </div>
               </div>
@@ -558,8 +458,8 @@ const InvoicesPage = ({ onNavigate }) => {
 
             {viewInvoice.notes && (
               <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs text-slate-700 dark:text-slate-300">
-                <span className="font-semibold text-slate-500 block mb-1">Notes:</span>
-                {viewInvoice.notes}
+                <span className="font-semibold text-slate-500 block mb-1">Notes / Description:</span>
+                <p className="whitespace-pre-line">{viewInvoice.notes}</p>
               </div>
             )}
 
@@ -584,83 +484,6 @@ const InvoicesPage = ({ onNavigate }) => {
           </div>
         </Modal>
       )}
-
-      {/* Quick Add Customer Modal */}
-      <Modal
-        isOpen={quickCustomerModalOpen}
-        onClose={() => setQuickCustomerModalOpen(false)}
-        title="Quick Add Customer"
-      >
-        <form onSubmit={handleQuickAddCustomer} className="space-y-4">
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-              Customer Name <span className="text-rose-500">*</span>
-            </label>
-            <input
-              type="text"
-              value={quickCustomer.name}
-              onChange={(e) => setQuickCustomer({ ...quickCustomer, name: e.target.value })}
-              placeholder="e.g. Acme Corp"
-              required
-              className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                Email <span className="text-rose-500">*</span>
-              </label>
-              <input
-                type="email"
-                value={quickCustomer.email}
-                onChange={(e) => setQuickCustomer({ ...quickCustomer, email: e.target.value })}
-                placeholder="billing@acme.example"
-                required
-                className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Phone</label>
-              <input
-                type="text"
-                value={quickCustomer.phone}
-                onChange={(e) => setQuickCustomer({ ...quickCustomer, phone: e.target.value })}
-                placeholder="+1 555 000 0000"
-                className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
-              />
-            </div>
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Company</label>
-            <input
-              type="text"
-              value={quickCustomer.company}
-              onChange={(e) => setQuickCustomer({ ...quickCustomer, company: e.target.value })}
-              placeholder="Acme Corporation"
-              className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
-            />
-          </div>
-          <div className="flex justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
-            <Button
-              onClick={() => setQuickCustomerModalOpen(false)}
-              variant="secondary"
-              size="sm"
-              disabled={quickCustomerSubmitting}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              variant="primary"
-              size="sm"
-              loading={quickCustomerSubmitting}
-              disabled={quickCustomerSubmitting}
-            >
-              {quickCustomerSubmitting ? 'Adding...' : 'Add & Select'}
-            </Button>
-          </div>
-        </form>
-      </Modal>
     </div>
   );
 };

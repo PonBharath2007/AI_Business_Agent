@@ -414,7 +414,7 @@ I have prepared the **{req_channel.upper()}** payment reminder for **{cust.name}
     }
 
     prompt = f"""
-You are the AI Business Operations Agent (digital employee) for {business.name}.
+You are OpsNova AI, the AI Business Operations Agent (digital employee) for {business.name}.
 Answer the business owner's question using this REAL database information and AI business memories:
 {json.dumps(db_context, indent=2)}
 

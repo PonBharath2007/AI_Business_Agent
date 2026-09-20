@@ -36,7 +36,7 @@ const CommandCenterPage = ({ onNavigate }) => {
     {
       id: 1,
       sender: 'ai',
-      text: `👋 Hello! I am your **AI Business Operations Agent** for **${business?.name || 'Summit Digital Agency'}**.\n\nI monitor your invoices, track customer communications, extract document data, and manage pending approvals.\n\nHow can I assist your operations today?`,
+      text: `👋 Hello! I am **OpsNova AI**, your **AI Business Operations Agent** for **${business?.name || 'Summit Digital Agency'}**.\n\nI monitor your invoices, track customer communications, extract document data, and manage pending approvals.\n\nHow can I assist your operations today?`,
       suggested_actions: [
         { label: "What needs my attention today?", action: "prompt", target: "What needs my attention today?" },
         { label: "Show unpaid invoices", action: "prompt", target: "Show all unpaid invoices." },

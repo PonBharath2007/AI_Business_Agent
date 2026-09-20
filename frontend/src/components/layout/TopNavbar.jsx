@@ -16,6 +16,7 @@ import { useBusiness } from '../../context/BusinessContext';
 import { useNotifications } from '../../context/NotificationContext';
 import { useTheme } from '../../context/ThemeContext';
 import Button from '../common/Button';
+import opsnovaLogo from '../../assets/opsnova_logo.jpeg';
 
 const TopNavbar = ({ onMenuClick, onNavigate }) => {
   const { user, logout } = useAuth();
@@ -53,6 +54,11 @@ const TopNavbar = ({ onMenuClick, onNavigate }) => {
         >
           <Menu className="w-5 h-5" />
         </button>
+
+        <div className="flex items-center gap-2 lg:hidden">
+          <img src={opsnovaLogo} alt="OpsNova AI" className="w-7 h-7 rounded-lg object-contain shadow-2xs" />
+          <span className="text-xs font-bold text-slate-900 dark:text-white">OpsNova AI</span>
+        </div>
 
         <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-[#18181d] border border-slate-200 dark:border-[#26262c]">
           <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />

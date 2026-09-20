@@ -53,8 +53,8 @@ async def lifespan(app: FastAPI):
     logger.info("Application shutting down...")
 
 app = FastAPI(
-    title="AI Business Operations Agent API",
-    description="An Intelligent Digital Employee for Small Businesses.",
+    title="OpsNova AI API",
+    description="OpsNova AI – AI Business Operations Agent. An Intelligent Digital Employee for Small Businesses.",
     version="1.0.0",
     lifespan=lifespan,
 )
@@ -129,7 +129,7 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 @app.get("/")
 def root():
-    return {"app": "AI Business Operations Agent", "status": "operational", "version": "1.0.0", "docs_url": "/docs"}
+    return {"app": "OpsNova AI", "tagline": "AI Business Operations Agent", "status": "operational", "version": "1.0.0", "docs_url": "/docs"}
 
 @app.get("/api/health")
 def health_check():

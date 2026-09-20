@@ -7,7 +7,7 @@ from backend.app.database.session import get_db
 from backend.app.models.models import Invoice, Customer, Business, Approval, Task
 from backend.app.schemas.schemas import InvoiceCreate, InvoiceUpdate, InvoiceOut
 from backend.app.auth.deps import get_current_business
-from backend.app.services.invoice_service import create_invoice_record, check_and_update_overdue_statuses
+from backend.app.services.invoice_service import create_invoice_record, check_and_update_overdue_statuses, generate_next_invoice_number
 from backend.app.ai.document_intelligence import is_valid_customer_name
 from backend.app.ai.email_generator import generate_business_email
 from backend.app.services.activity_service import log_activity
@@ -41,6 +41,8 @@ def _format_invoice(inv: Invoice) -> dict:
         status_title = "Partially Paid"
     elif inv_status == "overdue":
         status_title = "Overdue"
+
+    priority = "High" if inv_status == "overdue" or total_amt > 10000 else "Medium"
 
     return {
         "id": inv.id,
@@ -100,6 +102,15 @@ def get_invoices(
 
     invoices = query.order_by(Invoice.due_date.asc()).offset(skip).limit(limit).all()
     return [_format_invoice(inv) for inv in invoices]
+
+
+@router.get("/next-number")
+def get_next_invoice_number(
+    db: Session = Depends(get_db),
+    business: Business = Depends(get_current_business)
+):
+    next_num = generate_next_invoice_number(db, business.id)
+    return {"invoice_number": next_num}
 
 
 @router.post("", response_model=InvoiceOut)

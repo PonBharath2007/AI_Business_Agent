@@ -3,6 +3,7 @@ import { Sparkles, Mail, Lock, User, Building, ShieldCheck } from 'lucide-react'
 import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationContext';
 import Button from '../components/common/Button';
+import opsnovaLogo from '../assets/opsnova_logo.jpeg';
 
 const GoogleIcon = () => (
   <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24">
@@ -74,7 +75,7 @@ const RegisterPage = ({ onSwitchToLogin }) => {
         formData.business_name,
         formData.currency
       );
-      addToast('success', 'Account Registered', 'Welcome to AI Business Operations Agent!');
+      addToast('success', 'Account Registered', 'Welcome to OpsNova AI!');
     } catch (err) {
       addToast('error', 'Registration Error', err.response?.data?.detail || 'Failed to create account.');
     } finally {
@@ -88,12 +89,20 @@ const RegisterPage = ({ onSwitchToLogin }) => {
       <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-indigo-500/10 dark:bg-indigo-600/10 rounded-full blur-3xl pointer-events-none" />
 
       <div className="w-full max-w-md bg-white dark:bg-[#141417] rounded-3xl p-8 border border-slate-200 dark:border-[#26262c] shadow-xl dark:shadow-2xl relative z-10 space-y-5">
-        <div className="text-center space-y-2">
-          <div className="inline-flex p-3 rounded-2xl bg-indigo-600 text-white shadow-lg shadow-indigo-600/30 mb-1">
-            <Sparkles className="w-6 h-6 animate-pulse" />
+        <div className="text-center space-y-2.5">
+          <div className="inline-block relative">
+            <img
+              src={opsnovaLogo}
+              alt="OpsNova AI Logo"
+              className="w-16 h-16 rounded-2xl object-contain mx-auto shadow-md border border-slate-200 dark:border-[#2e2e38]"
+            />
           </div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Create Business Account</h1>
-          <p className="text-xs text-slate-500 dark:text-slate-400">Deploy your intelligent digital employee in seconds</p>
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Create Business Account</h1>
+            <p className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 tracking-wider uppercase mt-1">
+              OpsNova AI – AI BUSINESS OPERATIONS AGENT
+            </p>
+          </div>
         </div>
 
         {/* Registration Form */}

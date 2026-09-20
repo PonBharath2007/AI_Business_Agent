@@ -5,6 +5,7 @@ import { NotificationProvider } from './context/NotificationContext';
 import { ThemeProvider } from './context/ThemeContext';
 import MainLayout from './components/layout/MainLayout';
 import api from './services/api';
+import opsnovaLogo from './assets/opsnova_logo.jpeg';
 
 // Core pages (loaded directly for instant first paint)
 import DashboardPage from './pages/DashboardPage';
@@ -16,6 +17,7 @@ const CommandCenterPage = lazy(() => import('./pages/CommandCenterPage'));
 const ExceptionCenterPage = lazy(() => import('./pages/ExceptionCenterPage'));
 const WorkflowBuilderPage = lazy(() => import('./pages/WorkflowBuilderPage'));
 const DocumentsPage = lazy(() => import('./pages/DocumentsPage'));
+const BillingPage = lazy(() => import('./pages/BillingPage'));
 const InvoicesPage = lazy(() => import('./pages/InvoicesPage'));
 const CustomersPage = lazy(() => import('./pages/CustomersPage'));
 const TasksPage = lazy(() => import('./pages/TasksPage'));
@@ -100,10 +102,19 @@ const AppContent = () => {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-slate-50 dark:bg-[#0b0f19] flex items-center justify-center transition-colors">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-9 h-9 border-3 border-indigo-600/30 border-t-indigo-600 rounded-full animate-spin" />
-          <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">Initializing AI Business Platform...</span>
+      <div className="min-h-screen bg-slate-50 dark:bg-[#0b0f19] flex items-center justify-center transition-colors p-4">
+        <div className="flex flex-col items-center gap-4 text-center">
+          <img
+            src={opsnovaLogo}
+            alt="OpsNova AI"
+            className="w-16 h-16 rounded-2xl object-contain shadow-lg border border-slate-200 dark:border-[#26262c] animate-pulse"
+          />
+          <div className="flex flex-col items-center gap-2">
+            <div className="w-7 h-7 border-2 border-indigo-600/30 border-t-indigo-600 rounded-full animate-spin" />
+            <span className="text-xs text-slate-600 dark:text-slate-300 font-semibold tracking-wide">
+              Initializing OpsNova AI...
+            </span>
+          </div>
         </div>
       </div>
     );
@@ -129,6 +140,8 @@ const AppContent = () => {
         return <WorkflowBuilderPage onNavigate={handleNavigate} />;
       case 'documents':
         return <DocumentsPage onNavigate={handleNavigate} />;
+      case 'billing':
+        return <BillingPage onNavigate={handleNavigate} />;
       case 'invoices':
         return <InvoicesPage onNavigate={handleNavigate} />;
       case 'customers':

@@ -61,7 +61,7 @@ export const AuthProvider = ({ children }) => {
       } else if (actionParam === 'created') {
         setAuthNotification({
           type: 'success',
-          title: 'Welcome to AI Business Agent',
+          title: 'Welcome to OpsNova AI',
           message: 'Your new business account was created with Google.'
         });
       } else {
