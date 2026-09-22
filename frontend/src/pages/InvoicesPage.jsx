@@ -71,7 +71,8 @@ const InvoicesPage = ({ onNavigate }) => {
         onNavigate('approvals');
       }
     } catch (err) {
-      addToast('error', 'Action Error', 'Could not draft reminder.');
+      const errMsg = err.response?.data?.detail || 'Could not draft reminder.';
+      addToast('error', 'Action Error', errMsg);
     } finally {
       setActionLoadingId(null);
     }
@@ -490,6 +491,10 @@ const InvoicesPage = ({ onNavigate }) => {
 
             <div className="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
               {viewInvoice.status !== 'paid' && (
+                (viewInvoice.pending_amount !== undefined
+                  ? viewInvoice.pending_amount > 0
+                  : ((viewInvoice.total_amount ?? viewInvoice.amount) - (viewInvoice.paid_amount || 0)) > 0)
+              ) && (
                 <Button
                   onClick={() => {
                     handleGenerateReminder(viewInvoice);

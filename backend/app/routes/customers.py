@@ -1,3 +1,4 @@
+from datetime import date
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session, joinedload
@@ -22,8 +23,25 @@ def _to_naive_utc(dt):
 def _format_customer(c: Customer) -> dict:
     try:
         invoices = c.invoices or []
-        pending_amount = sum(float(i.amount or 0) for i in invoices if i.status == "pending")
-        overdue_amount = sum(float(i.amount or 0) for i in invoices if i.status == "overdue")
+        today = date.today()
+        pending_amount = 0.0
+        overdue_amount = 0.0
+        for i in invoices:
+            tot = float(i.amount or 0.0)
+            paid = float(i.paid_amount or 0.0)
+            if i.pending_amount is not None:
+                pend = float(i.pending_amount)
+            else:
+                pend = max(0.0, tot - paid)
+
+            if (paid >= tot and tot > 0) or (i.status or "").lower() == "paid":
+                pend = 0.0
+
+            if pend > 0:
+                pending_amount += pend
+                if i.due_date and i.due_date < today:
+                    overdue_amount += pend
+
         emails = c.emails or []
         comms = c.communications or []
         comm_dates = [
@@ -63,6 +81,7 @@ def get_customers(
     db: Session = Depends(get_db),
     business: Business = Depends(get_current_business)
 ):
+    check_and_update_overdue_statuses(db, business.id)
     query = db.query(Customer).options(joinedload(Customer.invoices)).filter(Customer.business_id == business.id)
     if search:
         s = f"%{search.strip()}%"
@@ -154,34 +173,47 @@ def get_customer_invoices(
         Invoice.business_id == business.id
     ).order_by(Invoice.due_date.asc()).all()
 
+    today = date.today()
     formatted_invoices = []
     for inv in db_invoices:
         total_amt = float(inv.amount or 0.0)
         paid_amt = float(inv.paid_amount or 0.0)
 
-        # Accurately compute pending amount
-        if (inv.status or "").lower() == "paid":
+        # Accurately compute pending amount and payment status
+        if (inv.status or "").lower() == "paid" or (total_amt > 0 and paid_amt >= total_amt):
             pending_amt = 0.0
             if paid_amt == 0.0 and total_amt > 0:
                 paid_amt = total_amt
+            inv_status = "paid"
         else:
-            if inv.pending_amount is not None and float(inv.pending_amount) > 0:
+            if inv.pending_amount is not None and float(inv.pending_amount) >= 0:
                 pending_amt = float(inv.pending_amount)
             else:
                 pending_amt = max(0.0, total_amt - paid_amt)
 
-        inv_status = (inv.status or "pending").lower()
-        if inv_status != "paid" and paid_amt > 0 and pending_amt > 0:
-            inv_status = "partially_paid"
+            if pending_amt <= 0 and total_amt > 0:
+                inv_status = "paid"
+            elif inv.due_date and inv.due_date < today:
+                inv_status = "overdue"
+            elif paid_amt > 0 and pending_amt > 0:
+                inv_status = "partially_paid"
+            else:
+                inv_status = (inv.status or "pending").lower()
+                if inv_status not in ["pending", "partially_paid", "overdue", "paid"]:
+                    inv_status = "pending"
 
-        priority = "High" if inv_status == "overdue" or total_amt > 10000 else "Medium"
+        is_overdue = (pending_amt > 0 and inv.due_date is not None and inv.due_date < today)
+        priority = "High" if is_overdue or total_amt > 10000 else "Medium"
 
         formatted_invoices.append({
             "id": inv.id,
+            "invoice_id": inv.id,
             "business_id": inv.business_id,
             "customer_id": inv.customer_id,
+            "customer_name": customer.name,
             "invoice_number": inv.invoice_number,
             "amount": total_amt,
+            "total_amount": total_amt,
             "paid_amount": paid_amt,
             "pending_amount": pending_amt,
             "subtotal": float(inv.subtotal or 0.0),
@@ -189,12 +221,14 @@ def get_customer_invoices(
             "discount_amount": float(inv.discount_amount or 0.0),
             "currency": "INR",
             "issue_date": inv.issue_date.isoformat() if inv.issue_date else None,
+            "invoice_date": inv.issue_date.isoformat() if inv.issue_date else None,
             "due_date": inv.due_date.isoformat() if inv.due_date else None,
             "status": inv_status,
+            "payment_status": inv_status,
+            "is_overdue": is_overdue,
             "document_id": inv.document_id,
             "notes": inv.notes,
             "line_items": inv.line_items or [],
-            "customer_name": customer.name,
             "customer_email": customer.email,
             "customer_phone": customer.phone,
             "customer_company": customer.company,
@@ -206,19 +240,22 @@ def get_customer_invoices(
     # Priority selection order:
     # 1. Pending / Partially Paid invoice
     # 2. Overdue invoice
-    # 3. Most recent relevant invoice
     pending_or_partial = [i for i in formatted_invoices if i["status"] in ["pending", "partially_paid"]]
     overdue_invoices = [i for i in formatted_invoices if i["status"] == "overdue"]
 
     recommended_id = None
     if pending_or_partial:
-        # First pending or partially paid invoice
         recommended_id = pending_or_partial[0]["id"]
     elif overdue_invoices:
         recommended_id = overdue_invoices[0]["id"]
-    elif formatted_invoices:
-        # Fall back to most recent invoice
-        recommended_id = formatted_invoices[-1]["id"]
+
+    counts = {
+        "total": len(formatted_invoices),
+        "pending": sum(1 for i in formatted_invoices if i["status"] == "pending"),
+        "overdue": sum(1 for i in formatted_invoices if i["status"] == "overdue"),
+        "partially_paid": sum(1 for i in formatted_invoices if i["status"] == "partially_paid"),
+        "paid": sum(1 for i in formatted_invoices if i["status"] == "paid"),
+    }
 
     return {
         "customer": {
@@ -230,7 +267,9 @@ def get_customer_invoices(
         },
         "invoices": formatted_invoices,
         "recommended_invoice_id": recommended_id,
-        "total_invoices": len(formatted_invoices)
+        "total_invoices": len(formatted_invoices),
+        "counts": counts,
+        "metrics": counts
     }
 
 

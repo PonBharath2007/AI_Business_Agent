@@ -63,6 +63,10 @@ def generate_email_endpoint(
     amount = None
     due_date_str = None
     currency = business.currency or "INR"
+    total_amount = None
+    paid_amount = None
+    pending_amount = None
+    payment_status = None
 
     if req.customer_id:
         cust = db.query(Customer).filter(Customer.id == req.customer_id, Customer.business_id == business.id).first()
@@ -75,7 +79,34 @@ def generate_email_endpoint(
         inv = db.query(Invoice).filter(Invoice.id == req.invoice_id, Invoice.business_id == business.id).first()
         if inv:
             invoice_number = inv.invoice_number
-            amount = float(inv.pending_amount if (inv.pending_amount is not None and float(inv.pending_amount) > 0) else (inv.amount or 0.0))
+            total_amt = float(inv.amount or 0.0)
+            paid_amt = float(inv.paid_amount or 0.0)
+            if (inv.status or "").lower() == "paid" or (total_amt > 0 and paid_amt >= total_amt):
+                pend_amt = 0.0
+                if paid_amt == 0.0 and total_amt > 0:
+                    paid_amt = total_amt
+                pay_status = "Paid"
+            else:
+                if inv.pending_amount is not None and float(inv.pending_amount) >= 0:
+                    pend_amt = float(inv.pending_amount)
+                else:
+                    pend_amt = max(0.0, total_amt - paid_amt)
+                if pend_amt <= 0 and total_amt > 0:
+                    pay_status = "Paid"
+                elif paid_amt > 0:
+                    pay_status = "Partially Paid"
+                else:
+                    pay_status = "Pending"
+
+            effective_template = req.template_type or "payment_reminder"
+            if effective_template == "payment_reminder" and (pend_amt <= 0 or pay_status == "Paid"):
+                raise HTTPException(status_code=400, detail="Cannot generate payment reminder for a fully paid invoice")
+
+            total_amount = total_amt
+            paid_amount = paid_amt
+            pending_amount = pend_amt
+            payment_status = pay_status
+            amount = pend_amt if pend_amt > 0 else total_amt
             currency = inv.currency or business.currency or "INR"
             due_date_str = inv.due_date.strftime("%B %d, %Y") if inv.due_date else None
             ext_name = inv.document.extracted_data.get("customer_name") if (inv.document and inv.document.extracted_data) else None
@@ -99,7 +130,11 @@ def generate_email_endpoint(
         template_type=req.template_type or "payment_reminder",
         tone=req.tone or "professional",
         custom_instructions=req.custom_instructions,
-        language=getattr(req, "language", "en") or "en"
+        language=getattr(req, "language", "en") or "en",
+        total_amount=total_amount,
+        paid_amount=paid_amount,
+        pending_amount=pending_amount,
+        payment_status=payment_status
     )
 
     # Log draft generation activity in background

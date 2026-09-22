@@ -186,21 +186,75 @@ def generate_invoice_reminder(
     elif inv.document and inv.document.extracted_data and is_valid_customer_name(inv.document.extracted_data.get("customer_name")):
         c_name = inv.document.extracted_data.get("customer_name").strip()
     c_email = cust.email if cust and cust.email else ""
+    c_phone = cust.phone if cust and cust.phone else ""
+
+    total_amount = float(inv.amount or 0.0)
+    paid_amount = float(inv.paid_amount or 0.0)
+
+    # Safe payment calculation rules:
+    # If paid_amount >= total_amount: pending_amount = 0, payment_status = Paid
+    # If paid_amount > 0 AND paid_amount < total_amount: pending_amount = total_amount - paid_amount, payment_status = Partially Paid
+    # If paid_amount <= 0: pending_amount = total_amount, payment_status = Unpaid
+    if paid_amount >= total_amount and total_amount > 0:
+        pending_amount = 0.0
+        payment_status = "Paid"
+    elif paid_amount > 0 and paid_amount < total_amount:
+        pending_amount = round(total_amount - paid_amount, 2)
+        payment_status = "Partially Paid"
+    elif paid_amount <= 0:
+        pending_amount = total_amount
+        payment_status = "Unpaid"
+    else:
+        pending_amount = 0.0
+        payment_status = "Paid"
+
+    # Do not generate a payment reminder for an already fully paid invoice
+    if pending_amount <= 0 or payment_status == "Paid":
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot generate payment reminder for an already fully paid invoice."
+        )
+
+    is_overdue = bool(inv.due_date and inv.due_date < date.today() and pending_amount > 0)
+    effective_tone = "urgent" if (is_overdue or inv.status == "overdue") else "professional"
 
     email_draft = generate_business_email(
         customer_name=c_name,
         customer_email=c_email,
         invoice_number=inv.invoice_number,
-        amount=float(inv.amount),
+        amount=pending_amount,
+        total_amount=total_amount,
+        paid_amount=paid_amount,
+        pending_amount=pending_amount,
+        payment_status=payment_status,
         currency=inv.currency,
         due_date=inv.due_date.strftime("%B %d, %Y"),
         business_name=business.name,
         business_signature=business.email_signature,
         template_type="payment_reminder",
-        tone="urgent" if inv.status == "overdue" else "professional"
+        tone=effective_tone
     )
 
-    # Create Approval Request
+    from backend.app.ai.email_generator import generate_customer_communication
+    sms_draft = generate_customer_communication(
+        customer_name=c_name,
+        customer_email=c_email,
+        customer_phone=c_phone,
+        invoice_number=inv.invoice_number,
+        amount=pending_amount,
+        total_amount=total_amount,
+        paid_amount=paid_amount,
+        pending_amount=pending_amount,
+        payment_status=payment_status,
+        currency=inv.currency,
+        due_date=inv.due_date.strftime("%B %d, %Y"),
+        business_name=business.name,
+        template_type="payment_reminder",
+        tone=effective_tone,
+        channel="sms"
+    )
+
+    # Create Approval Request strictly using pending_amount
     approval = Approval(
         business_id=business.id,
         action_type="send_payment_reminder",
@@ -208,17 +262,27 @@ def generate_invoice_reminder(
             "customer_id": cust.id if cust else None,
             "customer_name": c_name,
             "customer_email": c_email,
+            "customer_phone": c_phone,
             "invoice_id": inv.id,
             "invoice_number": inv.invoice_number,
-            "amount": float(inv.amount),
+            "amount": pending_amount,
+            "total_amount": total_amount,
+            "paid_amount": paid_amount,
+            "pending_amount": pending_amount,
+            "payment_status": payment_status,
             "currency": inv.currency,
             "due_date": inv.due_date.isoformat(),
             "subject": email_draft["subject"],
             "body": email_draft["body"],
-            "recipient_email": c_email
+            "message": sms_draft.get("body", ""),
+            "generated_subject": email_draft["subject"],
+            "generated_email_body": email_draft["body"],
+            "generated_message": sms_draft.get("body", ""),
+            "recipient_email": c_email,
+            "recipient_phone": c_phone
         },
         status="pending",
-        recommendation=f"Send payment reminder to {c_name} for invoice {inv.invoice_number} ({format_currency(float(inv.amount), inv.currency)})."
+        recommendation=f"Send payment reminder to {c_name or 'Customer'} for invoice {inv.invoice_number} ({format_currency(pending_amount, inv.currency)} pending)."
     )
     db.add(approval)
     db.commit()
@@ -229,8 +293,8 @@ def generate_invoice_reminder(
         business_id=business.id,
         actor_type="AI Agent",
         action="Reminder Drafted",
-        description=f"Generated payment reminder for invoice {inv.invoice_number} and submitted to Approval Center.",
-        metadata={"approval_id": approval.id}
+        description=f"Generated payment reminder for invoice {inv.invoice_number} ({format_currency(pending_amount, inv.currency)} pending) and submitted to Approval Center.",
+        metadata={"approval_id": approval.id, "pending_amount": pending_amount, "total_amount": total_amount}
     )
 
     return {

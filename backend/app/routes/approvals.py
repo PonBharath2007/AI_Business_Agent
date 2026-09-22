@@ -130,15 +130,22 @@ def resolve_approval_execution_context(db: Session, app: Approval, business_id: 
     inv_total = float(inv.amount) if (inv and inv.amount is not None) else float(data.get("total_amount") or data.get("amount", 0.0))
     paid_amt = float(inv.paid_amount) if (inv and inv.paid_amount is not None) else float(data.get("paid_amount", 0.0))
 
-    if inv and inv.pending_amount is not None and float(inv.pending_amount) > 0:
+    if (paid_amt >= inv_total and inv_total > 0) or (inv and inv.status == "paid"):
+        pending_amt = 0.0
+        payment_status = "Paid"
+    elif inv and inv.pending_amount is not None:
         pending_amt = float(inv.pending_amount)
-    elif data.get("pending_amount") is not None and float(data.get("pending_amount")) > 0:
+        payment_status = "Partially Paid" if paid_amt > 0 else (inv.status or "Unpaid")
+    elif data.get("pending_amount") is not None:
         pending_amt = float(data.get("pending_amount"))
+        payment_status = data.get("payment_status") or ("Partially Paid" if paid_amt > 0 else "Unpaid")
     else:
         pending_amt = max(0.0, inv_total - paid_amt)
+        payment_status = "Partially Paid" if (paid_amt > 0 and pending_amt > 0) else "Unpaid"
 
     due_date = inv.due_date.isoformat() if (inv and inv.due_date) else data.get("due_date")
-    payment_status = (inv.status or "pending") if inv else data.get("payment_status", "pending")
+    if not payment_status:
+        payment_status = (inv.status or "pending") if inv else data.get("payment_status", "pending")
     currency = (inv.currency if inv and inv.currency else data.get("currency")) or "INR"
 
     # 6. Extract / Prepare Generated Communications
@@ -172,7 +179,11 @@ def resolve_approval_execution_context(db: Session, app: Approval, business_id: 
             due_date=due_date,
             template_type="payment_reminder",
             language=language,
-            channel="email"
+            channel="email",
+            total_amount=inv_total,
+            paid_amount=paid_amt,
+            pending_amount=pending_amt,
+            payment_status=payment_status
         )
         generated_email_body = email_res.get("body", "")
         if not data.get("subject"):
@@ -190,7 +201,11 @@ def resolve_approval_execution_context(db: Session, app: Approval, business_id: 
             due_date=due_date,
             template_type="payment_reminder",
             language=language,
-            channel="sms"
+            channel="sms",
+            total_amount=inv_total,
+            paid_amount=paid_amt,
+            pending_amount=pending_amt,
+            payment_status=payment_status
         )
         generated_message = sms_res.get("body", "")
 

@@ -43,6 +43,7 @@ const MessageCenterPage = ({ onNavigate, navParams = {}, preSelectedCustomerId =
   const [customers, setCustomers] = useState([]);
   const [invoices, setInvoices] = useState([]);
   const [customerInvoices, setCustomerInvoices] = useState([]);
+  const [customerMetrics, setCustomerMetrics] = useState(null);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [invoiceLoading, setInvoiceLoading] = useState(false);
   const [invoiceMessage, setInvoiceMessage] = useState('');
@@ -73,6 +74,7 @@ const MessageCenterPage = ({ onNavigate, navParams = {}, preSelectedCustomerId =
   const fetchCustomerInvoices = useCallback(async (customerId, targetInvoiceId = null) => {
     if (!customerId) {
       setCustomerInvoices([]);
+      setCustomerMetrics(null);
       setSelectedInvoice(null);
       setSelectedInvoiceId('');
       setInvoiceMessage('');
@@ -84,13 +86,16 @@ const MessageCenterPage = ({ onNavigate, navParams = {}, preSelectedCustomerId =
     setSelectedInvoice(null);
     setSelectedInvoiceId('');
     setCustomerInvoices([]);
+    setCustomerMetrics(null);
 
     try {
       const res = await api.get(`/customers/${customerId}/invoices`);
       const invList = res.data?.invoices || [];
       const recId = res.data?.recommended_invoice_id;
+      const metrics = res.data?.counts || res.data?.metrics || null;
 
       setCustomerInvoices(invList);
+      setCustomerMetrics(metrics);
 
       if (invList.length > 0) {
         let autoSelected = null;
@@ -101,20 +106,28 @@ const MessageCenterPage = ({ onNavigate, navParams = {}, preSelectedCustomerId =
           autoSelected = invList.find((i) => i.id === recId);
         }
         if (!autoSelected) {
-          autoSelected = invList[0];
+          autoSelected = invList.find((i) => (i.pending_amount > 0 || (i.amount - (i.paid_amount || 0) > 0)) && i.status !== 'paid') || null;
         }
 
-        setSelectedInvoice(autoSelected);
-        setSelectedInvoiceId(String(autoSelected.id));
+        if (autoSelected) {
+          setSelectedInvoice(autoSelected);
+          setSelectedInvoiceId(String(autoSelected.id));
+          setInvoiceMessage('');
+        } else {
+          setSelectedInvoice(null);
+          setSelectedInvoiceId('');
+          setInvoiceMessage('No pending or overdue invoices found for this customer.');
+        }
+
         if (res.data?.customer?.phone) {
           setRecipientPhone(res.data.customer.phone);
-        } else if (autoSelected.customer_phone) {
+        } else if (autoSelected?.customer_phone) {
           setRecipientPhone(autoSelected.customer_phone);
         }
       } else {
         setSelectedInvoice(null);
         setSelectedInvoiceId('');
-        setInvoiceMessage('No active invoice found for this customer.');
+        setInvoiceMessage('No pending or overdue invoices found for this customer.');
         if (res.data?.customer?.phone) {
           setRecipientPhone(res.data.customer.phone);
         }
@@ -122,9 +135,10 @@ const MessageCenterPage = ({ onNavigate, navParams = {}, preSelectedCustomerId =
     } catch (err) {
       console.error('Error fetching customer invoices:', err);
       setCustomerInvoices([]);
+      setCustomerMetrics(null);
       setSelectedInvoice(null);
       setSelectedInvoiceId('');
-      setInvoiceMessage('No active invoice found for this customer.');
+      setInvoiceMessage('No pending or overdue invoices found for this customer.');
     } finally {
       setInvoiceLoading(false);
     }
@@ -230,6 +244,7 @@ const MessageCenterPage = ({ onNavigate, navParams = {}, preSelectedCustomerId =
     setSelectedInvoice(null);
     setSelectedInvoiceId('');
     setCustomerInvoices([]);
+    setCustomerMetrics(null);
     setInvoiceMessage('');
 
     if (approvalContext && String(approvalContext.customer_id) !== String(cid)) {
@@ -298,7 +313,8 @@ const MessageCenterPage = ({ onNavigate, navParams = {}, preSelectedCustomerId =
       addToast('success', 'SMS Draft Ready', `AI generated ${langLabel} SMS draft${timeInfo}.`);
     } catch (err) {
       console.error('Message generation failed:', err);
-      addToast('error', 'Generation Error', 'Unable to generate the message. Please try again.');
+      const errMsg = err.response?.data?.detail || 'Unable to generate the message. Please try again.';
+      addToast('error', 'Generation Error', errMsg);
     } finally {
       setLoading(false);
     }
@@ -610,6 +626,34 @@ const MessageCenterPage = ({ onNavigate, navParams = {}, preSelectedCustomerId =
                   </div>
                 </div>
 
+                {/* Invoice Status Breakdown Metrics */}
+                <div className="grid grid-cols-4 gap-1.5 text-center text-[10px] pt-1">
+                  <div className="p-1.5 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/40">
+                    <span className="text-amber-700 dark:text-amber-400 font-bold block text-xs">
+                      {customerMetrics?.pending ?? customerInvoices.filter((i) => (i.payment_status || i.status) === 'pending').length}
+                    </span>
+                    <span className="text-amber-600 dark:text-amber-500 font-medium">Pending</span>
+                  </div>
+                  <div className="p-1.5 rounded-lg bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800/40">
+                    <span className="text-rose-700 dark:text-rose-400 font-bold block text-xs">
+                      {customerMetrics?.overdue ?? customerInvoices.filter((i) => (i.payment_status || i.status) === 'overdue' || i.is_overdue).length}
+                    </span>
+                    <span className="text-rose-600 dark:text-rose-500 font-medium">Overdue</span>
+                  </div>
+                  <div className="p-1.5 rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800/40">
+                    <span className="text-blue-700 dark:text-blue-400 font-bold block text-xs">
+                      {customerMetrics?.partially_paid ?? customerInvoices.filter((i) => (i.payment_status || i.status) === 'partially_paid').length}
+                    </span>
+                    <span className="text-blue-600 dark:text-blue-500 font-medium">Partial</span>
+                  </div>
+                  <div className="p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/40">
+                    <span className="text-emerald-700 dark:text-emerald-400 font-bold block text-xs">
+                      {customerMetrics?.paid ?? customerInvoices.filter((i) => (i.payment_status || i.status) === 'paid').length}
+                    </span>
+                    <span className="text-emerald-600 dark:text-emerald-500 font-medium">Paid</span>
+                  </div>
+                </div>
+
                 {/* Linked Invoices Section */}
                 <div className="space-y-2 pt-1 border-t border-slate-100 dark:border-[#26262c]">
                   <div className="flex items-center justify-between">
@@ -622,7 +666,7 @@ const MessageCenterPage = ({ onNavigate, navParams = {}, preSelectedCustomerId =
                         selectedInvoice.status === 'overdue' ? 'danger' :
                         selectedInvoice.status === 'partially_paid' ? 'warning' : 'pending'
                       }>
-                        {selectedInvoice.status?.toUpperCase()}
+                        {(selectedInvoice.payment_status || selectedInvoice.status)?.toUpperCase()}
                       </Badge>
                     )}
                   </div>
@@ -630,23 +674,28 @@ const MessageCenterPage = ({ onNavigate, navParams = {}, preSelectedCustomerId =
                   {invoiceLoading ? (
                     <div className="p-3 rounded-xl bg-slate-50 dark:bg-[#18181d] border border-slate-200 dark:border-[#26262c] flex items-center gap-2 text-xs text-indigo-600 dark:text-indigo-400">
                       <RefreshCw className="w-3.5 h-3.5 animate-spin text-indigo-500 shrink-0" />
-                      <span>Loading invoice...</span>
+                      <span>Loading invoices...</span>
                     </div>
-                  ) : customerInvoices.length > 1 ? (
+                  ) : customerInvoices.length > 0 ? (
                     <div>
                       <label className="block text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 mb-1">
-                        Select Invoice ({customerInvoices.length} active invoices)
+                        Select Invoice ({customerInvoices.length} invoices found)
                       </label>
                       <select
                         value={selectedInvoiceId}
                         onChange={(e) => handleInvoiceChange(e.target.value)}
                         className="w-full bg-slate-50 dark:bg-[#18181d] border border-slate-300 dark:border-[#2e2e36] rounded-xl px-2.5 py-1.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
                       >
-                        {customerInvoices.map((inv) => (
-                          <option key={inv.id} value={inv.id}>
-                            {inv.invoice_number} - {formatMoney(inv.pending_amount ?? inv.total_amount ?? inv.amount)} [{inv.status?.toUpperCase()}]
-                          </option>
-                        ))}
+                        <option value="">-- Select an invoice --</option>
+                        {customerInvoices.map((inv) => {
+                          const pend = inv.pending_amount !== undefined ? inv.pending_amount : Math.max(0, (inv.total_amount ?? inv.amount) - (inv.paid_amount || 0));
+                          const stat = (inv.payment_status || inv.status || 'pending').toUpperCase();
+                          return (
+                            <option key={inv.id} value={inv.id}>
+                              {inv.invoice_number} - {formatMoney(pend)} [{stat}]
+                            </option>
+                          );
+                        })}
                       </select>
                     </div>
                   ) : null}
@@ -675,10 +724,20 @@ const MessageCenterPage = ({ onNavigate, navParams = {}, preSelectedCustomerId =
                         <div>
                           <span className="text-[9px] text-slate-500 dark:text-slate-400 block uppercase">Pending</span>
                           <span className="font-bold text-amber-600 dark:text-amber-400">
-                            {formatMoney(selectedInvoice.pending_amount ?? selectedInvoice.amount ?? 0)}
+                            {formatMoney(
+                              selectedInvoice.pending_amount !== undefined
+                                ? selectedInvoice.pending_amount
+                                : Math.max(0, (selectedInvoice.total_amount ?? selectedInvoice.amount ?? 0) - (selectedInvoice.paid_amount || 0))
+                            )}
                           </span>
                         </div>
                       </div>
+                      {(selectedInvoice.status === 'paid' || (selectedInvoice.pending_amount !== undefined && selectedInvoice.pending_amount <= 0)) && (
+                        <div className="p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/40 text-[10px] text-emerald-700 dark:text-emerald-300 flex items-center gap-1.5 font-medium">
+                          <Check className="w-3 h-3 text-emerald-600 shrink-0" />
+                          <span>This invoice is fully paid. No reminder is required.</span>
+                        </div>
+                      )}
                     </div>
                   ) : !invoiceLoading && invoiceMessage ? (
                     <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-300 text-xs flex items-center gap-2">

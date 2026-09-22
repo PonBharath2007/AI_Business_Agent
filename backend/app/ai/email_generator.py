@@ -49,15 +49,50 @@ def generate_customer_communication(
     tone: str = "professional",
     language: str = "en",  # "en", "ta", "en_ta"
     channel: str = "email",  # "email", "sms"
-    custom_instructions: Optional[str] = None
+    custom_instructions: Optional[str] = None,
+    total_amount: Optional[float] = None,
+    paid_amount: Optional[float] = None,
+    pending_amount: Optional[float] = None,
+    payment_status: Optional[str] = None
 ) -> Dict[str, Any]:
     """
     Generates professional customer communication in English, Tamil, or Bilingual (English + Tamil)
     for Email or SMS channels.
+    Strictly uses validated pending_amount for payment reminders and details the total/paid/pending breakdown.
     Includes caching for repeated calls and token-bounded fast generation.
     """
     t_start = time.perf_counter()
-    formatted_amount = format_currency(amount or 0.0, currency)
+
+    # 1. Resolve and calculate financial amounts safely:
+    # If paid_amount >= total_amount: pending_amount = 0, payment_status = Paid
+    # If paid_amount > 0 AND paid_amount < total_amount: pending_amount = total_amount - paid_amount, payment_status = Partially Paid
+    # If paid_amount <= 0: pending_amount = total_amount, payment_status = Unpaid
+    tot_val = float(total_amount if total_amount is not None else (amount or 0.0))
+    paid_val = float(paid_amount if paid_amount is not None else 0.0)
+
+    if paid_val >= tot_val and tot_val > 0:
+        pend_val = 0.0
+        st_val = "Paid"
+    elif paid_val > 0 and paid_val < tot_val:
+        pend_val = round(tot_val - paid_val, 2)
+        st_val = "Partially Paid"
+    elif paid_val <= 0:
+        pend_val = tot_val
+        st_val = "Unpaid"
+    else:
+        pend_val = float(pending_amount if pending_amount is not None else (amount or 0.0))
+        st_val = payment_status or "Unpaid"
+
+    if pending_amount is not None:
+        pend_val = float(pending_amount)
+    if payment_status:
+        st_val = payment_status
+
+    formatted_total = format_currency(tot_val, currency)
+    formatted_paid = format_currency(paid_val, currency)
+    formatted_pending = format_currency(pend_val, currency)
+    formatted_amount = formatted_pending  # formatted_amount always refers to the pending amount owed
+
     sig_en = business_signature or f"Regards,\nFinance & Operations Team\n{business_name}"
     sig_ta = f"நன்றி,\nநிதி மற்றும் செயல்பாட்டுக் குழு\n{business_name}"
     sig_bilingual = f"Thank you / நன்றி\n{business_name}"
@@ -68,7 +103,7 @@ def generate_customer_communication(
         "en_ta": "Bilingual (BOTH English and Tamil in the SAME message - English first, followed by Tamil translation below)"
     }.get(language, "English only")
 
-    # 1. Sanitize customer name according to enterprise rules
+    # 2. Sanitize customer name according to enterprise rules
     cname_clean = (customer_name or "").strip()
     if not is_valid_customer_name(cname_clean):
         cname_clean = ""
@@ -76,7 +111,7 @@ def generate_customer_communication(
     _sanitize_greeting = lambda b: sanitize_greeting(b, cname_clean, language)
 
     # Check in-memory cache for exact repeat requests
-    cache_key = f"{channel}:{language}:{template_type}:{tone}:{cname_clean}:{customer_phone or ''}:{invoice_number or ''}:{formatted_amount}:{due_date or ''}:{business_name}:{(custom_instructions or '').strip()}"
+    cache_key = f"{channel}:{language}:{template_type}:{tone}:{cname_clean}:{customer_phone or ''}:{invoice_number or ''}:{formatted_pending}:{formatted_total}:{formatted_paid}:{due_date or ''}:{business_name}:{(custom_instructions or '').strip()}"
     with _comm_cache_lock:
         cached_entry = _comm_cache.get(cache_key)
         if cached_entry:
@@ -89,7 +124,7 @@ def generate_customer_communication(
                 logger.info(f"[Cache Hit] Returned message generation draft in {elapsed_ms}ms")
                 return result
 
-    # 2. Optimized concise prompt based on channel
+    # 3. Optimized concise prompt based on channel
     max_tokens = 250 if channel == "sms" else 550
 
     if channel == "sms":
@@ -104,21 +139,30 @@ Write a personalized, concise business SMS message.
 Recipient Name: {cname_clean or 'Not available'}
 Recipient Contact: {customer_phone or 'N/A'}
 Business: {business_name}
-Goal: {template_type} (Invoice: {invoice_number or 'N/A'}, Amount: {formatted_amount}, Due: {due_date or 'Recent'})
+Goal: {template_type} (Invoice: {invoice_number or 'N/A'})
+Financial Breakdown:
+- Total Invoice Amount: {formatted_total}
+- Paid Amount: {formatted_paid}
+- Pending Amount: {formatted_pending}
+- Payment Status: {st_val}
+- Due Date: {due_date or 'Recent'}
 Tone: {tone}
 {f"Special Note: {custom_instructions}" if custom_instructions else ""}
 
 Language requirement: {lang_desc}.
 
-MANDATORY GREETING & RECIPIENT RULES:
+MANDATORY GREETING & FINANCIAL RULES:
 1. {greeting_instruction}
 2. The recipient name must come ONLY from the provided structured data.
 3. NEVER use field names, object names, UI labels, or placeholder text (such as 'Invoice Details', 'Invoice', 'Customer', 'Client') as a recipient name.
 4. NEVER generate "Dear Invoice Details".
 5. {"NEVER generate 'Dear Customer' because the actual customer name is available." if cname_clean else "NEVER generate 'Dear Invoice Details'."}
 6. NEVER invent or hallucinate a person's name.
-7. Max length: under 250 characters. Punchy, clear, polite.
-8. Output strictly valid JSON: {{"body": "SMS message text here"}}
+7. CRITICAL PAYMENT RULE: ALWAYS reference the PENDING amount ({formatted_pending}), NEVER the total amount, as the amount currently owed and to be paid.
+8. If the invoice is partially paid (Paid: {formatted_paid} of Total: {formatted_total}):
+   State clearly: "Total: {formatted_total}, Paid: {formatted_paid}, Pending: {formatted_pending}. Please arrange payment of the pending {formatted_pending}."
+9. Max length: under 250 characters. Punchy, clear, polite.
+10. Output strictly valid JSON: {{"body": "SMS message text here"}}
 """
     else:
         greeting_instruction = (
@@ -134,17 +178,31 @@ Language: {lang_desc}
 Customer Name: {cname_clean or 'Not available'}
 Customer Email: {customer_email or 'N/A'}
 Business: {business_name}
-Goal: {template_type} (Invoice: {invoice_number or 'N/A'}, Amount: {formatted_amount}, Due: {due_date or 'Recent'})
+Goal: {template_type} (Invoice: {invoice_number or 'N/A'})
+Financial Breakdown:
+- Total Invoice Amount: {formatted_total}
+- Paid Amount: {formatted_paid}
+- Pending Amount: {formatted_pending}
+- Payment Status: {st_val}
+- Due Date: {due_date or 'Recent'}
 Tone: {tone}
 {f"Instructions: {custom_instructions}" if custom_instructions else ""}
 
-MANDATORY GREETING & RECIPIENT RULES:
+MANDATORY GREETING & FINANCIAL RULES:
 1. {greeting_instruction}
 2. The customer name must come ONLY from the provided structured data.
 3. NEVER use field names, object names, UI labels, or placeholder text (such as 'Invoice Details', 'Invoice', 'Customer', 'Client', 'Details') as a person's name.
 4. NEVER generate "Dear Invoice Details".
 5. {"NEVER generate 'Dear Customer' because the actual customer name is available." if cname_clean else "NEVER generate 'Dear Invoice Details'."}
 6. NEVER invent or hallucinate a person's name.
+7. CRITICAL PAYMENT RULE: ALWAYS reference the PENDING amount ({formatted_pending}), NEVER the total amount ({formatted_total}), as the amount currently owed and to be paid.
+8. If the invoice is partially paid (Paid: {formatted_paid} of Total: {formatted_total}, Pending: {formatted_pending}):
+   You MUST explain:
+   "The total invoice amount is {formatted_total}, of which {formatted_paid} has already been paid. The pending amount is {formatted_pending}.
+   Please arrange payment of the pending {formatted_pending}."
+9. If the invoice is fully unpaid (Paid: ₹0):
+   State that the total invoice amount is {formatted_total}, which is currently unpaid and pending, and request payment of {formatted_pending}.
+10. NEVER ask the customer to pay the total amount ({formatted_total}) when partial payment has been made!
 
 Output strictly valid JSON with:
 {{"subject": "Appropriate subject line", "body": "Complete email body with greeting and sign-off"}}
@@ -158,7 +216,8 @@ Output strictly valid JSON with:
         system_instruction=(
             "You generate courteous, highly professional enterprise customer communications in English, Tamil, or Bilingual. "
             "Strictly adhere to greeting rules: address the customer by their actual name ('Dear <Name>,') when provided, "
-            "or use 'Hello,' if no name is available. NEVER use 'Invoice Details', 'Customer', or field labels as a person's name. Output strictly JSON."
+            "or use 'Hello,' if no name is available. NEVER use 'Invoice Details', 'Customer', or field labels as a person's name. "
+            "Always reference the pending amount as the amount to be paid. Output strictly JSON."
         ),
         max_output_tokens=max_tokens
     )
@@ -242,34 +301,58 @@ Output strictly valid JSON with:
                     f"- {business_name}"
                 )
         elif "reminder" in t_type or t_type == "payment_reminder":
-            if language == "ta":
-                subj = f"விலைப்பட்டியல் {inv_str} நினைவூட்டல்"
-                body = (
-                    f"வணக்கம் {customer_name},\n"
-                    f"உங்கள் {formatted_amount} மதிப்பிலான விலைப்பட்டியல் ({inv_str}) பணம் செலுத்த வேண்டிய தேதி ({due_str}) முடிவடைந்துள்ளது. "
-                    f"தயவுசெய்து விரைவில் பணம் செலுத்தவும்.\n"
-                    f"நன்றி.\n"
-                    f"- {business_name}"
-                )
-            elif language == "en_ta":
-                subj = f"Payment Reminder / பணம் செலுத்தும் நினைவூட்டல் - {inv_str}"
-                body = (
-                    f"Dear {customer_name},\n"
-                    f"This is a reminder that your invoice of {formatted_amount} is overdue. Please complete the payment at your earliest convenience.\n\n"
-                    f"வணக்கம் {customer_name},\n"
-                    f"உங்கள் {formatted_amount} விலைப்பட்டியலுக்கான பணம் செலுத்த வேண்டிய தேதி முடிவடைந்துள்ளது. தயவுசெய்து விரைவில் பணம் செலுத்தவும்.\n\n"
-                    f"Thank you / நன்றி.\n"
-                    f"- {business_name}"
-                )
-            else:  # English default
-                subj = f"Payment Reminder: Invoice {inv_str}"
-                body = (
-                    f"Dear {customer_name},\n"
-                    f"This is a reminder that your invoice of {formatted_amount} is overdue. "
-                    f"Please complete the payment at your earliest convenience.\n"
-                    f"Thank you.\n"
-                    f"- {business_name}"
-                )
+            greeting_en = f"Dear {customer_name}," if customer_name else "Hello,"
+            greeting_ta = f"வணக்கம் {customer_name}," if customer_name else "வணக்கம்,"
+            if st_val == "Partially Paid" or (paid_val > 0 and pend_val > 0):
+                if language == "ta":
+                    subj = f"விலைப்பட்டியல் {inv_str} நிலுவைத் தொகை நினைவூட்டல்"
+                    body = (
+                        f"{greeting_ta}\n"
+                        f"விலைப்பட்டியல் {inv_str} மொத்தத் தொகை {formatted_total}, இதில் {formatted_paid} செலுத்தப்பட்டுள்ளது. நிலுவைத் தொகை {formatted_pending}.\n"
+                        f"தயவுசெய்து நிலுவைத் தொகையான {formatted_pending}-ஐ செலுத்தவும்.\n"
+                        f"- {business_name}"
+                    )
+                elif language == "en_ta":
+                    subj = f"Payment Reminder / பணம் செலுத்தும் நினைவூட்டல் - {inv_str}"
+                    body = (
+                        f"{greeting_en} Reminder for invoice {inv_str}. Total: {formatted_total}, Paid: {formatted_paid}, Pending: {formatted_pending}. Please pay {formatted_pending}.\n\n"
+                        f"{greeting_ta} விலைப்பட்டியல் {inv_str}-க்கான நிலுவைத் தொகை {formatted_pending}.\n"
+                        f"- {business_name}"
+                    )
+                else:
+                    subj = f"Payment Reminder: Invoice {inv_str}"
+                    body = (
+                        f"{greeting_en} Reminder regarding invoice {inv_str}. Total amount: {formatted_total}, of which {formatted_paid} has been paid. Pending amount: {formatted_pending}. Please arrange payment of the pending {formatted_pending}. - {business_name}"
+                    )
+            else:
+                if language == "ta":
+                    subj = f"விலைப்பட்டியல் {inv_str} நினைவூட்டல்"
+                    body = (
+                        f"{greeting_ta}\n"
+                        f"உங்கள் {formatted_pending} மதிப்பிலான விலைப்பட்டியல் ({inv_str}) பணம் செலுத்த வேண்டிய தேதி ({due_str}) முடிவடைந்துள்ளது. "
+                        f"தயவுசெய்து விரைவில் பணம் செலுத்தவும்.\n"
+                        f"நன்றி.\n"
+                        f"- {business_name}"
+                    )
+                elif language == "en_ta":
+                    subj = f"Payment Reminder / பணம் செலுத்தும் நினைவூட்டல் - {inv_str}"
+                    body = (
+                        f"{greeting_en}\n"
+                        f"This is a reminder that your invoice {inv_str} of {formatted_pending} is pending payment. Please complete the payment at your earliest convenience.\n\n"
+                        f"{greeting_ta}\n"
+                        f"உங்கள் {formatted_pending} விலைப்பட்டியலுக்கான பணம் செலுத்த வேண்டியுள்ளது. தயவுசெய்து விரைவில் பணம் செலுத்தவும்.\n\n"
+                        f"Thank you / நன்றி.\n"
+                        f"- {business_name}"
+                    )
+                else:  # English default
+                    subj = f"Payment Reminder: Invoice {inv_str}"
+                    body = (
+                        f"{greeting_en}\n"
+                        f"This is a reminder regarding invoice {inv_str}. Total pending amount is {formatted_pending} (Due: {due_str}). "
+                        f"Please arrange payment of {formatted_pending}.\n"
+                        f"Thank you.\n"
+                        f"- {business_name}"
+                    )
         elif "appointment" in t_type or t_type == "appointment_reminder":
             if language == "ta":
                 subj = "சந்திப்பு நினைவூட்டல்"
@@ -420,81 +503,125 @@ Output strictly valid JSON with:
                 f"{sig_en}"
             )
     elif "reminder" in t_type or t_type == "payment_reminder":
-        if language == "ta":
-            if tone == "urgent":
-                subj = f"முக்கியமானது: நிலுவைத் தொகை அறிவிப்பு - விலைப்பட்டியல் {inv_str}"
+        greeting_en = f"Dear {customer_name}," if customer_name else "Hello,"
+        greeting_ta = f"வணக்கம் {customer_name}," if customer_name else "வணக்கம்,"
+        if st_val == "Partially Paid" or (paid_val > 0 and pend_val > 0):
+            if language == "ta":
+                subj = f"விலைப்பட்டியல் {inv_str} நிலுவைத் தொகை நினைவூட்டல்"
                 body = (
-                    f"அன்புள்ள {customer_name},\n\n"
-                    f"எங்கள் கணக்கு பதிவுகளின்படி, {due_str} அன்று செலுத்த வேண்டிய விலைப்பட்டியல் {inv_str}-க்கான தொகை இன்னும் பெறப்படவில்லை.\n\n"
-                    f"நிலுவைத் தொகை: {formatted_amount}\n\n"
-                    f"சேவைகள் தடையின்றி தொடர, தயவுசெய்து இந்தத் தொகையை உடனடியாகச் செலுத்துமாறு கேட்டுக்கொள்கிறோம்.{instruction_snippet}\n\n"
+                    f"{greeting_ta}\n\n"
+                    f"இது விலைப்பட்டியல் {inv_str} தொடர்பான நினைவூட்டல் ஆகும்.\n"
+                    f"விலைப்பட்டியலின் மொத்தத் தொகை {formatted_total}, இதில் {formatted_paid} ஏற்கனவே செலுத்தப்பட்டுள்ளது.\n"
+                    f"தற்போது செலுத்த வேண்டிய நிலுவைத் தொகை {formatted_pending} ஆகும்.\n\n"
+                    f"தயவுசெய்து நிலுவைத் தொகையான {formatted_pending}-ஐ விரைவில் செலுத்துமாறு கேட்டுக்கொள்கிறோம்.{instruction_snippet}\n\n"
                     f"ஏற்கனவே பணம் செலுத்தியிருந்தால், தயவுசெய்து பரிவர்த்தனை விவரங்களைப் பகிரவும்.\n\n"
                     f"{sig_ta}"
                 )
-            elif tone == "friendly":
-                subj = f"நட்பான நினைவூட்டல்: விலைப்பட்டியல் {inv_str}"
+            elif language == "en_ta":
+                subj = f"Payment Reminder / பணம் செலுத்தும் நினைவூட்டல் - Invoice {inv_str}"
                 body = (
-                    f"வணக்கம் {customer_name},\n\n"
-                    f"உங்களுக்கு ஒரு நட்பான நினைவூட்டல். உங்கள் {formatted_amount} மதிப்பிலான விலைப்பட்டியல் {inv_str}-க்கான பணம் செலுத்த வேண்டிய தேதி ({due_str}) முடிவடைந்துள்ளது.{instruction_snippet}\n\n"
-                    f"ஏற்கனவே பணம் செலுத்தியிருந்தால் இந்த செய்தியைப் புறக்கணிக்கவும். ஏதேனும் உதவி தேவைப்பட்டால் எங்களுக்குத் தெரிவிக்கவும்.\n\n"
-                    f"{sig_ta}"
+                    f"{greeting_en}\n\n"
+                    f"This is a reminder regarding invoice {inv_str}.\n"
+                    f"The total invoice amount is {formatted_total}, of which {formatted_paid} has already been paid.\n"
+                    f"The pending amount is {formatted_pending}.\n\n"
+                    f"Please arrange payment of the pending {formatted_pending}.{instruction_snippet}\n\n"
+                    f"--------------------------------------------------\n\n"
+                    f"{greeting_ta}\n\n"
+                    f"இது விலைப்பட்டியல் {inv_str} தொடர்பான நினைவூட்டல் ஆகும்.\n"
+                    f"விலைப்பட்டியலின் மொத்தத் தொகை {formatted_total}, இதில் {formatted_paid} செலுத்தப்பட்டுள்ளது.\n"
+                    f"செலுத்த வேண்டிய நிலுவைத் தொகை {formatted_pending} ஆகும்.\n\n"
+                    f"தயவுசெய்து நிலுவைத் தொகையான {formatted_pending}-ஐ செலுத்துமாறு கேட்டுக்கொள்கிறோம்.\n\n"
+                    f"{sig_bilingual}"
                 )
-            else:  # professional default
-                subj = f"பணம் செலுத்தும் நினைவூட்டல் - விலைப்பட்டியல் {inv_str}"
+            else:  # English
+                subj = f"Payment Reminder: Invoice {inv_str}"
                 body = (
-                    f"வணக்கம் {customer_name},\n\n"
-                    f"உங்கள் விலைப்பட்டியல் {inv_str}-க்கான நிலுவைத் தொகை பற்றிய நினைவூட்டல் இது.\n\n"
-                    f"நிலுவைத் தொகை {formatted_amount} மற்றும் செலுத்த வேண்டிய தேதி {due_str} ஆகும்.{instruction_snippet}\n\n"
-                    f"தயவுசெய்து விரைவில் பணப்பரிவர்த்தனையை நிறைவு செய்யுமாறு கேட்டுக்கொள்கிறோம்.\n\n"
-                    f"{sig_ta}"
-                )
-        elif language == "en_ta":
-            # Bilingual (English + Tamil in SAME EMAIL)
-            subj = f"Payment Reminder / பணம் செலுத்தும் நினைவூட்டல் - Invoice {inv_str}"
-            body = (
-                f"Dear {customer_name},\n\n"
-                f"This is a reminder regarding the outstanding payment for invoice {inv_str}.\n"
-                f"Outstanding Balance: {formatted_amount}\n"
-                f"Due Date: {due_str}\n\n"
-                f"Please arrange for this payment to be completed at your earliest convenience.{instruction_snippet}\n\n"
-                f"--------------------------------------------------\n\n"
-                f"வணக்கம் {customer_name},\n\n"
-                f"உங்கள் விலைப்பட்டியல் {inv_str}-க்கான நிலுவைத் தொகை பற்றிய நினைவூட்டல் இது.\n"
-                f"நிலுவைத் தொகை: {formatted_amount}\n"
-                f"செலுத்த வேண்டிய தேதி: {due_str}\n\n"
-                f"தயவுசெய்து இந்தத் தொகையை விரைவில் செலுத்துமாறு கேட்டுக்கொள்கிறோம்.\n\n"
-                f"{sig_bilingual}"
-            )
-        else:  # English
-            if tone == "urgent":
-                subj = f"URGENT: Overdue Payment Notice - Invoice {inv_str}"
-                body = (
-                    f"Dear {customer_name},\n\n"
-                    f"Our records indicate that we have not yet received payment for invoice {inv_str}, "
-                    f"which had a due date of {due_str}.\n\n"
-                    f"Outstanding Balance: {formatted_amount}\n\n"
-                    f"Please arrange for this balance to be settled immediately to ensure uninterrupted service.{instruction_snippet}\n\n"
-                    f"If payment has already been remitted, please share the transaction reference with us.\n\n"
+                    f"{greeting_en}\n\n"
+                    f"This is a reminder regarding invoice {inv_str}.\n"
+                    f"The total invoice amount is {formatted_total}, of which {formatted_paid} has already been paid.\n"
+                    f"The pending amount is {formatted_pending}.\n\n"
+                    f"Please arrange payment of the pending {formatted_pending}.{instruction_snippet}\n\n"
+                    f"If payment has already been sent, please share the transaction reference with us.\n\n"
                     f"{sig_en}"
                 )
-            elif tone == "friendly":
-                subj = f"Friendly Reminder: Invoice {inv_str} is due"
+        else:
+            if language == "ta":
+                if tone == "urgent":
+                    subj = f"முக்கியமானது: நிலுவைத் தொகை அறிவிப்பு - விலைப்பட்டியல் {inv_str}"
+                    body = (
+                        f"{greeting_ta}\n\n"
+                        f"எங்கள் கணக்கு பதிவுகளின்படி, {due_str} அன்று செலுத்த வேண்டிய விலைப்பட்டியல் {inv_str}-க்கான தொகை இன்னும் பெறப்படவில்லை.\n\n"
+                        f"நிலுவைத் தொகை: {formatted_pending}\n\n"
+                        f"சேவைகள் தடையின்றி தொடர, தயவுசெய்து இந்தத் தொகையை உடனடியாகச் செலுத்துமாறு கேட்டுக்கொள்கிறோம்.{instruction_snippet}\n\n"
+                        f"ஏற்கனவே பணம் செலுத்தியிருந்தால், தயவுசெய்து பரிவர்த்தனை விவரங்களைப் பகிரவும்.\n\n"
+                        f"{sig_ta}"
+                    )
+                elif tone == "friendly":
+                    subj = f"நட்பான நினைவூட்டல்: விலைப்பட்டியல் {inv_str}"
+                    body = (
+                        f"{greeting_ta}\n\n"
+                        f"உங்களுக்கு ஒரு நட்பான நினைவூட்டல். உங்கள் {formatted_pending} மதிப்பிலான விலைப்பட்டியல் {inv_str}-க்கான பணம் செலுத்த வேண்டிய தேதி ({due_str}) முடிவடைந்துள்ளது.{instruction_snippet}\n\n"
+                        f"ஏற்கனவே பணம் செலுத்தியிருந்தால் இந்த செய்தியைப் புறக்கணிக்கவும். ஏதேனும் உதவி தேவைப்பட்டால் எங்களுக்குத் தெரிவிக்கவும்.\n\n"
+                        f"{sig_ta}"
+                    )
+                else:  # professional default
+                    subj = f"பணம் செலுத்தும் நினைவூட்டல் - விலைப்பட்டியல் {inv_str}"
+                    body = (
+                        f"{greeting_ta}\n\n"
+                        f"உங்கள் விலைப்பட்டியல் {inv_str}-க்கான நிலுவைத் தொகை பற்றிய நினைவூட்டல் இது.\n\n"
+                        f"நிலுவைத் தொகை {formatted_pending} மற்றும் செலுத்த வேண்டிய தேதி {due_str} ஆகும்.{instruction_snippet}\n\n"
+                        f"தயவுசெய்து விரைவில் பணப்பரிவர்த்தனையை நிறைவு செய்யுமாறு கேட்டுக்கொள்கிறோம்.\n\n"
+                        f"{sig_ta}"
+                    )
+            elif language == "en_ta":
+                # Bilingual (English + Tamil in SAME EMAIL)
+                subj = f"Payment Reminder / பணம் செலுத்தும் நினைவூட்டல் - Invoice {inv_str}"
                 body = (
-                    f"Hi {customer_name},\n\n"
-                    f"Hope you are having a productive week! Just a quick and friendly reminder regarding invoice {inv_str} "
-                    f"for {formatted_amount}, which was due on {due_str}.{instruction_snippet}\n\n"
-                    f"If you have already sent this payment, please disregard this note. Otherwise, feel free to let us know if you need any assistance.\n\n"
-                    f"{sig_en}"
+                    f"{greeting_en}\n\n"
+                    f"This is a reminder regarding the outstanding payment for invoice {inv_str}.\n"
+                    f"The total amount is {formatted_total}, which is currently pending payment.\n"
+                    f"Outstanding Balance: {formatted_pending}\n"
+                    f"Due Date: {due_str}\n\n"
+                    f"Please arrange for this payment of {formatted_pending} to be completed at your earliest convenience.{instruction_snippet}\n\n"
+                    f"--------------------------------------------------\n\n"
+                    f"{greeting_ta}\n\n"
+                    f"உங்கள் விலைப்பட்டியல் {inv_str}-க்கான நிலுவைத் தொகை பற்றிய நினைவூட்டல் இது.\n"
+                    f"நிலுவைத் தொகை: {formatted_pending}\n"
+                    f"செலுத்த வேண்டிய தேதி: {due_str}\n\n"
+                    f"தயவுசெய்து இந்தத் தொகையை விரைவில் செலுத்துமாறு கேட்டுக்கொள்கிறோம்.\n\n"
+                    f"{sig_bilingual}"
                 )
-            else:  # professional default
-                subj = f"Payment Reminder - Invoice {inv_str}"
-                body = (
-                    f"Dear {customer_name},\n\n"
-                    f"This is a friendly reminder regarding the outstanding payment for invoice {inv_str}.\n\n"
-                    f"The outstanding amount is {formatted_amount} and the payment was due on {due_str}.{instruction_snippet}\n\n"
-                    f"Please let us know if the payment has already been processed or if you require any updated invoices or banking details.\n\n"
-                    f"{sig_en}"
-                )
+            else:  # English
+                if tone == "urgent":
+                    subj = f"URGENT: Overdue Payment Notice - Invoice {inv_str}"
+                    body = (
+                        f"{greeting_en}\n\n"
+                        f"Our records indicate that we have not yet received payment for invoice {inv_str}, "
+                        f"which had a due date of {due_str}.\n\n"
+                        f"The total amount is {formatted_total}, and the outstanding balance is {formatted_pending}.\n\n"
+                        f"Please arrange for the pending {formatted_pending} to be settled immediately to ensure uninterrupted service.{instruction_snippet}\n\n"
+                        f"If payment has already been remitted, please share the transaction reference with us.\n\n"
+                        f"{sig_en}"
+                    )
+                elif tone == "friendly":
+                    subj = f"Friendly Reminder: Invoice {inv_str} is due"
+                    body = (
+                        f"{greeting_en}\n\n"
+                        f"Hope you are having a productive week! Just a quick and friendly reminder regarding invoice {inv_str} "
+                        f"for {formatted_total}, with a pending balance of {formatted_pending}, which was due on {due_str}.{instruction_snippet}\n\n"
+                        f"If you have already sent this payment, please disregard this note. Otherwise, feel free to let us know if you need any assistance.\n\n"
+                        f"{sig_en}"
+                    )
+                else:  # professional default
+                    subj = f"Payment Reminder - Invoice {inv_str}"
+                    body = (
+                        f"{greeting_en}\n\n"
+                        f"This is a reminder regarding invoice {inv_str}.\n"
+                        f"The total invoice amount is {formatted_total}, and the pending balance is {formatted_pending} (Due: {due_str}).{instruction_snippet}\n\n"
+                        f"Please arrange payment of the pending {formatted_pending}.\n\n"
+                        f"Please let us know if the payment has already been processed or if you require any updated invoices or banking details.\n\n"
+                        f"{sig_en}"
+                    )
 
     elif "follow" in t_type or t_type == "customer_followup" or t_type == "followup":
         if language == "ta":
@@ -659,7 +786,11 @@ def generate_business_email(
     template_type: str = "payment_reminder",
     tone: str = "professional",
     custom_instructions: Optional[str] = None,
-    language: str = "en"
+    language: str = "en",
+    total_amount: Optional[float] = None,
+    paid_amount: Optional[float] = None,
+    pending_amount: Optional[float] = None,
+    payment_status: Optional[str] = None
 ) -> Dict[str, Any]:
     """
     Backward-compatible wrapper for generate_customer_communication.
@@ -677,7 +808,11 @@ def generate_business_email(
         tone=tone,
         language=language,
         channel="email",
-        custom_instructions=custom_instructions
+        custom_instructions=custom_instructions,
+        total_amount=total_amount,
+        paid_amount=paid_amount,
+        pending_amount=pending_amount,
+        payment_status=payment_status
     )
 
 

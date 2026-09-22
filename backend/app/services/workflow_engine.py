@@ -65,23 +65,37 @@ def run_document_workflow(db: Session, business: Business, document: Document) -
     invoice_number = extracted.get("invoice_number") or f"INV-{int(datetime.utcnow().timestamp())}"
     total_amount = float(extracted.get("total_amount") or extracted.get("amount") or 0.0)
     paid_amount = float(extracted.get("paid_amount") or 0.0)
-    pending_amount = float(extracted.get("pending_amount") if extracted.get("pending_amount") is not None else max(0.0, total_amount - paid_amount))
     subtotal = float(extracted.get("subtotal") or total_amount)
     tax_amount = float(extracted.get("tax") or extracted.get("tax_amount") or 0.0)
     discount_amount = float(extracted.get("discount") or extracted.get("discount_amount") or 0.0)
     currency = extracted.get("currency") or business.currency or "INR"
     issue_date_val = parse_date(extracted.get("issue_date")) or date.today()
     due_date_val = parse_date(extracted.get("due_date")) or (issue_date_val + timedelta(days=14))
-    db_status = extracted.get("status")
-    if not db_status:
-        if paid_amount >= total_amount and total_amount > 0:
-            db_status = "paid"
-        elif paid_amount > 0 and pending_amount > 0:
-            db_status = "partially_paid"
-        elif due_date_val < date.today():
+
+    # Safe payment calculation rules:
+    # If paid_amount >= total_amount: pending_amount = 0, payment_status = Paid
+    # If paid_amount > 0 AND paid_amount < total_amount: pending_amount = total_amount - paid_amount, payment_status = Partially Paid
+    # If paid_amount <= 0: pending_amount = total_amount, payment_status = Unpaid
+    if paid_amount >= total_amount and total_amount > 0:
+        pending_amount = 0.0
+        payment_status = "Paid"
+        db_status = "paid"
+    elif paid_amount > 0 and paid_amount < total_amount:
+        pending_amount = round(total_amount - paid_amount, 2)
+        payment_status = "Partially Paid"
+        db_status = "partially_paid"
+    elif paid_amount <= 0:
+        pending_amount = total_amount
+        payment_status = "Unpaid"
+        if due_date_val < date.today():
             db_status = "overdue"
         else:
             db_status = "pending"
+    else:
+        pending_amount = 0.0
+        payment_status = "Paid"
+        db_status = "paid"
+
     status = db_status
     line_items = extracted.get("line_items") or []
 
@@ -285,7 +299,11 @@ def run_document_workflow(db: Session, business: Business, document: Document) -
             business_name=business.name,
             business_signature=business.email_signature,
             template_type="payment_reminder",
-            tone="urgent" if (status == "overdue" or due_date_val < date.today()) else "professional"
+            tone="urgent" if (status == "overdue" or due_date_val < date.today()) else "professional",
+            total_amount=total_amount,
+            paid_amount=paid_amount,
+            pending_amount=pending_amount,
+            payment_status=payment_status
         )
 
         # Generate Message/SMS Draft as well so both communication channels have tailored content ready
@@ -300,7 +318,11 @@ def run_document_workflow(db: Session, business: Business, document: Document) -
             business_name=business.name,
             template_type="payment_reminder",
             tone="urgent" if (status == "overdue" or due_date_val < date.today()) else "professional",
-            channel="sms"
+            channel="sms",
+            total_amount=total_amount,
+            paid_amount=paid_amount,
+            pending_amount=pending_amount,
+            payment_status=payment_status
         )
 
         approval_action_data = {
@@ -314,6 +336,7 @@ def run_document_workflow(db: Session, business: Business, document: Document) -
             "total_amount": total_amount,
             "paid_amount": paid_amount,
             "pending_amount": pending_amount,
+            "payment_status": payment_status,
             "currency": currency,
             "due_date": due_date_val.isoformat(),
             "subject": email_draft["subject"],

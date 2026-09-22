@@ -56,12 +56,44 @@ def generate_communication_endpoint(
     amount = None
     due_date_str = None
     currency = "INR"
+    total_amount = None
+    paid_amount = None
+    pending_amount = None
+    payment_status = None
+
+    effective_template = req.purpose or req.template_type or "payment_reminder"
 
     if req.invoice_id:
         inv = db.query(Invoice).filter(Invoice.id == req.invoice_id, Invoice.business_id == business.id).first()
         if inv:
             invoice_number = inv.invoice_number
-            amount = float(inv.pending_amount if (inv.pending_amount is not None and float(inv.pending_amount) > 0) else (inv.amount or 0.0))
+            total_amt = float(inv.amount or 0.0)
+            paid_amt = float(inv.paid_amount or 0.0)
+            if (inv.status or "").lower() == "paid" or (total_amt > 0 and paid_amt >= total_amt):
+                pend_amt = 0.0
+                if paid_amt == 0.0 and total_amt > 0:
+                    paid_amt = total_amt
+                pay_status = "Paid"
+            else:
+                if inv.pending_amount is not None and float(inv.pending_amount) >= 0:
+                    pend_amt = float(inv.pending_amount)
+                else:
+                    pend_amt = max(0.0, total_amt - paid_amt)
+                if pend_amt <= 0 and total_amt > 0:
+                    pay_status = "Paid"
+                elif paid_amt > 0:
+                    pay_status = "Partially Paid"
+                else:
+                    pay_status = "Pending"
+
+            if effective_template == "payment_reminder" and (pend_amt <= 0 or pay_status == "Paid"):
+                raise HTTPException(status_code=400, detail="Cannot generate payment reminder for a fully paid invoice")
+
+            total_amount = total_amt
+            paid_amount = paid_amt
+            pending_amount = pend_amt
+            payment_status = pay_status
+            amount = pend_amt if pend_amt > 0 else total_amt
             currency = "INR"
             due_date_str = inv.due_date.strftime("%B %d, %Y") if inv.due_date else None
             ext_name = inv.document.extracted_data.get("customer_name") if (inv.document and inv.document.extracted_data) else None
@@ -84,13 +116,35 @@ def generate_communication_endpoint(
         open_inv = db.query(Invoice).filter(
             Invoice.customer_id == req.customer_id,
             Invoice.business_id == business.id,
-            Invoice.status.in_(["overdue", "pending"])
+            Invoice.status.in_(["overdue", "pending", "partially_paid"])
         ).order_by(Invoice.due_date.asc()).first()
         if open_inv:
             invoice_number = open_inv.invoice_number
-            amount = float(open_inv.amount) if open_inv.amount is not None else 0.0
-            currency = "INR"
-            due_date_str = open_inv.due_date.strftime("%B %d, %Y") if open_inv.due_date else None
+            tot = float(open_inv.amount or 0.0)
+            p_paid = float(open_inv.paid_amount or 0.0)
+            if (open_inv.status or "").lower() == "paid" or (tot > 0 and p_paid >= tot):
+                p_pend = 0.0
+                p_stat = "Paid"
+            else:
+                if open_inv.pending_amount is not None and float(open_inv.pending_amount) >= 0:
+                    p_pend = float(open_inv.pending_amount)
+                else:
+                    p_pend = max(0.0, tot - p_paid)
+                if p_pend <= 0 and tot > 0:
+                    p_stat = "Paid"
+                elif p_paid > 0:
+                    p_stat = "Partially Paid"
+                else:
+                    p_stat = "Pending"
+
+            if p_pend > 0 and p_stat != "Paid":
+                total_amount = tot
+                paid_amount = p_paid
+                pending_amount = p_pend
+                payment_status = p_stat
+                amount = p_pend
+                currency = "INR"
+                due_date_str = open_inv.due_date.strftime("%B %d, %Y") if open_inv.due_date else None
 
     if req.phone_number and req.phone_number.strip():
         customer_phone = req.phone_number.strip()
@@ -99,7 +153,6 @@ def generate_communication_endpoint(
 
     lang = req.language if req.language in ["en", "ta", "en_ta"] else "en"
     chan = req.communication_type if req.communication_type in ["email", "sms"] else "email"
-    effective_template = req.purpose or req.template_type or "payment_reminder"
 
     t_ai_start = time.perf_counter()
     draft = generate_customer_communication(
@@ -116,7 +169,11 @@ def generate_communication_endpoint(
         tone=req.tone or "professional",
         language=lang,
         channel=chan,
-        custom_instructions=req.custom_instructions
+        custom_instructions=req.custom_instructions,
+        total_amount=total_amount,
+        paid_amount=paid_amount,
+        pending_amount=pending_amount,
+        payment_status=payment_status
     )
     t_ai = time.perf_counter() - t_ai_start
 

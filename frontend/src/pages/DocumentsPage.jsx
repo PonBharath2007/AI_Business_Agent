@@ -441,7 +441,7 @@ const DocumentsPage = ({ onNavigate }) => {
                 <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800">
                   <span className="text-[10px] text-slate-500 block uppercase font-bold">Customer</span>
                   <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400 truncate block mt-0.5">
-                    {extracted.customer_name || 'Bharath'}
+                    {extracted.customer_name || 'N/A'}
                   </span>
                 </div>
               </div>
@@ -451,7 +451,7 @@ const DocumentsPage = ({ onNavigate }) => {
                 <div className="flex items-center gap-2 text-xs">
                   <UserCheck className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
                   <span className="text-slate-700 dark:text-slate-300">
-                    Customer: <strong>{extracted.customer_name || 'Bharath'}</strong>
+                    Customer: <strong>{extracted.customer_name || 'N/A'}</strong>
                     {extracted.customer_email ? ` (${extracted.customer_email})` : ''}
                   </span>
                 </div>

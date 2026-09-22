@@ -31,25 +31,42 @@ def check_and_update_overdue_statuses(db: Session, business_id: int):
     )
 
     for inv in invoices:
-        if inv.status != "overdue":
-            inv.status = "overdue"
-            updated_any = True
+        tot = float(inv.amount or 0.0)
+        paid = float(inv.paid_amount or 0.0)
+        if inv.pending_amount is not None:
+            pend = float(inv.pending_amount)
+        else:
+            pend = max(0.0, tot - paid)
 
-        if inv.id not in existing_source_ids:
-            c_name = inv.customer.name if inv.customer else "Customer"
-            task = Task(
-                business_id=business_id,
-                title=f"Follow up with {c_name} regarding overdue invoice {inv.invoice_number}",
-                description=f"Invoice {inv.invoice_number} for {format_currency(float(inv.amount), inv.currency)} was due on {inv.due_date}.",
-                priority="High",
-                status="Pending",
-                due_date=today,
-                source_type="AI Workflow",
-                source_id=inv.id,
-                assigned_user="Digital Employee"
-            )
-            new_tasks.append(task)
-            existing_source_ids.add(inv.id)
+        # Do not mark paid invoices as overdue even if due date has passed
+        if (paid >= tot and tot > 0) or pend <= 0:
+            if inv.status != "paid":
+                inv.status = "paid"
+                inv.pending_amount = 0.0
+                updated_any = True
+            continue
+
+        # An invoice is overdue only when pending_amount > 0 and due_date < today
+        if pend > 0 and inv.due_date and inv.due_date < today:
+            if inv.status != "overdue":
+                inv.status = "overdue"
+                updated_any = True
+
+            if inv.id not in existing_source_ids:
+                c_name = inv.customer.name if inv.customer else "Customer"
+                task = Task(
+                    business_id=business_id,
+                    title=f"Follow up with {c_name} regarding overdue invoice {inv.invoice_number}",
+                    description=f"Invoice {inv.invoice_number} has pending balance of {format_currency(pend, inv.currency)} (Total: {format_currency(tot, inv.currency)}, Due: {inv.due_date}).",
+                    priority="High",
+                    status="Pending",
+                    due_date=today,
+                    source_type="AI Workflow",
+                    source_id=inv.id,
+                    assigned_user="Digital Employee"
+                )
+                new_tasks.append(task)
+                existing_source_ids.add(inv.id)
 
     if new_tasks:
         db.add_all(new_tasks)
