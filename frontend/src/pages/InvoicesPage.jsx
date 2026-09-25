@@ -39,6 +39,13 @@ const InvoicesPage = ({ onNavigate }) => {
   const [viewInvoice, setViewInvoice] = useState(null);
   const [actionLoadingId, setActionLoadingId] = useState(null);
 
+  // Payment Recording State
+  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+  const [paymentInvoice, setPaymentInvoice] = useState(null);
+  const [paymentAmount, setPaymentAmount] = useState('');
+  const [paymentNotes, setPaymentNotes] = useState('');
+  const [paymentSubmitting, setPaymentSubmitting] = useState(false);
+
   const fetchInvoices = useCallback(async () => {
     try {
       const res = await api.get(`/invoices${statusFilter !== 'all' ? `?status=${statusFilter}` : ''}`);
@@ -86,6 +93,56 @@ const InvoicesPage = ({ onNavigate }) => {
       fetchInvoices();
     } catch (err) {
       addToast('error', 'Error', 'Failed to delete invoice.');
+    }
+  };
+
+  const handleOpenPaymentModal = (inv) => {
+    setPaymentInvoice(inv);
+    const pend = inv.pending_amount !== undefined ? inv.pending_amount : Math.max(0, (inv.total_amount ?? inv.amount) - (inv.paid_amount || 0));
+    setPaymentAmount(pend > 0 ? pend.toString() : '0');
+    setPaymentNotes('');
+    setPaymentModalOpen(true);
+  };
+
+  const handleRecordPayment = async (e) => {
+    e.preventDefault();
+    if (!paymentInvoice) return;
+    const amountVal = parseFloat(paymentAmount);
+    if (isNaN(amountVal) || amountVal <= 0) {
+      addToast('warning', 'Invalid Amount', 'Payment amount must be greater than zero.');
+      return;
+    }
+    const currentPend = paymentInvoice.pending_amount !== undefined ? paymentInvoice.pending_amount : Math.max(0, (paymentInvoice.total_amount ?? paymentInvoice.amount) - (paymentInvoice.paid_amount || 0));
+    if (amountVal > currentPend && currentPend > 0) {
+      addToast('warning', 'Exceeds Pending', `Payment (${formatMoney(amountVal)}) cannot exceed pending balance (${formatMoney(currentPend)}).`);
+      return;
+    }
+
+    setPaymentSubmitting(true);
+    try {
+      const res = await api.post(`/invoices/${paymentInvoice.id}/payments`, {
+        amount: amountVal,
+        payment_date: new Date().toISOString().split('T')[0],
+        notes: paymentNotes.trim() || undefined
+      });
+
+      addToast(
+        'success',
+        'Payment Recorded',
+        `Recorded payment of ${formatMoney(amountVal)} against invoice ${paymentInvoice.invoice_number}! Pending balance: ${formatMoney(res.data.pending_amount)}`
+      );
+
+      setPaymentModalOpen(false);
+      setPaymentInvoice(null);
+      if (viewInvoice && viewInvoice.id === paymentInvoice.id) {
+        setViewInvoice(res.data);
+      }
+      fetchInvoices();
+    } catch (err) {
+      const errMsg = err.response?.data?.detail || 'Failed to record payment.';
+      addToast('error', 'Payment Error', errMsg);
+    } finally {
+      setPaymentSubmitting(false);
     }
   };
 
@@ -251,16 +308,28 @@ const InvoicesPage = ({ onNavigate }) => {
                       </td>
                       <td className="p-3.5 text-right space-x-1" onClick={(e) => e.stopPropagation()}>
                         {inv.status !== 'paid' && pending > 0 && (
-                          <Button
-                            onClick={() => handleGenerateReminder(inv)}
-                            variant={isOverdue ? 'danger' : 'secondary'}
-                            size="sm"
-                            loading={actionLoadingId === inv.id}
-                            icon={Sparkles}
-                            className="text-xs"
-                          >
-                            AI Reminder
-                          </Button>
+                          <>
+                            <Button
+                              onClick={() => handleOpenPaymentModal(inv)}
+                              variant="secondary"
+                              size="sm"
+                              icon={CreditCard}
+                              className="text-xs"
+                              title="Record payment against this invoice"
+                            >
+                              Record Payment
+                            </Button>
+                            <Button
+                              onClick={() => handleGenerateReminder(inv)}
+                              variant={isOverdue ? 'danger' : 'secondary'}
+                              size="sm"
+                              loading={actionLoadingId === inv.id}
+                              icon={Sparkles}
+                              className="text-xs"
+                            >
+                              AI Reminder
+                            </Button>
+                          </>
                         )}
                         <button
                           onClick={() => setViewInvoice(inv)}
@@ -495,23 +564,118 @@ const InvoicesPage = ({ onNavigate }) => {
                   ? viewInvoice.pending_amount > 0
                   : ((viewInvoice.total_amount ?? viewInvoice.amount) - (viewInvoice.paid_amount || 0)) > 0)
               ) && (
-                <Button
-                  onClick={() => {
-                    handleGenerateReminder(viewInvoice);
-                    setViewInvoice(null);
-                  }}
-                  variant="danger"
-                  size="sm"
-                  icon={Sparkles}
-                >
-                  Generate Reminder
-                </Button>
+                <>
+                  <Button
+                    onClick={() => {
+                      handleOpenPaymentModal(viewInvoice);
+                    }}
+                    variant="primary"
+                    size="sm"
+                    icon={CreditCard}
+                  >
+                    Record Payment
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      handleGenerateReminder(viewInvoice);
+                      setViewInvoice(null);
+                    }}
+                    variant="danger"
+                    size="sm"
+                    icon={Sparkles}
+                  >
+                    Generate Reminder
+                  </Button>
+                </>
               )}
               <Button onClick={() => setViewInvoice(null)} variant="secondary" size="sm">
                 Close
               </Button>
             </div>
           </div>
+        </Modal>
+      )}
+
+      {/* Record Payment Modal */}
+      {paymentModalOpen && paymentInvoice && (
+        <Modal
+          isOpen={paymentModalOpen}
+          onClose={() => setPaymentModalOpen(false)}
+          title={`Record Payment – ${paymentInvoice.invoice_number}`}
+          maxWidth="max-w-md"
+        >
+          <form onSubmit={handleRecordPayment} className="space-y-4">
+            <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 text-xs space-y-1">
+              <div className="flex justify-between">
+                <span className="text-slate-500">Customer:</span>
+                <span className="font-semibold text-slate-800 dark:text-slate-200">{paymentInvoice.customer_name}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Total Invoice:</span>
+                <span className="font-semibold">{formatMoney(paymentInvoice.total_amount ?? paymentInvoice.amount)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Currently Paid:</span>
+                <span className="font-semibold text-emerald-600 dark:text-emerald-400">{formatMoney(paymentInvoice.paid_amount || 0)}</span>
+              </div>
+              <div className="flex justify-between font-bold pt-1 border-t border-slate-200 dark:border-slate-700">
+                <span className="text-slate-700 dark:text-slate-300">Pending Balance:</span>
+                <span className="text-amber-600 dark:text-amber-400">
+                  {formatMoney(paymentInvoice.pending_amount !== undefined ? paymentInvoice.pending_amount : Math.max(0, (paymentInvoice.total_amount ?? paymentInvoice.amount) - (paymentInvoice.paid_amount || 0)))}
+                </span>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                Payment Amount (₹) *
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                min="0.01"
+                max={paymentInvoice.pending_amount !== undefined ? paymentInvoice.pending_amount : Math.max(0, (paymentInvoice.total_amount ?? paymentInvoice.amount) - (paymentInvoice.paid_amount || 0))}
+                value={paymentAmount}
+                onChange={(e) => setPaymentAmount(e.target.value)}
+                required
+                className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-mono font-bold text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                Notes / Reference (Optional)
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. Bank Transfer Ref #12345"
+                value={paymentNotes}
+                onChange={(e) => setPaymentNotes(e.target.value)}
+                className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => setPaymentModalOpen(false)}
+                disabled={paymentSubmitting}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                variant="primary"
+                size="sm"
+                icon={CreditCard}
+                loading={paymentSubmitting}
+              >
+                Confirm Payment
+              </Button>
+            </div>
+          </form>
         </Modal>
       )}
     </div>

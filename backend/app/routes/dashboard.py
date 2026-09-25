@@ -71,35 +71,37 @@ def get_dashboard_summary(
     # 1. Total Customers: count actual customers
     total_customers = db.query(func.count(Customer.id)).filter(Customer.business_id == business.id).scalar() or 0
 
-    # 2. Pending Invoices: count actual pending invoices (due date in future or today, status pending)
-    pending_invoices_count = db.query(func.count(Invoice.id)).filter(
+    # 2 & 3. Pending & Overdue Invoices
+    # An invoice is overdue only when: pending_amount > 0 AND due_date < today's date
+    # A fully paid invoice must never contribute to outstanding or overdue amounts.
+    all_open_invoices = db.query(Invoice).filter(
         Invoice.business_id == business.id,
-        Invoice.status == "pending",
-        Invoice.due_date >= today
-    ).scalar() or 0
+        Invoice.status != "paid"
+    ).all()
 
-    pending_invoices_amount = float(
-        db.query(func.coalesce(func.sum(Invoice.amount), 0.0)).filter(
-            Invoice.business_id == business.id,
-            Invoice.status == "pending",
-            Invoice.due_date >= today
-        ).scalar() or 0.0
-    )
+    pending_invoices_count = 0
+    pending_invoices_amount = 0.0
+    overdue_invoices_count = 0
+    overdue_invoices_amount = 0.0
 
-    # 3. Overdue Invoices: count actual overdue invoices by due date and status
-    overdue_invoices_count = db.query(func.count(Invoice.id)).filter(
-        Invoice.business_id == business.id,
-        Invoice.status != "paid",
-        Invoice.due_date < today
-    ).scalar() or 0
+    for inv in all_open_invoices:
+        tot = float(inv.amount or 0.0)
+        paid = float(inv.paid_amount or 0.0)
+        pend = float(inv.pending_amount) if inv.pending_amount is not None else max(0.0, tot - paid)
 
-    overdue_invoices_amount = float(
-        db.query(func.coalesce(func.sum(Invoice.amount), 0.0)).filter(
-            Invoice.business_id == business.id,
-            Invoice.status != "paid",
-            Invoice.due_date < today
-        ).scalar() or 0.0
-    )
+        # Fully paid invoices never contribute to pending or overdue balances
+        if pend <= 0 or (paid >= tot and tot > 0):
+            continue
+
+        if inv.due_date and inv.due_date < today:
+            overdue_invoices_count += 1
+            overdue_invoices_amount += pend
+        else:
+            pending_invoices_count += 1
+            pending_invoices_amount += pend
+
+    pending_invoices_amount = round(pending_invoices_amount, 2)
+    overdue_invoices_amount = round(overdue_invoices_amount, 2)
 
     # 4. Monthly Income
     monthly_income = get_monthly_income(db, business.id)

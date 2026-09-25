@@ -110,23 +110,30 @@ def generate_next_invoice_number(db: Session, business_id: int) -> str:
     return next_num
 
 def create_invoice_record(db: Session, business_id: int, invoice_in: InvoiceCreate) -> Invoice:
-    total_amt = float(invoice_in.amount or 0.0)
-    paid_amt = float(invoice_in.paid_amount or 0.0)
-    pend_amt = float(invoice_in.pending_amount) if invoice_in.pending_amount is not None else max(0.0, total_amt - paid_amt)
+    total_amt = max(0.0, float(invoice_in.amount or 0.0))
+    paid_amt = max(0.0, float(invoice_in.paid_amount or 0.0))
+    today = date.today()
+
+    # Exact payment calculation:
+    # If paid_amount >= total_amount: pending_amount = 0, payment_status = Paid
+    # If paid_amount > 0 AND paid_amount < total_amount: pending_amount = total_amount - paid_amount, payment_status = Partially Paid
+    # If paid_amount <= 0: pending_amount = total_amount, payment_status = Unpaid
+    if paid_amt >= total_amt and total_amt > 0:
+        pend_amt = 0.0
+        inv_status = "paid"
+    elif paid_amt > 0 and paid_amt < total_amt:
+        pend_amt = round(total_amt - paid_amt, 2)
+        inv_status = "overdue" if (invoice_in.due_date and invoice_in.due_date < today) else "partially_paid"
+    elif paid_amt <= 0:
+        pend_amt = total_amt
+        inv_status = "overdue" if (invoice_in.due_date and invoice_in.due_date < today and pend_amt > 0) else "pending"
+    else:
+        pend_amt = 0.0
+        inv_status = "paid"
 
     inv_number = (invoice_in.invoice_number or "").strip()
     if not inv_number or inv_number.upper() == "AUTO":
         inv_number = generate_next_invoice_number(db, business_id)
-
-    # Determine status if not explicitly given
-    if invoice_in.status:
-        inv_status = invoice_in.status.lower()
-    elif pend_amt == 0 and total_amt > 0:
-        inv_status = "paid"
-    elif paid_amt > 0 and pend_amt > 0:
-        inv_status = "partially_paid"
-    else:
-        inv_status = "pending"
 
     invoice = Invoice(
         business_id=business_id,
@@ -135,7 +142,7 @@ def create_invoice_record(db: Session, business_id: int, invoice_in: InvoiceCrea
         amount=total_amt,
         paid_amount=paid_amt,
         pending_amount=pend_amt,
-        subtotal=float(invoice_in.subtotal or 0.0),
+        subtotal=float(invoice_in.subtotal or total_amt),
         tax_amount=float(invoice_in.tax_amount or 0.0),
         discount_amount=float(invoice_in.discount_amount or 0.0),
         currency=invoice_in.currency or "INR",
@@ -150,8 +157,8 @@ def create_invoice_record(db: Session, business_id: int, invoice_in: InvoiceCrea
     db.commit()
     db.refresh(invoice)
 
-    # Check if overdue
-    if invoice.due_date < date.today() and invoice.status != "paid":
+    # An invoice is overdue only when pending_amount > 0 and due_date < today
+    if invoice.due_date < today and invoice.pending_amount > 0 and invoice.status != "paid":
         invoice.status = "overdue"
         db.commit()
         db.refresh(invoice)

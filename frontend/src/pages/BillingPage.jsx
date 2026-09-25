@@ -277,11 +277,36 @@ const BillingPage = ({ onNavigate }) => {
 
     setSubmitting(true);
     try {
-      // Create new customer if mode is 'new' and doesn't already exist by email
+      // Resolve customer: match existing customer by email, normalized phone, or normalized name
       if (customerMode === 'new' || !targetCustomerId) {
-        const existingCust = customers.find(
-          (c) => c.email && c.email.toLowerCase() === emailToValidate.toLowerCase()
-        );
+        const cleanPhoneDigits = (ph) => (ph || '').replace(/\D/g, '');
+        const cleanName = (nm) => (nm || '').replace(/[^\w\s]/g, '').trim().toLowerCase();
+
+        const inputPhoneDigits = cleanPhoneDigits(phoneToValidate);
+        const inputNameNorm = cleanName(nameToValidate);
+
+        let existingCust = null;
+
+        // 1. Exact normalized email
+        if (emailToValidate) {
+          existingCust = customers.find(
+            (c) => c.email && c.email.trim().toLowerCase() === emailToValidate.toLowerCase()
+          );
+        }
+
+        // 2. Exact normalized phone (last 10 digits match)
+        if (!existingCust && inputPhoneDigits.length >= 10) {
+          const input10 = inputPhoneDigits.slice(-10);
+          existingCust = customers.find((c) => {
+            const cDigits = cleanPhoneDigits(c.phone);
+            return cDigits.length >= 10 && cDigits.slice(-10) === input10;
+          });
+        }
+
+        // 3. Normalized customer name
+        if (!existingCust && inputNameNorm.length >= 2) {
+          existingCust = customers.find((c) => cleanName(c.name) === inputNameNorm);
+        }
 
         if (existingCust) {
           targetCustomerId = existingCust.id;
@@ -295,7 +320,10 @@ const BillingPage = ({ onNavigate }) => {
           };
           const custRes = await api.post('/customers', custPayload);
           targetCustomerId = custRes.data.id;
-          setCustomers((prev) => [...prev, custRes.data]);
+          setCustomers((prev) => {
+            const exists = prev.some((c) => String(c.id) === String(custRes.data.id));
+            return exists ? prev.map((c) => String(c.id) === String(custRes.data.id) ? custRes.data : c) : [...prev, custRes.data];
+          });
         }
       }
 

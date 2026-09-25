@@ -102,8 +102,15 @@ class CustomerOut(CustomerBase):
     created_at: datetime
     updated_at: datetime
     total_invoices: Optional[int] = 0
+    total_billed: Optional[float] = 0.0
+    total_amount: Optional[float] = 0.0
+    total_paid: Optional[float] = 0.0
+    paid_amount: Optional[float] = 0.0
+    total_pending: Optional[float] = 0.0
     pending_amount: Optional[float] = 0.0
+    outstanding_amount: Optional[float] = 0.0
     overdue_amount: Optional[float] = 0.0
+    payment_status: Optional[str] = "No Invoices"
     last_communication: Optional[datetime] = None
 
     class Config:
@@ -166,6 +173,11 @@ class InvoiceUpdate(BaseModel):
     due_date: Optional[date] = None
     status: Optional[str] = None
     line_items: Optional[List[Dict[str, Any]]] = None
+    notes: Optional[str] = None
+
+class InvoicePaymentCreate(BaseModel):
+    amount: float = Field(..., gt=0, description="Payment amount received")
+    payment_date: Optional[date] = None
     notes: Optional[str] = None
 
 class InvoiceOut(InvoiceBase):

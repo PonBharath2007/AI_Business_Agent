@@ -9,6 +9,10 @@ from backend.app.schemas.schemas import CustomerCreate, CustomerUpdate, Customer
 from backend.app.auth.deps import get_current_business
 from backend.app.services.activity_service import log_activity
 from backend.app.services.invoice_service import check_and_update_overdue_statuses
+from backend.app.services.customer_service import (
+    find_or_create_customer,
+    compute_customer_financial_summary
+)
 from backend.app.utils.logger import logger
 
 router = APIRouter(prefix="/api/customers", tags=["Customers"])
@@ -22,26 +26,7 @@ def _to_naive_utc(dt):
 
 def _format_customer(c: Customer) -> dict:
     try:
-        invoices = c.invoices or []
-        today = date.today()
-        pending_amount = 0.0
-        overdue_amount = 0.0
-        for i in invoices:
-            tot = float(i.amount or 0.0)
-            paid = float(i.paid_amount or 0.0)
-            if i.pending_amount is not None:
-                pend = float(i.pending_amount)
-            else:
-                pend = max(0.0, tot - paid)
-
-            if (paid >= tot and tot > 0) or (i.status or "").lower() == "paid":
-                pend = 0.0
-
-            if pend > 0:
-                pending_amount += pend
-                if i.due_date and i.due_date < today:
-                    overdue_amount += pend
-
+        financials = compute_customer_financial_summary(c)
         emails = c.emails or []
         comms = c.communications or []
         comm_dates = [
@@ -52,10 +37,19 @@ def _format_customer(c: Customer) -> dict:
         last_comm = max(comm_dates) if comm_dates else None
     except Exception as e:
         logger.warning(f"Error computing customer summary for {c.id}: {e}")
-        pending_amount = 0.0
-        overdue_amount = 0.0
+        financials = {
+            "total_invoices": 0,
+            "total_billed": 0.0,
+            "total_amount": 0.0,
+            "total_paid": 0.0,
+            "paid_amount": 0.0,
+            "total_pending": 0.0,
+            "pending_amount": 0.0,
+            "outstanding_amount": 0.0,
+            "overdue_amount": 0.0,
+            "payment_status": "No Invoices"
+        }
         last_comm = None
-        invoices = []
 
     return {
         "id": c.id,
@@ -67,9 +61,16 @@ def _format_customer(c: Customer) -> dict:
         "status": c.status or "active",
         "created_at": c.created_at,
         "updated_at": c.updated_at,
-        "total_invoices": len(invoices),
-        "pending_amount": pending_amount,
-        "overdue_amount": overdue_amount,
+        "total_invoices": financials["total_invoices"],
+        "total_billed": financials["total_billed"],
+        "total_amount": financials["total_amount"],
+        "total_paid": financials["total_paid"],
+        "paid_amount": financials["paid_amount"],
+        "total_pending": financials["total_pending"],
+        "pending_amount": financials["pending_amount"],
+        "outstanding_amount": financials["outstanding_amount"],
+        "overdue_amount": financials["overdue_amount"],
+        "payment_status": financials["payment_status"],
         "last_communication": last_comm
     }
 
@@ -107,36 +108,43 @@ def create_customer(
     email = (customer_in.email or "").strip().lower() or None
     phone = (customer_in.phone or "").strip() or None
     company = (customer_in.company or "").strip() or name
-    status_val = (customer_in.status or "active").strip().lower()
 
     if not name:
         raise HTTPException(status_code=400, detail="Customer name is required.")
 
     try:
-        customer = Customer(
+        customer, is_new, reason = find_or_create_customer(
+            db=db,
             business_id=business.id,
             name=name,
             email=email,
             phone=phone,
-            company=company,
-            status=status_val
+            company=company
         )
-        db.add(customer)
-        db.commit()
-        db.refresh(customer)
 
         try:
-            log_activity(
-                db,
-                business_id=business.id,
-                actor_type="Business Owner",
-                action="Customer Created",
-                description=f"Added customer profile '{customer.name}' ({customer.email or customer.phone or 'No contact details'})."
-            )
+            if is_new:
+                log_activity(
+                    db,
+                    business_id=business.id,
+                    actor_type="Business Owner",
+                    action="Customer Created",
+                    description=f"Added customer profile '{customer.name}' ({customer.email or customer.phone or 'No contact details'})."
+                )
+            else:
+                log_activity(
+                    db,
+                    business_id=business.id,
+                    actor_type="Business Owner",
+                    action="Customer Reused",
+                    description=f"Reused existing customer profile '{customer.name}' ({reason})."
+                )
         except Exception as act_err:
             logger.warning(f"Could not log customer creation activity: {act_err}")
 
         return _format_customer(customer)
+    except HTTPException:
+        raise
     except Exception as e:
         db.rollback()
         logger.error(f"Error creating customer: {e}")
@@ -257,14 +265,27 @@ def get_customer_invoices(
         "paid": sum(1 for i in formatted_invoices if i["status"] == "paid"),
     }
 
+    fin_summary = compute_customer_financial_summary(customer)
+
     return {
         "customer": {
             "id": customer.id,
             "name": customer.name,
             "email": customer.email,
             "phone": customer.phone,
-            "company": customer.company
+            "company": customer.company,
+            "total_invoices": fin_summary["total_invoices"],
+            "total_billed": fin_summary["total_billed"],
+            "total_amount": fin_summary["total_amount"],
+            "total_paid": fin_summary["total_paid"],
+            "paid_amount": fin_summary["paid_amount"],
+            "total_pending": fin_summary["total_pending"],
+            "pending_amount": fin_summary["pending_amount"],
+            "outstanding_amount": fin_summary["outstanding_amount"],
+            "overdue_amount": fin_summary["overdue_amount"],
+            "payment_status": fin_summary["payment_status"]
         },
+        "financials": fin_summary,
         "invoices": formatted_invoices,
         "recommended_invoice_id": recommended_id,
         "total_invoices": len(formatted_invoices),

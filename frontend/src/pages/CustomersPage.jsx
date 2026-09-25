@@ -135,8 +135,18 @@ const CustomersPage = ({ onNavigate }) => {
       } else {
         setCustomer360Data({
           customer: { id: customer.id, name: customer.name, email: customer.email, company: customer.company || customer.name, phone: customer.phone },
-          financials: { total_invoiced: customer.overdue_amount || 0, paid_amount: 0, overdue_amount: customer.overdue_amount || 0, currency: business.currency },
-          behavior: { tag: customer.overdue_amount > 0 ? 'Frequently Delayed' : 'Active Account', badge: customer.overdue_amount > 0 ? 'warning' : 'success', score: 80, ai_insight: 'Standard account billing profile.', next_action: 'Monitor upcoming invoices.' },
+          financials: {
+            total_invoiced: customer.total_billed || customer.total_amount || 0,
+            total_billed: customer.total_billed || customer.total_amount || 0,
+            paid_amount: customer.total_paid || customer.paid_amount || 0,
+            total_paid: customer.total_paid || customer.paid_amount || 0,
+            pending_amount: customer.outstanding_amount ?? customer.pending_amount ?? 0,
+            outstanding_amount: customer.outstanding_amount ?? customer.pending_amount ?? 0,
+            overdue_amount: customer.overdue_amount || 0,
+            payment_status: customer.payment_status || 'Good Standing',
+            currency: business.currency
+          },
+          behavior: { tag: (customer.overdue_amount || 0) > 0 ? 'Frequently Delayed' : 'Active Account', badge: (customer.overdue_amount || 0) > 0 ? 'warning' : 'success', score: 80, ai_insight: 'Standard account billing profile.', next_action: 'Monitor upcoming invoices.' },
           invoices: [],
           emails: [],
           tasks: [],
@@ -350,8 +360,14 @@ const CustomersPage = ({ onNavigate }) => {
                         {cust.company || 'Direct Client'}
                       </p>
                     </div>
-                    <Badge variant={hasOverdue ? 'urgent' : 'success'}>
-                      {hasOverdue ? 'Overdue' : 'Good Standing'}
+                    <Badge variant={
+                      cust.payment_status === 'Overdue' || hasOverdue ? 'overdue' :
+                      cust.payment_status === 'Paid' ? 'paid' :
+                      cust.payment_status === 'Partially Paid' ? 'partially_paid' :
+                      cust.payment_status === 'Unpaid' ? 'unpaid' :
+                      'neutral'
+                    }>
+                      {cust.payment_status || (hasOverdue ? 'Overdue' : 'Good Standing')}
                     </Badge>
                   </div>
 
@@ -369,15 +385,27 @@ const CustomersPage = ({ onNavigate }) => {
                   </div>
 
                   {/* Financial Stats strip */}
-                  <div className="mt-3.5 pt-3 border-t border-slate-100 dark:border-slate-800 grid grid-cols-2 gap-2 text-xs">
+                  <div className="mt-3.5 pt-3 border-t border-slate-100 dark:border-slate-800 grid grid-cols-2 gap-2.5 text-xs">
                     <div>
-                      <span className="text-[10px] text-slate-400 block">Total Invoices</span>
+                      <span className="text-[10px] text-slate-400 block">Invoices</span>
                       <span className="font-semibold text-slate-800 dark:text-slate-200">{cust.total_invoices || 0}</span>
                     </div>
                     <div>
-                      <span className="text-[10px] text-slate-400 block">Overdue Balance</span>
-                      <span className={`font-bold ${hasOverdue ? 'text-rose-600 dark:text-rose-400' : 'text-slate-500 dark:text-slate-400'}`}>
-                        {formatMoney(cust.overdue_amount || 0)}
+                      <span className="text-[10px] text-slate-400 block">Total Billed</span>
+                      <span className="font-semibold text-slate-800 dark:text-slate-200">
+                        {formatMoney(cust.total_billed ?? cust.total_amount ?? 0)}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-400 block">Total Paid</span>
+                      <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                        {formatMoney(cust.total_paid ?? cust.paid_amount ?? 0)}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-400 block">Outstanding</span>
+                      <span className={`font-bold ${(cust.outstanding_amount ?? cust.pending_amount ?? 0) > 0 ? (hasOverdue ? 'text-rose-600 dark:text-rose-400' : 'text-amber-600 dark:text-amber-400') : 'text-emerald-600 dark:text-emerald-400'}`}>
+                        {formatMoney(cust.outstanding_amount ?? cust.pending_amount ?? 0)}
                       </span>
                     </div>
                   </div>
@@ -564,25 +592,25 @@ const CustomersPage = ({ onNavigate }) => {
                 <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800">
                   <span className="text-[10px] uppercase text-slate-500">Total Billed</span>
                   <p className="text-sm font-bold text-slate-900 dark:text-white mt-1">
-                    {formatMoney(customer360Data.financials.total_invoiced)}
+                    {formatMoney(customer360Data.financials?.total_billed ?? customer360Data.financials?.total_invoiced ?? 0)}
                   </p>
                 </div>
                 <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800">
                   <span className="text-[10px] uppercase text-slate-500">Total Paid</span>
                   <p className="text-sm font-bold text-emerald-600 dark:text-emerald-400 mt-1">
-                    {formatMoney(customer360Data.financials.paid_amount)}
+                    {formatMoney(customer360Data.financials?.total_paid ?? customer360Data.financials?.paid_amount ?? 0)}
                   </p>
                 </div>
                 <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800">
-                  <span className="text-[10px] uppercase text-slate-500">Pending</span>
+                  <span className="text-[10px] uppercase text-slate-500">Outstanding</span>
                   <p className="text-sm font-bold text-amber-600 dark:text-amber-400 mt-1">
-                    {formatMoney(customer360Data.financials.pending_amount)}
+                    {formatMoney(customer360Data.financials?.outstanding_amount ?? customer360Data.financials?.pending_amount ?? 0)}
                   </p>
                 </div>
                 <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800">
                   <span className="text-[10px] uppercase text-slate-500">Overdue</span>
                   <p className="text-sm font-bold text-rose-600 dark:text-rose-400 mt-1">
-                    {formatMoney(customer360Data.financials.overdue_amount)}
+                    {formatMoney(customer360Data.financials?.overdue_amount ?? 0)}
                   </p>
                 </div>
               </div>
@@ -592,21 +620,45 @@ const CustomersPage = ({ onNavigate }) => {
                 <h4 className="font-bold text-slate-900 dark:text-white text-xs mb-2">
                   Invoices ({customer360Data.invoices?.length || 0})
                 </h4>
-                <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
+                <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
                   {!customer360Data.invoices?.length ? (
                     <p className="text-slate-500 text-[11px] py-2">No invoices recorded for this account.</p>
                   ) : (
                     customer360Data.invoices.map((inv) => (
                       <div
                         key={inv.id}
-                        className="p-2 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 flex items-center justify-between text-[11px]"
+                        className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 space-y-1.5"
                       >
-                        <span className="font-bold text-slate-900 dark:text-white">{inv.invoice_number}</span>
-                        <span className="text-slate-500">Due: {inv.due_date || 'N/A'}</span>
-                        <span className="font-semibold">{formatMoney(inv.amount)}</span>
-                        <Badge variant={inv.status}>
-                          {inv.status?.toUpperCase()}
-                        </Badge>
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-bold text-slate-900 dark:text-white">{inv.invoice_number}</span>
+                          <Badge variant={inv.status?.toLowerCase() || 'pending'}>
+                            {inv.payment_status || (inv.status ? inv.status.toUpperCase().replace('_', ' ') : 'PENDING')}
+                          </Badge>
+                        </div>
+                        <div className="grid grid-cols-4 gap-2 text-[11px] text-slate-500 dark:text-slate-400 pt-1 border-t border-slate-100 dark:border-slate-800/80">
+                          <div>
+                            <span className="text-[9px] block uppercase text-slate-400">Total</span>
+                            <span className="font-semibold text-slate-800 dark:text-slate-200">
+                              {formatMoney(inv.total_amount ?? inv.amount ?? 0)}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-[9px] block uppercase text-slate-400">Paid</span>
+                            <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                              {formatMoney(inv.paid_amount ?? 0)}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-[9px] block uppercase text-slate-400">Pending</span>
+                            <span className="font-bold text-amber-600 dark:text-amber-400">
+                              {formatMoney(inv.pending_amount != null ? inv.pending_amount : (inv.amount - (inv.paid_amount || 0)))}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-[9px] block uppercase text-slate-400">Due Date</span>
+                            <span>{inv.due_date || 'N/A'}</span>
+                          </div>
+                        </div>
                       </div>
                     ))
                   )}

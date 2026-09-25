@@ -8,6 +8,7 @@ from backend.app.models.models import (
 )
 from backend.app.schemas.schemas import InvoiceCreate
 from backend.app.ai.document_intelligence import analyze_document_with_ai, match_existing_customer, is_valid_customer_name
+from backend.app.services.customer_service import find_matching_customer
 from backend.app.ai.email_generator import generate_business_email, generate_customer_communication
 from backend.app.services.policy_engine import evaluate_invoice_against_policies
 from backend.app.services.activity_service import log_activity
@@ -101,6 +102,15 @@ def run_document_workflow(db: Session, business: Business, document: Document) -
 
     # 5. Customer Matching Engine (ID -> Email -> Phone -> Normalized Name)
     customer, match_reason = match_existing_customer(db, business.id, extracted)
+    if not customer:
+        customer, match_reason = find_matching_customer(
+            db=db,
+            business_id=business.id,
+            customer_id=extracted.get("customer_id"),
+            email=customer_email,
+            phone=customer_phone,
+            name=raw_extracted_name
+        )
 
     # 6. Duplicate Detection Check
     duplicate_inv = db.query(Invoice).filter(
@@ -133,6 +143,25 @@ def run_document_workflow(db: Session, business: Business, document: Document) -
             customer_email = customer.email
         if not customer_phone and customer.phone:
             customer_phone = customer.phone
+
+        # Backfill customer record with missing info from this invoice if available
+        updated_contact = False
+        if customer_email and not customer.email:
+            customer.email = customer_email
+            updated_contact = True
+        if customer_phone and not customer.phone:
+            customer.phone = customer_phone
+            updated_contact = True
+        if customer_company and not customer.company and is_valid_customer_name(customer_company):
+            customer.company = customer_company
+            updated_contact = True
+        if updated_contact:
+            try:
+                db.commit()
+                db.refresh(customer)
+            except Exception:
+                db.rollback()
+
         log_activity(
             db,
             business_id=business.id,

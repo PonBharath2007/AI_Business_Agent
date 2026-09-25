@@ -527,19 +527,20 @@ def get_customer_360(db: Session, business: Business, customer_id: int) -> Dict[
     invoices = customer.invoices or []
     emails = customer.emails or []
     
-    total_invoiced = sum(float(i.amount or 0.0) for i in invoices)
-    paid_invoices = [i for i in invoices if i.status == "paid"]
-    paid_amount = sum(float(i.amount or 0.0) for i in paid_invoices)
-    overdue_invoices = [i for i in invoices if i.status == "overdue"]
-    overdue_amount = sum(float(i.amount or 0.0) for i in overdue_invoices)
-    pending_amount = sum(float(i.amount or 0.0) for i in invoices if i.status == "pending")
+    from backend.app.services.customer_service import compute_customer_financial_summary
+    fin = compute_customer_financial_summary(customer)
+    total_invoiced = fin["total_billed"]
+    paid_amount = fin["total_paid"]
+    pending_amount = fin["total_pending"]
+    overdue_amount = fin["overdue_amount"]
 
     # Payment behavior scoring
-    if len(overdue_invoices) > 0:
+    if overdue_amount > 0:
+        overdue_invoices_count = sum(1 for i in invoices if (i.status == "overdue" or (i.due_date and i.due_date < date.today() and float(i.pending_amount or max(0.0, float(i.amount or 0.0) - float(i.paid_amount or 0.0))) > 0)))
         behavior_tag = "Frequently Delayed"
         behavior_badge = "warning"
         behavior_score = 62
-        ai_insight = f"{customer.name} has {len(overdue_invoices)} overdue invoices totaling {format_currency(overdue_amount, currency)}. Follow-ups have historically prompted settlement within 3-5 days."
+        ai_insight = f"{customer.name} has {overdue_invoices_count} overdue invoices totaling {format_currency(overdue_amount, currency)}. Follow-ups have historically prompted settlement within 3-5 days."
         next_action = "Dispatch formal payment reminder notice."
     elif total_invoiced > 20000:
         behavior_tag = "VIP Prompt Payer"
@@ -566,6 +567,15 @@ def get_customer_360(db: Session, business: Business, customer_id: int) -> Dict[
         AIMemory.memory_key.ilike(f"%{customer.name}%")
     ).all()
 
+    def _calc_inv_pend(inv):
+        tot = float(inv.amount or 0.0)
+        p = float(inv.paid_amount or 0.0)
+        if (p >= tot and tot > 0) or (inv.status or "").lower() == "paid":
+            return 0.0
+        if inv.pending_amount is not None:
+            return max(0.0, float(inv.pending_amount))
+        return max(0.0, tot - p)
+
     return {
         "customer": {
             "id": customer.id,
@@ -577,9 +587,14 @@ def get_customer_360(db: Session, business: Business, customer_id: int) -> Dict[
         },
         "financials": {
             "total_invoiced": total_invoiced,
+            "total_billed": total_invoiced,
             "paid_amount": paid_amount,
+            "total_paid": paid_amount,
             "pending_amount": pending_amount,
+            "total_pending": pending_amount,
+            "outstanding_amount": pending_amount,
             "overdue_amount": overdue_amount,
+            "payment_status": fin["payment_status"],
             "invoices_count": len(invoices),
             "currency": currency
         },
@@ -594,9 +609,13 @@ def get_customer_360(db: Session, business: Business, customer_id: int) -> Dict[
             {
                 "id": i.id,
                 "invoice_number": i.invoice_number,
-                "amount": float(i.amount),
+                "amount": float(i.amount or 0.0),
+                "total_amount": float(i.amount or 0.0),
+                "paid_amount": float(i.paid_amount or 0.0),
+                "pending_amount": _calc_inv_pend(i),
                 "due_date": i.due_date.isoformat() if i.due_date else None,
-                "status": i.status
+                "status": i.status,
+                "payment_status": "Paid" if _calc_inv_pend(i) <= 0 else ("Partially Paid" if float(i.paid_amount or 0.0) > 0 else "Unpaid")
             }
             for i in invoices
         ],

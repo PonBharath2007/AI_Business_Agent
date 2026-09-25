@@ -214,10 +214,13 @@ def get_real_income_analytics(
         actual_paid, _ = _resolve_invoice_payment(inv)
         total_collected_all += actual_paid
 
-        # Calculate exact pending balance: amount - paid_amount
-        rem = max(0.0, amt - paid)
+        # Calculate exact pending balance: prefer stored pending_amount, fallback to max(0.0, amt - paid)
+        if inv.pending_amount is not None:
+            rem = float(inv.pending_amount)
+        else:
+            rem = max(0.0, amt - paid)
         st = (inv.status or "pending").lower()
-        is_paid = st == "paid" or (paid >= amt and amt > 0)
+        is_paid = st == "paid" or (paid >= amt and amt > 0) or rem <= 0
         is_past_due = inv.due_date < today
 
         if is_paid:
