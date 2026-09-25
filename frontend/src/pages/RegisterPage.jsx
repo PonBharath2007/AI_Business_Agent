@@ -27,7 +27,7 @@ const GoogleIcon = () => (
 );
 
 const RegisterPage = ({ onSwitchToLogin }) => {
-  const { register, initiateGoogleLogin } = useAuth();
+  const { register, initiateGoogleLogin, handleGoogleLogin: authGoogleLogin } = useAuth();
   const { addToast } = useNotifications();
 
   const [formData, setFormData] = useState({
@@ -41,11 +41,15 @@ const RegisterPage = ({ onSwitchToLogin }) => {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
 
-  const handleGoogleClick = () => {
+  const handleGoogleLogin = () => {
     if (googleLoading) return;
     setGoogleLoading(true);
     try {
-      initiateGoogleLogin();
+      if (authGoogleLogin) {
+        authGoogleLogin();
+      } else {
+        initiateGoogleLogin();
+      }
     } catch (err) {
       console.error('Google register error:', err);
       addToast('error', 'Google Sign-Up', 'Could not initiate Google authentication.');
@@ -215,7 +219,7 @@ const RegisterPage = ({ onSwitchToLogin }) => {
         <div>
           <button
             type="button"
-            onClick={handleGoogleClick}
+            onClick={handleGoogleLogin}
             disabled={googleLoading || loading}
             className={`w-full flex items-center justify-center py-2.5 px-4 rounded-xl border border-slate-300 dark:border-[#2e2e36] bg-white dark:bg-[#18181d] hover:bg-slate-50 dark:hover:bg-[#202026] text-slate-800 dark:text-slate-200 text-xs font-semibold shadow-xs transition-all ${
               googleLoading ? 'opacity-80 cursor-wait' : 'cursor-pointer hover:border-slate-400 dark:hover:border-[#3e3e48] focus:outline-none focus:ring-2 focus:ring-indigo-500/50'

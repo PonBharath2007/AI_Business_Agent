@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationContext';
 import Button from '../components/common/Button';
 import Modal from '../components/common/Modal';
-import api from '../services/api';
+import api, { API_URL } from '../services/api';
 import opsnovaLogo from '../assets/opsnova_logo.jpeg';
 
 const GoogleIcon = () => (
@@ -29,7 +29,7 @@ const GoogleIcon = () => (
 );
 
 const LoginPage = ({ onSwitchToRegister }) => {
-  const { login, initiateGoogleLogin, authNotification, clearAuthNotification } = useAuth();
+  const { login, initiateGoogleLogin, handleGoogleLogin: authGoogleLogin, authNotification, clearAuthNotification } = useAuth();
   const { addToast } = useNotifications();
 
   const [email, setEmail] = useState('');
@@ -72,11 +72,17 @@ const LoginPage = ({ onSwitchToRegister }) => {
     }
   };
 
-  const handleGoogleClick = () => {
+  const handleGoogleLogin = () => {
     if (googleLoading) return;
     setGoogleLoading(true);
     try {
-      initiateGoogleLogin();
+      if (authGoogleLogin) {
+        authGoogleLogin();
+      } else if (initiateGoogleLogin) {
+        initiateGoogleLogin();
+      } else {
+        window.location.href = `${API_URL}/auth/google`;
+      }
     } catch (err) {
       console.error('Google login trigger error:', err);
       addToast('error', 'Google Sign-In', 'Could not initiate Google authentication.');
@@ -239,7 +245,7 @@ const LoginPage = ({ onSwitchToRegister }) => {
         <div>
           <button
             type="button"
-            onClick={handleGoogleClick}
+            onClick={handleGoogleLogin}
             disabled={googleLoading || loading}
             className={`w-full flex items-center justify-center py-2.5 px-4 rounded-xl border border-slate-300 dark:border-[#2e2e36] bg-white dark:bg-[#18181d] hover:bg-slate-50 dark:hover:bg-[#202026] text-slate-800 dark:text-slate-200 text-xs font-semibold shadow-xs transition-all ${
               googleLoading ? 'opacity-80 cursor-wait' : 'cursor-pointer hover:border-slate-400 dark:hover:border-[#3e3e48] focus:outline-none focus:ring-2 focus:ring-indigo-500/50'

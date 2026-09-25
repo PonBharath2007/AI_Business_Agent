@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import api from '../services/api';
+import api, { API_URL } from '../services/api';
 
 const AuthContext = createContext(null);
 
@@ -141,8 +141,17 @@ export const AuthProvider = ({ children }) => {
   };
 
   const initiateGoogleLogin = () => {
-    const apiBase = (api.defaults.baseURL || '/api').replace(/\/+$/, '');
-    window.location.href = `${apiBase}/auth/google`;
+    const apiBase = (API_URL || api.defaults.baseURL || '/api').replace(/\/+$/, '');
+    const targetUrl = `${apiBase}/auth/google`;
+    try {
+      if (window.top && window.top !== window) {
+        window.top.location.href = targetUrl;
+        return;
+      }
+    } catch {
+      // Fallback if cross-origin iframe security prevents top access
+    }
+    window.location.href = targetUrl;
   };
 
   const logout = () => {
@@ -162,6 +171,7 @@ export const AuthProvider = ({ children }) => {
       register,
       loginWithGoogle,
       initiateGoogleLogin,
+      handleGoogleLogin: initiateGoogleLogin,
       logout,
       authNotification,
       clearAuthNotification,

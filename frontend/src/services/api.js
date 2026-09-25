@@ -1,11 +1,14 @@
 import axios from 'axios';
 
-const baseURL =
+const rawBaseURL =
   import.meta.env.VITE_API_URL ||
-  (import.meta.env.PROD ? 'https://ai-business-agent-ui7z.onrender.com' : 'http://localhost:8000');
+  (import.meta.env.PROD ? 'https://ai-business-agent-ui7z.onrender.com/api' : 'http://localhost:8000/api');
+
+const cleanBaseURL = (rawBaseURL || '').replace(/\/+$/, '');
+export const API_URL = cleanBaseURL.endsWith('/api') ? cleanBaseURL : `${cleanBaseURL}/api`;
 
 const api = axios.create({
-  baseURL: `${baseURL.replace(/\/+$/, '')}/api`,
+  baseURL: API_URL,
   headers: {
     'Content-Type': 'application/json',
   },
